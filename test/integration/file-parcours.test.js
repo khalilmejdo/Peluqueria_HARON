@@ -72,6 +72,24 @@ test('la file du salon, du premier ticket au dernier client servi', { skip: IGNO
     assert.ok(!texte.includes('Benali'));
   });
 
+  await t.test('le client repart avec un lien qu il peut copier et s envoyer', async () => {
+    // Le lien EST le ticket : sans compte ni mot de passe, c'est le seul moyen
+    // de revenir. Il doit donc etre visible, copiable, et mis en avant juste
+    // apres la prise de tour — et tout cela sans rien coûter au salon.
+    const page = await banc.client().get('/ticket/' + mehdi.jeton + '?nouveau=1');
+    assert.equal(page.status, 200);
+    assert.match(page.body, /Gardez ce lien/);
+    assert.match(page.body, /data-copier/);
+    assert.match(page.body, /data-partager/);
+    // L'adresse complete est affichee, pour pouvoir la recopier a la main.
+    assert.ok(page.body.includes('/ticket/' + mehdi.jeton), 'le lien doit être affiché en entier');
+
+    // Sans « nouveau », le bloc est toujours la, simplement moins insistant.
+    const ordinaire = await banc.client().get('/ticket/' + mehdi.jeton);
+    assert.match(ordinaire.body, /Votre lien de suivi/);
+    assert.ok(!ordinaire.body.includes('Gardez ce lien'));
+  });
+
   await t.test('appeler le suivant prend le premier de la file', async () => {
     const r = await salon.post('/api/file/suivant');
     assert.equal(r.status, 200);
@@ -244,5 +262,21 @@ test('la file du salon, du premier ticket au dernier client servi', { skip: IGNO
     assert.equal(r.body.actifs, 2);
     // Une attente moyenne a bien ete mesuree sur les clients servis.
     assert.ok(Number.isInteger(r.body.attenteMoyenneMinutes));
+  });
+
+  // En dernier : ce test cree un ticket, et decalerait les comptes au-dessus.
+  await t.test('la prise de tour renvoie sur le suivi, en mettant le lien en avant', async () => {
+    await banc.reinitialiserDebit();
+    const r = await banc.client().requete('POST', '/join',
+      { prenom: 'Leila', nom: 'Berrada', telephone: '612345650', source: 'ONLINE' },
+      { formulaire: true });
+    // 303 : un rafraichissement ne repostera pas le formulaire, et « nouveau »
+    // met le lien a garder en evidence.
+    assert.equal(r.status, 303);
+    assert.match(r.headers.get('location'), /^\/ticket\/[A-Za-z0-9_-]{22,}\?nouveau=1$/);
+
+    const suivi = await banc.client().get(r.headers.get('location'));
+    assert.equal(suivi.status, 200);
+    assert.match(suivi.body, /Gardez ce lien/);
   });
 });

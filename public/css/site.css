@@ -756,6 +756,57 @@ main { flex: 1; }
 }
 
 /* ------------------------------------------------------------------ */
+/*  Le lien de suivi, à garder                                         */
+/* ------------------------------------------------------------------ */
+
+.lien {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding: 1.15rem 1.25rem;
+  border-radius: var(--r-grand);
+  border: 1px dashed var(--bordure);
+  background: var(--fond-carte);
+}
+
+/* Juste après la prise de tour : c'est le moment de garder le lien. */
+.lien--neuf {
+  border-style: solid;
+  border-color: var(--laiton);
+  background: color-mix(in srgb, var(--laiton) 9%, var(--fond-carte));
+  animation: apparition var(--transition) both;
+}
+
+.lien__titre {
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.lien--neuf .lien__titre { color: var(--laiton-clair); }
+
+.lien__texte { color: var(--texte-doux); font-size: 0.9rem; text-wrap: balance; }
+
+.lien__adresse {
+  font-size: 0.82rem;
+  color: var(--texte-doux);
+  background: var(--fond-carte-2);
+  border-radius: var(--r-petit);
+  padding: 0.6rem 0.75rem;
+  word-break: break-all;
+  /* Un appui long sélectionne l'adresse entière, sans attraper le reste. */
+  user-select: all;
+}
+
+.lien__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.15rem; }
+.lien__actions .bouton { flex: 1 1 10rem; }
+
+.lien__retour {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--vert);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Affiche à imprimer                                                 */
 /* ------------------------------------------------------------------ */
 

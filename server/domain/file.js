@@ -325,6 +325,7 @@ export function pourSalon(etat) {
       devant: p?.devant ?? 0,
       estimationMinutes: p?.estimationMinutes ?? 0,
       posteId: t.poste_id,
+      posteChoisiId: t.poste_choisi_id,
       retards: t.retards,
       arriveA: t.arrive_at,
       dansLaFileDepuis: t.file_depuis_at,
@@ -801,6 +802,56 @@ export const marquerAbsent = geste('absent', async ({ tx, ticket, journee, user 
     user,
     detail: 'Absent à l’appel : replacé en fin de file (absence n° ' + maj.retards + ').',
   });
+  return maj;
+});
+
+/**
+ * CHANGER DE COIFFEUR.
+ *
+ * Le client change de file : il n'est plus « depanne » par un collegue, il
+ * devient vraiment le client de quelqu'un d'autre. C'est un geste qu'on fait
+ * avec lui, au comptoir : « Youssef en a pour une heure, Haron peut vous
+ * prendre dans dix minutes, ca vous va ? ».
+ *
+ * IL GARDE SON RANG. Il est arrive a une certaine heure, et cette heure ne
+ * change pas : il se glisse dans la nouvelle file a la place que lui donne son
+ * arrivee, ni devant ceux qui attendaient deja avant lui, ni derriere ceux
+ * arrives apres. Le faire repartir en fin de file serait le punir d'un
+ * arrangement que le salon lui a propose.
+ *
+ * N'a de sens qu'en file par coiffeur : en file unique, il n'y en a qu'une.
+ */
+export const transferer = geste('transferer', async ({ tx, ticket, user, reglages, options }) => {
+  if (reglages['file.mode'] !== MODE_PAR_FAUTEUIL) {
+    throw conflict('Le salon fonctionne avec une file unique : il n’y a pas d’autre file où déplacer ce client.');
+  }
+  if (!STATUTS_EN_ATTENTE.includes(ticket.statut)) {
+    throw conflict('Le ticket ' + ticket.numero_affiche + ' n’est plus en attente ('
+      + libelleStatut(ticket.statut).toLowerCase() + ') : on ne change pas le coiffeur de quelqu’un qui est au fauteuil.');
+  }
+  if (!options.posteId) throw badRequest('Indiquez le coiffeur vers lequel déplacer ce client.');
+
+  const cible = await posteParId(options.posteId);
+  if (!cible) throw notFound('Ce coiffeur n’existe plus.');
+  if (!cible.actif) throw conflict('Le fauteuil « ' + cible.nom + ' » est fermé.');
+  if (cible.id === ticket.poste_choisi_id) {
+    throw conflict('Ce client attend déjà ' + (cible.coiffeur || cible.nom) + '.');
+  }
+
+  const depart = ticket.poste_choisi_id ? await posteParId(ticket.poste_choisi_id) : null;
+  const maj = await tx.one(
+    `UPDATE tickets SET poste_choisi_id = $2, statut_at = now(), version = version + 1
+      WHERE id = $1 RETURNING ` + COLONNES,
+    [ticket.id, cible.id],
+  );
+  await tracer(tx, maj, {
+    statut: maj.statut,
+    user,
+    detail: 'Changement de coiffeur : '
+      + (depart ? (depart.coiffeur || depart.nom) : 'sans coiffeur')
+      + ' → ' + (cible.coiffeur || cible.nom) + '.',
+  });
+  maj.poste = cible;
   return maj;
 });
 

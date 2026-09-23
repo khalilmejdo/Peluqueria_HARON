@@ -213,6 +213,94 @@ test('le salon peut donner une file a chaque coiffeur', { skip: IGNORE }, async 
     assert.match(r.body.error.message, /avant de fermer/);
   });
 
+  /* ---------------- changer de coiffeur ---------------- */
+
+  await t.test('le salon déplace un client vers un autre coiffeur, et il garde son rang', async () => {
+    // Deux nouveaux clients chez Youssef, pour avoir de quoi deplacer.
+    await banc.reinitialiserDebit();
+    const prendre = async (prenom, tel, posteId) => {
+      const r = await banc.client().post('/api/public/tickets', { prenom, nom: 'Transfert', telephone: tel, posteId });
+      assert.equal(r.status, 201, JSON.stringify(r.body));
+      return r.body;
+    };
+    const premier = await prendre('Nadia', '612390030', youssef.id);
+    const second = await prendre('Omar', '612390031', youssef.id);
+
+    const avant = await coiffeur.get('/api/file');
+    const chezYoussef = avant.body.file.postes.find((p) => p.id === youssef.id).attente;
+    const cible = chezYoussef.find((x) => x.numero === second.numero);
+
+    const r = await coiffeur.post('/api/file/' + cible.id + '/transferer', { posteId: haron.id });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.transfere, second.numero);
+    assert.equal(r.body.fauteuil, 'Fauteuil 2');
+
+    // Il est parti de la file de Youssef et arrive dans celle de Haron.
+    const apres = r.body.file;
+    const yq = apres.postes.find((p) => p.id === youssef.id).attente.map((x) => x.numero);
+    const hq = apres.postes.find((p) => p.id === haron.id).attente.map((x) => x.numero);
+    assert.ok(!yq.includes(second.numero));
+    assert.ok(hq.includes(second.numero));
+
+    // Son RANG n'a pas bouge : il ne perd pas son heure d'arrivee.
+    const ligne = await banc.db.one('SELECT rang, poste_choisi_id FROM tickets WHERE numero_affiche = $1', [second.numero]);
+    assert.equal(ligne.poste_choisi_id, haron.id);
+    const avantLigne = await banc.db.one('SELECT rang FROM tickets WHERE numero_affiche = $1', [premier.numero]);
+    assert.ok(ligne.rang > avantLigne.rang, 'l’ordre d’arrivée est conservé');
+
+    // Et le changement est ecrit dans son historique.
+    const detail = await coiffeur.get('/api/file/' + cible.id);
+    assert.match(detail.body.evenements.at(-1).detail, /Changement de coiffeur/);
+    assert.match(detail.body.evenements.at(-1).detail, /Haron/);
+  });
+
+  await t.test('déplacer vers le coiffeur qu il attend déjà est refusé', async () => {
+    const file = await coiffeur.get('/api/file');
+    const chezHaron = file.body.file.postes.find((p) => p.id === haron.id).attente[0];
+    const r = await coiffeur.post('/api/file/' + chezHaron.id + '/transferer', { posteId: haron.id });
+    assert.equal(r.status, 409);
+    assert.match(r.body.error.message, /attend déjà/);
+  });
+
+  await t.test('on ne change pas le coiffeur de quelqu un qui est au fauteuil', async () => {
+    await coiffeur.post('/api/file/suivant', { posteId: haron.id });
+    const file = await coiffeur.get('/api/file');
+    const assis = file.body.file.postes.find((p) => p.id === haron.id).client;
+    assert.ok(assis);
+    const r = await coiffeur.post('/api/file/' + assis.id + '/transferer', { posteId: youssef.id });
+    assert.equal(r.status, 409);
+    assert.match(r.body.error.message, /au fauteuil/);
+    await coiffeur.post('/api/file/' + assis.id + '/servi');
+  });
+
+  await t.test('un coiffeur fermé ou inconnu est refusé comme destination', async () => {
+    const file = await coiffeur.get('/api/file');
+    const cible = file.body.file.attente[0];
+    const r = await coiffeur.post('/api/file/' + cible.id + '/transferer', {
+      posteId: '00000000-0000-4000-8000-000000000000',
+    });
+    assert.equal(r.status, 404);
+  });
+
+  await t.test('déplacer permet enfin de fermer un coiffeur qui avait une file', async () => {
+    // On vide la file de Youssef en la deplacant vers Haron.
+    let file = await coiffeur.get('/api/file');
+    let chezYoussef = file.body.file.postes.find((p) => p.id === youssef.id).attente;
+    for (const t2 of chezYoussef) {
+      const r = await coiffeur.post('/api/file/' + t2.id + '/transferer', { posteId: haron.id });
+      assert.equal(r.status, 200, JSON.stringify(r.body));
+    }
+    file = await coiffeur.get('/api/file');
+    chezYoussef = file.body.file.postes.find((p) => p.id === youssef.id).attente;
+    assert.equal(chezYoussef.length, 0);
+
+    const fermeture = await gerant.patch('/api/postes/' + youssef.id, { actif: false });
+    assert.equal(fermeture.status, 200);
+    assert.equal(fermeture.body.actif, false);
+    // Et on le rouvre pour la suite des essais.
+    await gerant.patch('/api/postes/' + youssef.id, { actif: true });
+  });
+
   /* ---------------- changement de mode ---------------- */
 
   await t.test('on ne change pas d organisation avec des clients dans la file', async () => {

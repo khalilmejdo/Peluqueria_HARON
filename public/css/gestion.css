@@ -513,6 +513,27 @@
 
 .carte-file__actions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.5rem; }
 
+/* Changer de coiffeur : le choix se déplie sous les actions. */
+.transfert { display: contents; }
+.transfert__choix {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  width: 100%;
+  margin-top: 0.15rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--r-petit);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.transfert__invite {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--texte-doux);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Comptoir et historique                                             */
 /* ------------------------------------------------------------------ */

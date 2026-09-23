@@ -22,7 +22,7 @@ import { decrypt } from '../core/crypto.js';
 import { notFound } from '../core/errors.js';
 import {
   chargerEtat, pourSalon, appeler, appelerSuivant, commencerService, terminer,
-  marquerAbsent, annuler, ajouterAuComptoir, etatPriseDeTour,
+  marquerAbsent, annuler, ajouterAuComptoir, etatPriseDeTour, transferer,
 } from '../domain/file.js';
 import { cloturer } from '../domain/journee.js';
 import { detailTicket } from '../domain/statistiques.js';
@@ -112,6 +112,19 @@ fileRoutes.post('/:id/servi', async (ctx) => {
 fileRoutes.post('/:id/absent', async (ctx) => {
   const ticket = await marquerAbsent(idDe(ctx), { user: ctx.user });
   await repondreAvecLaFile(ctx, { absent: ticket.numero_affiche, retards: ticket.retards });
+}, { rateLimit: PROFILES.file });
+
+/**
+ * CHANGER LE COIFFEUR d'un client qui attend.
+ *
+ * Utile quand une file s'allonge et qu'une autre est vide, et indispensable
+ * pour vider la file d'un coiffeur qui doit partir. Le client garde son rang :
+ * son heure d'arrivee ne change pas.
+ */
+fileRoutes.post('/:id/transferer', async (ctx) => {
+  const data = validate(ctx.body, { posteId: { type: 'uuid', required: true, requiredMessage: 'Indiquez le coiffeur.' } });
+  const ticket = await transferer(idDe(ctx), { user: ctx.user, posteId: data.posteId });
+  await repondreAvecLaFile(ctx, { transfere: ticket.numero_affiche, fauteuil: ticket.poste?.nom ?? null });
 }, { rateLimit: PROFILES.file });
 
 fileRoutes.post('/:id/annuler', async (ctx) => {

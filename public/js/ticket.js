@@ -74,6 +74,68 @@ function demarrer(jeton, premiereVue) {
     auReveil: relire,
   });
 
+  /* ---------------- garder son lien ---------------- */
+
+  /**
+   * Le lien de suivi est le seul moyen de revenir : ni compte, ni mot de passe.
+   *
+   * « Copier » suffit sur un ordinateur. Sur un telephone, « Envoyer » ouvre le
+   * partage du systeme : le client s'envoie le lien sur WhatsApp lui-meme, en
+   * deux appuis et sans que le salon paie quoi que ce soit.
+   */
+  const boutonCopier = document.querySelector('[data-copier]');
+  const boutonPartager = document.querySelector('[data-partager]');
+  const retour = document.querySelector('[data-copie]');
+  const lien = boutonCopier?.dataset.valeur || window.location.href.split('?')[0];
+
+  const confirmer = (message) => {
+    if (!retour) return;
+    retour.textContent = message;
+    retour.hidden = false;
+    clearTimeout(retour.dataset.minuterie);
+    retour.dataset.minuterie = String(setTimeout(() => { retour.hidden = true; }, 4000));
+  };
+
+  if (boutonCopier) {
+    boutonCopier.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(lien);
+        confirmer('Lien copié.');
+      } catch {
+        // Presse-papiers refuse (page non securisee, permission) : on
+        // selectionne le lien pour que le client le copie lui-meme.
+        const adresse = document.querySelector('[data-lien]');
+        if (adresse) {
+          const plage = document.createRange();
+          plage.selectNodeContents(adresse);
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(plage);
+          confirmer('Lien sélectionné : copiez-le.');
+        }
+      }
+    });
+  }
+
+  if (boutonPartager && typeof navigator.share === 'function') {
+    boutonPartager.hidden = false;
+    boutonPartager.addEventListener('click', async () => {
+      const numero = derniere?.numero || '';
+      const salon = derniere?.nomSalon || 'le salon';
+      try {
+        await navigator.share({
+          title: 'Mon tour chez ' + salon,
+          text: 'Mon ticket ' + numero + ' chez ' + salon + '. Je suis ma position ici :',
+          url: lien,
+        });
+      } catch {
+        // Partage annule par le client : rien a signaler.
+      }
+    });
+  }
+
+  /* ---------------- renoncer a son tour ---------------- */
+
   if (bouton) {
     bouton.addEventListener('click', async () => {
       if (!window.confirm('Libérer votre place dans la file ? Vous devrez reprendre un tour pour revenir.')) return;

@@ -166,7 +166,42 @@ function blocFauteuils(file) {
 /*  Une carte de la file                                               */
 /* ------------------------------------------------------------------ */
 
-function carteAttente(ticket, index) {
+/**
+ * « Changer de coiffeur », en un appui de plus, jamais deux.
+ *
+ * Une rangee de boutons plutot qu'une liste deroulante : le coiffeur a les
+ * mains occupees et un salon en a deux ou trois, pas trente. Le menu se replie
+ * de lui-meme des que le geste est fait ou qu'on appuie ailleurs.
+ */
+function boutonTransfert(ticket, file) {
+  const autres = (file.postes || []).filter((p) => p.actif && p.id !== ticket.posteChoisiId);
+  if (!autres.length) return null;
+
+  const choix = el('div.transfert__choix', { hidden: true },
+    el('span.transfert__invite', { texte: 'Vers :' }),
+    autres.map((p) => el('button.bouton.bouton--discret.bouton--petit', {
+      type: 'button',
+      texte: p.coiffeur || p.nom,
+      surClick: () => geste('/api/file/' + ticket.id + '/transferer', {
+        corps: { posteId: p.id },
+        annonce: ticket.prenom + ' attend désormais ' + (p.coiffeur || p.nom) + '.',
+      }).catch(() => {}),
+    })));
+
+  const bascule = el('button.bouton.bouton--discret.bouton--petit', {
+    type: 'button',
+    texte: 'Changer de coiffeur',
+    'aria-expanded': 'false',
+    surClick: () => {
+      choix.hidden = !choix.hidden;
+      bascule.setAttribute('aria-expanded', choix.hidden ? 'false' : 'true');
+    },
+  });
+
+  return el('div.transfert', bascule, choix);
+}
+
+function carteAttente(ticket, index, file = null) {
   const actions = el('div.carte-file__actions',
     el('button.bouton.bouton--discret.bouton--petit', {
       type: 'button',
@@ -187,7 +222,10 @@ function carteAttente(ticket, index) {
       type: 'button',
       texte: 'Annuler',
       surClick: () => annulerTicket(ticket),
-    }));
+    }),
+    // Changer de coiffeur n'a de sens qu'en file par coiffeur : en file
+    // unique, il n'y en a qu'une.
+    file?.mode === 'PAR_FAUTEUIL' ? boutonTransfert(ticket, file) : null);
 
   return el('li.carte-file' + (ticket.retards > 0 ? '.carte-file--retard' : ''),
     el('div.carte-file__tete',
@@ -300,7 +338,7 @@ function peindre(file) {
               + (p.attente.length ? ' · ≈ ' + minutesLisibles(p.attenteEstimeeMinutes) : ''),
           })),
         p.attente.length
-          ? el('ul.file__liste', p.attente.map((t, i) => carteAttente(t, i)))
+          ? el('ul.file__liste', p.attente.map((t, i) => carteAttente(t, i, file)))
           : el('p.file__vide', { texte: 'Personne n’attend ce coiffeur.' }))),
       (file.sansFauteuil || []).length
         ? el('section.file-coiffeur.file-coiffeur--orphelins',
@@ -308,10 +346,10 @@ function peindre(file) {
             el('span', { texte: 'Sans coiffeur' }),
             el('span.file-coiffeur__compte', { texte: file.sansFauteuil.length + ' en attente' })),
           el('p.texte-doux', { texte: 'Ces clients ont pris leur tour avant le changement d’organisation. Appelez-les depuis le fauteuil de votre choix.' }),
-          el('ul.file__liste', file.sansFauteuil.map((t, i) => carteAttente(t, i))))
+          el('ul.file__liste', file.sansFauteuil.map((t, i) => carteAttente(t, i, file))))
         : null)
     : (attente.length
-      ? el('ul.file__liste', attente.map((t, i) => carteAttente(t, i)))
+      ? el('ul.file__liste', attente.map((t, i) => carteAttente(t, i, file)))
       : el('p.file__vide', { texte: 'Aucun client en attente.' }));
 
   const termines = (file.termines || []).slice(0, 8);

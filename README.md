@@ -73,9 +73,19 @@ Détails : [`docs/DEPLOIEMENT.md`](docs/DEPLOIEMENT.md).
 
 ---
 
-## WhatsApp
+## Le lien de suivi, et WhatsApp
 
-Trois messages, pas un de plus :
+Le client repart avec **un lien**. C'est son ticket : ni compte, ni mot de passe.
+Il l'ouvre quand il veut et voit, en direct, combien de personnes restent avant
+lui. Juste après avoir pris son tour, la page lui propose **Copier le lien** et
+**Envoyer le lien** — sur téléphone, il se l'envoie lui-même sur WhatsApp en
+deux appuis.
+
+**Cela ne coûte rien au salon** : c'est le téléphone du client qui envoie.
+
+L'envoi **automatique**, lui, passe par WhatsApp Business et Meta le facture à
+la conversation. Il est **désactivé par défaut**. Activé, il ajoute trois
+messages, pas un de plus :
 
 | Quand | Message |
 |---|---|
@@ -83,9 +93,10 @@ Trois messages, pas un de plus :
 | quand il reste **2 personnes** devant lui (réglable) | « Votre tour approche », avec le lien |
 | à l'appel | « C'est votre tour » |
 
-**Sans configuration WhatsApp, l'application est complète** : le client voit son
-lien à l'écran, et le coiffeur dispose d'un bouton *WhatsApp* qui ouvre la
-conversation avec le message déjà écrit. C'est la solution du premier jour.
+**Sans configuration WhatsApp, l'application est complète et gratuite** : le
+client copie ou s'envoie son lien, et le coiffeur dispose d'un bouton *WhatsApp*
+qui ouvre la conversation avec le message déjà écrit — envoyé depuis son propre
+téléphone, donc sans frais.
 
 Avec `WHATSAPP_ACTIF=true` et un compte WhatsApp Business (API Cloud de Meta),
 les trois messages partent seuls. Les identifiants viennent des variables

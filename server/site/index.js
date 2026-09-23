@@ -14,6 +14,7 @@
  * ou le reseau passe mal.
  */
 import { Router } from '../http/router.js';
+import { config } from '../core/config.js';
 import { escapeHtml } from '../core/text.js';
 import { ValidationError, AppError } from '../core/errors.js';
 import { validate, rules } from '../core/validate.js';
@@ -49,7 +50,14 @@ siteRoutes.get('/', async (ctx) => {
   const appel = prise.ouverte
     ? '<div class="affluence" data-affluence>' + affluence + '</div>'
       + '<a class="bouton bouton--principal bouton--geant" href="/join">Prendre mon tour</a>'
-      + '<p class="hero__note">Pas de compte, pas d’application à installer. Vous recevez un lien de suivi sur WhatsApp.</p>'
+      // La promesse doit etre exacte : sans WhatsApp Business configure, aucun
+      // message ne part, et annoncer le contraire serait un mensonge que le
+      // client decouvrirait en attendant un message qui ne vient pas.
+      + '<p class="hero__note">Pas de compte, pas d’application à installer. '
+      + (config.whatsapp.actif
+        ? 'Vous recevez un lien de suivi sur WhatsApp.'
+        : 'Vous repartez avec un lien à garder, qui montre votre position en direct.')
+      + '</p>'
     : '<div class="avis-ferme" data-ferme>'
       + '<p class="avis-ferme__titre">' + escapeHtml(prise.code === 'SALON_EN_CONGES' ? 'Salon fermé' : 'Prise de tour arrêtée') + '</p>'
       + '<p class="avis-ferme__texte">' + escapeHtml(prise.message) + '</p>'
@@ -192,7 +200,11 @@ function formulaire({
     + (coiffeurs.length ? choixDuCoiffeur(coiffeurs, posteId) : '')
     + champs
     + '<button class="bouton bouton--principal bouton--geant" type="submit">Prendre mon tour</button>'
-    + '<p class="formulaire__note">Votre numéro ne sert qu’à vous prévenir. Il n’est jamais affiché publiquement.</p>'
+    + '<p class="formulaire__note">'
+    + (config.whatsapp.actif
+      ? 'Votre numéro ne sert qu’à vous prévenir. Il n’est jamais affiché publiquement.'
+      : 'Votre numéro sert au salon à vous joindre si besoin. Il n’est jamais affiché publiquement.')
+    + '</p>'
     + '</form>';
 }
 
@@ -320,7 +332,8 @@ siteRoutes.post('/join', async (ctx) => {
 
   // 303 : le navigateur refait un GET, donc un rafraichissement de la page de
   // suivi ne reposte jamais le formulaire et ne cree jamais un second ticket.
-  ctx.redirect('/ticket/' + resultat.jeton, 303);
+  // « nouveau » met en avant le lien a garder : c'est maintenant ou jamais.
+  ctx.redirect('/ticket/' + resultat.jeton + '?nouveau=1', 303);
 }, { public: true });
 
 /* ------------------------------------------------------------------ */
@@ -370,7 +383,12 @@ siteRoutes.get('/ticket/:jeton', async (ctx) => {
     ctx.html(404, pageErreur({
       base: ctx.base, statut: 404,
       titre: 'Lien de suivi introuvable',
-      message: 'Ce lien n’est plus valable. Si votre tour est toujours en cours, retrouvez le lien reçu sur WhatsApp, ou demandez-le au salon.',
+      // Ne renvoyer le client vers WhatsApp que si des messages partent
+      // vraiment : sinon on l'envoie chercher quelque chose qui n'existe pas.
+      message: 'Ce lien n’est plus valable. Si votre tour est toujours en cours, '
+        + (config.whatsapp.actif
+          ? 'retrouvez le lien reçu sur WhatsApp, ou demandez-le au salon.'
+          : 'demandez votre lien au salon : il peut vous le retrouver avec votre numéro de ticket.'),
     }));
     return;
   }
@@ -379,13 +397,39 @@ siteRoutes.get('/ticket/:jeton', async (ctx) => {
   const vue = pourClient(etat, ticket.id);
   const dateDuJour = ticket.jour === jourLocal() ? null : dateLongueFr(ticket.jour);
 
+  // Le lien de suivi EST le ticket : il n'y a pas de compte, pas de mot de
+  // passe, rien d'autre. Un client qui ferme l'onglet sans l'avoir garde n'a
+  // plus aucun moyen de retrouver sa position. On le lui montre donc en entier,
+  // avec de quoi le copier ou se l'envoyer — et on insiste juste apres la
+  // prise de tour, quand c'est le moment de le faire.
+  const lien = ctx.base + '/ticket/' + jeton;
+  const nouveau = ctx.queryBool('nouveau');
+
+  const blocLien = vue.actif
+    ? '<section class="lien' + (nouveau ? ' lien--neuf' : '') + '" data-bloc-lien>'
+      + '<p class="lien__titre">' + (nouveau ? 'Gardez ce lien' : 'Votre lien de suivi') + '</p>'
+      + '<p class="lien__texte">Il ouvre cette page à tout moment et montre combien de personnes restent avant vous. '
+      + 'Envoyez-le-vous, ou ajoutez-le à vos favoris.</p>'
+      + '<p class="lien__adresse" data-lien>' + escapeHtml(lien) + '</p>'
+      + '<div class="lien__actions">'
+      + '<button class="bouton bouton--principal" type="button" data-copier data-valeur="' + escapeHtml(lien) + '">Copier le lien</button>'
+      // « Envoyer » ouvre le partage du systeme, qui propose WhatsApp parmi
+      // d'autres. Annoncer WhatsApp serait inexact sur un appareil qui ne l'a
+      // pas installe.
+      + '<button class="bouton bouton--discret" type="button" data-partager hidden>Envoyer le lien</button>'
+      + '</div>'
+      + '<p class="lien__retour" role="status" hidden data-copie>Lien copié.</p>'
+      + '</section>'
+    : '';
+
   const corps = entete()
     + '<main class="enveloppe page-etroite" id="principal">'
     + (dateDuJour ? '<p class="pastille pastille--neutre">Tour du ' + escapeHtml(dateDuJour) + '</p>' : '')
     + blocTicket(vue)
+    + blocLien
     + (vue.actif
       ? '<section class="carte carte--discrete">'
-        + '<p class="texte-doux">Cette page se met à jour toute seule. Gardez-la ouverte, ou revenez-y depuis WhatsApp.</p>'
+        + '<p class="texte-doux">Cette page se met à jour toute seule. Gardez-la ouverte, ou revenez-y par votre lien.</p>'
         + (vue.adresseSalon ? '<p class="texte-doux">' + escapeHtml(vue.adresseSalon) + '</p>' : '')
         + '<button class="bouton bouton--discret" type="button" data-annuler>Je ne viendrai pas, libérer ma place</button>'
         + '<p class="alerte alerte--refus" role="alert" hidden data-annuler-erreur></p>'
