@@ -21,6 +21,10 @@ import { pingSante, etatBase } from '../db/index.js';
 import { nombreAbonnes } from '../core/flux.js';
 import { duJour, historique } from '../domain/statistiques.js';
 import { lister, ajouter, supprimer, fermetureDuJour, prochaine as prochaineFermeture, messageDeFermeture } from '../domain/fermetures.js';
+import {
+  lister as listerPostes, creer as creerPoste, modifier as modifierPoste,
+  supprimer as supprimerPoste, versClient as posteVersClient,
+} from '../domain/postes.js';
 import { etatBoite } from '../domain/notifications.js';
 import { executerTache, nomsDesTaches } from '../core/taches.js';
 import { jourLocal } from '../core/temps.js';
@@ -217,6 +221,74 @@ comptesRoutes.post('/:id/debloquer', async (ctx) => {
   exigerTrouve(await one('SELECT id FROM utilisateurs WHERE id = $1', [id]), 'Compte introuvable.');
   await execute('UPDATE utilisateurs SET tentatives_echouees = 0, verrouille_jusqu_a = NULL WHERE id = $1', [id]);
   ctx.ok({ ok: true });
+}, { role: 'GERANT', rateLimit: PROFILES.administration });
+
+/* ================================================================== */
+/*  Fauteuils                                                          */
+/* ================================================================== */
+
+export const postesRoutes = new Router();
+
+/**
+ * La liste est lisible par TOUT le personnel : l'ecran de la file en a besoin
+ * pour dessiner une carte par fauteuil. Seul le gerant peut la modifier.
+ */
+postesRoutes.get('/', async (ctx) => {
+  const items = await listerPostes();
+  const occupes = await all(
+    `SELECT poste_id, numero_affiche, prenom FROM tickets
+      WHERE jour = $1 AND statut IN ('CALLED','IN_SERVICE') AND poste_id IS NOT NULL`,
+    [jourLocal()],
+  );
+  const parPoste = new Map(occupes.map((o) => [o.poste_id, o]));
+  const servisAujourdhui = await all(
+    `SELECT poste_id, COUNT(*)::int AS n FROM tickets
+      WHERE jour = $1 AND statut = 'COMPLETED' AND poste_id IS NOT NULL GROUP BY poste_id`,
+    [jourLocal()],
+  );
+  const parPosteServis = new Map(servisAujourdhui.map((s) => [s.poste_id, s.n]));
+
+  ctx.ok({
+    items: items.map((p) => ({
+      ...posteVersClient(p),
+      occupePar: parPoste.get(p.id) ? parPoste.get(p.id).prenom + ' (' + parPoste.get(p.id).numero_affiche + ')' : null,
+      servisAujourdhui: parPosteServis.get(p.id) ?? 0,
+    })),
+    actifs: items.filter((p) => p.actif).length,
+  });
+});
+
+postesRoutes.post('/', async (ctx) => {
+  const data = validate(ctx.body, {
+    nom: { type: 'string', required: true, min: 1, max: 40, requiredMessage: 'Donnez un nom au fauteuil.' },
+    coiffeur: { type: 'string', max: 60 },
+    ordre: { type: 'int', min: 0, max: 999 },
+  });
+  const cree = await creerPoste(data);
+  log.info('Fauteuil cree', { nom: cree.nom, par: ctx.user.identifiant });
+  ctx.created(posteVersClient(cree));
+}, { role: 'GERANT', rateLimit: PROFILES.administration });
+
+postesRoutes.patch('/:id', async (ctx) => {
+  const data = validatePartial(ctx.body, {
+    nom: { type: 'string', min: 1, max: 40 },
+    coiffeur: { type: 'string', max: 60 },
+    ordre: { type: 'int', min: 0, max: 999 },
+    actif: { type: 'bool' },
+  });
+  // Un coiffeur efface se transmet comme une chaine vide : validate() la rend
+  // en null, ce que modifier() comprend comme « retirer le nom ».
+  if (Object.hasOwn(ctx.body ?? {}, 'coiffeur') && !data.coiffeur) data.coiffeur = '';
+  const maj = await modifierPoste(idDe(ctx), data);
+  log.info('Fauteuil modifie', { nom: maj.nom, champs: Object.keys(data), par: ctx.user.identifiant });
+  ctx.ok(posteVersClient(maj));
+}, { role: 'GERANT', rateLimit: PROFILES.administration });
+
+postesRoutes.delete('/:id', async (ctx) => {
+  const id = idDe(ctx);
+  await supprimerPoste(id);
+  log.info('Fauteuil supprime', { id, par: ctx.user.identifiant });
+  ctx.noContent();
 }, { role: 'GERANT', rateLimit: PROFILES.administration });
 
 /* ================================================================== */

@@ -31,10 +31,11 @@ import {
 } from './journee.js';
 import { enfilerEnvoi } from './notifications.js';
 import { fermetureDuJour, prochaine as prochaineFermeture, messageDeFermeture } from './fermetures.js';
+import { lister as listerPostes, posteLibre, versClient as posteVersClient } from './postes.js';
 
 const COLONNES = `id, jour, numero, numero_affiche, rang, prenom, nom, telephone_enc, telephone_fin,
-                  source, statut, retards, jeton_enc, arrive_at, file_depuis_at, statut_at, appele_at,
-                  service_at, termine_at, motif, version`;
+                  source, statut, retards, poste_id, jeton_enc, arrive_at, file_depuis_at, statut_at,
+                  appele_at, service_at, termine_at, motif, version`;
 
 /* ================================================================== */
 /*  Calculs purs                                                       */
@@ -46,26 +47,41 @@ const COLONNES = `id, jour, numero, numero_affiche, rang, prenom, nom, telephone
  * Fonction PURE : elle ne connait ni la base ni l'heure, ce qui la rend
  * testable ligne a ligne. C'est elle qui definit ce que voit le client.
  *
+ * LE NOMBRE DE FAUTEUILS DIVISE L'ATTENTE. Avec N fauteuils ouverts et des
+ * coupes de duree d, les N premiers de la file commencent tout de suite, les N
+ * suivants a d, et ainsi de suite : celui qui a `devant` personnes devant lui
+ * attend `floor(devant / N)` coupes. C'est exactement ce qu'observe un client
+ * dans un salon a deux fauteuils — la file avance deux fois plus vite.
+ *
+ * On appelle « tour » cette unite : zero tour = je passe dans la foulee, un
+ * tour = il y a une fournee avant moi. Le seuil de prevenance compte en tours,
+ * pas en personnes, sans quoi « prévenir à 2 personnes » n'aurait pas le meme
+ * sens selon le nombre de fauteuils.
+ *
  * @param {Array<object>} tickets  tous les tickets du jour, tries par rang
- * @param {{ dureeMoyenneMinutes:number, seuilPrevenir:number }} reglages
- * @returns {Map<string, { position:number, devant:number, estimationMinutes:number, phase:string }>}
+ * @param {{ dureeMoyenneMinutes:number, seuilPrevenir:number, postesActifs?:number }} reglages
+ * @returns {Map<string, { position:number, devant:number, tours:number,
+ *                         estimationMinutes:number, phase:string }>}
  */
-export function calculerPositions(tickets, { dureeMoyenneMinutes, seuilPrevenir }) {
+export function calculerPositions(tickets, { dureeMoyenneMinutes, seuilPrevenir, postesActifs = 1 }) {
+  const fauteuils = Math.max(1, Math.trunc(postesActifs) || 1);
   const actifs = tickets.filter((t) => STATUTS_ACTIFS.includes(t.statut)).sort((a, b) => a.rang - b.rang);
   const sortie = new Map();
 
   actifs.forEach((ticket, index) => {
-    // Personnes devant : tous les actifs de rang inferieur, y compris celui qui
-    // est au fauteuil. C'est le compte qu'attend un client, pas une subtilite.
+    // Personnes devant : tous les actifs de rang inferieur, y compris ceux qui
+    // sont deja aux fauteuils. C'est le compte qu'attend un client, pas une
+    // subtilite — et c'est ce chiffre-la qui part dans le message WhatsApp.
     const devant = index;
-    const estimationMinutes = devant * dureeMoyenneMinutes;
+    const tours = Math.floor(devant / fauteuils);
+    const estimationMinutes = tours * dureeMoyenneMinutes;
     let phase;
     if (ticket.statut === 'IN_SERVICE') phase = 'EN_COURS';
     else if (ticket.statut === 'CALLED') phase = 'VOTRE_TOUR';
-    else if (devant === 0) phase = 'PROCHAIN';
-    else if (devant <= seuilPrevenir) phase = 'APPROCHE';
+    else if (tours === 0) phase = 'PROCHAIN';
+    else if (tours <= seuilPrevenir) phase = 'APPROCHE';
     else phase = 'ATTENTE';
-    sortie.set(ticket.id, { position: index + 1, devant, estimationMinutes, phase });
+    sortie.set(ticket.id, { position: index + 1, devant, tours, estimationMinutes, phase });
   });
 
   for (const ticket of tickets) {
@@ -73,6 +89,7 @@ export function calculerPositions(tickets, { dureeMoyenneMinutes, seuilPrevenir 
     sortie.set(ticket.id, {
       position: 0,
       devant: 0,
+      tours: 0,
       estimationMinutes: 0,
       phase: ticket.statut === 'COMPLETED' ? 'TERMINE' : 'ANNULE',
     });
@@ -192,21 +209,27 @@ export async function etatPriseDeTour({ instant = new Date() } = {}) {
  */
 export async function chargerEtat(jour) {
   const reglages = await lireTous();
-  const [journee, tickets, prise] = await Promise.all([
+  const [journee, tickets, prise, postes] = await Promise.all([
     one('SELECT * FROM journees WHERE jour = $1', [jour]),
     all('SELECT ' + COLONNES + ' FROM tickets WHERE jour = $1 ORDER BY rang', [jour]),
     // L'etat de la prise de tour voyage avec la file : la tablette du coiffeur
     // le recoit par le flux temps reel, sans requete supplementaire, et sait
     // donc toujours si l'entree est ouverte.
     etatPriseDeTour(),
+    listerPostes(),
   ]);
 
+  const postesActifs = postes.filter((p) => p.actif);
   const dureeMoyenneMinutes = journee?.duree_moyenne_minutes ?? reglages['file.dureeMoyenneMinutes'];
   const seuilPrevenir = reglages['file.seuilPrevenir'];
-  const positions = calculerPositions(tickets, { dureeMoyenneMinutes, seuilPrevenir });
+  const positions = calculerPositions(tickets, {
+    dureeMoyenneMinutes,
+    seuilPrevenir,
+    postesActifs: postesActifs.length,
+  });
 
   const actifs = tickets.filter((t) => STATUTS_ACTIFS.includes(t.statut)).sort((a, b) => a.rang - b.rang);
-  const enCours = actifs.find((t) => STATUTS_EN_COURS.includes(t.statut)) || null;
+  const auxFauteuils = actifs.filter((t) => STATUTS_EN_COURS.includes(t.statut));
   const attente = actifs.filter((t) => STATUTS_EN_ATTENTE.includes(t.statut));
 
   return {
@@ -218,14 +241,17 @@ export async function chargerEtat(jour) {
     adresseSalon: reglages['salon.adresse'] || null,
     maj: new Date().toISOString(),
     priseDeTour: prise,
+    postes,
+    postesActifs,
     tickets,
     positions,
-    enCoursId: enCours ? enCours.id : null,
     prochainId: attente.length ? attente[0].id : null,
     compteurs: {
       total: tickets.length,
       enAttente: attente.length,
-      enCours: enCours ? 1 : 0,
+      enCours: auxFauteuils.length,
+      fauteuils: postesActifs.length,
+      fauteuilsLibres: postesActifs.length - auxFauteuils.length,
       servis: tickets.filter((t) => t.statut === 'COMPLETED').length,
       annules: tickets.filter((t) => t.statut === 'CANCELLED').length,
       retards: tickets.reduce((n, t) => n + (t.retards > 0 ? 1 : 0), 0),
@@ -259,6 +285,7 @@ export function pourSalon(etat) {
       position: p?.position ?? 0,
       devant: p?.devant ?? 0,
       estimationMinutes: p?.estimationMinutes ?? 0,
+      posteId: t.poste_id,
       retards: t.retards,
       arriveA: t.arrive_at,
       dansLaFileDepuis: t.file_depuis_at,
@@ -272,11 +299,23 @@ export function pourSalon(etat) {
   };
 
   const actifs = etat.tickets.filter((t) => STATUTS_ACTIFS.includes(t.statut)).sort((a, b) => a.rang - b.rang);
-  const enCours = actifs.find((t) => STATUTS_EN_COURS.includes(t.statut)) || null;
   const attente = actifs.filter((t) => STATUTS_EN_ATTENTE.includes(t.statut));
   const termines = etat.tickets
     .filter((t) => !STATUTS_ACTIFS.includes(t.statut))
     .sort((a, b) => new Date(b.termine_at || b.statut_at) - new Date(a.termine_at || a.statut_at));
+
+  // Un fauteuil, une carte : le coiffeur voit d'un coup d'oeil qui est assis
+  // ou, et lequel est libre. Les fauteuils fermes qui portent encore un client
+  // (cas impossible par construction, mais on ne cache jamais un client) sont
+  // rendus eux aussi.
+  const cartes = etat.postes
+    .filter((p) => p.actif || actifs.some((t) => t.poste_id === p.id && STATUTS_EN_COURS.includes(t.statut)))
+    .map((p) => {
+      const assis = actifs.find((t) => t.poste_id === p.id && STATUTS_EN_COURS.includes(t.statut)) || null;
+      return { ...posteVersClient(p), client: assis ? ticket(assis) : null };
+    });
+
+  const fauteuils = Math.max(1, etat.postesActifs.length);
 
   return {
     jour: etat.jour,
@@ -285,12 +324,14 @@ export function pourSalon(etat) {
     maj: etat.maj,
     dureeMoyenneMinutes: etat.dureeMoyenneMinutes,
     seuilPrevenir: etat.seuilPrevenir,
-    enCours: enCours ? ticket(enCours) : null,
+    postes: cartes,
     prochain: attente.length ? ticket(attente[0]) : null,
     attente: attente.map(ticket),
     termines: termines.slice(0, 40).map(ticket),
     compteurs: etat.compteurs,
-    attenteEstimeeMinutes: attente.length * etat.dureeMoyenneMinutes,
+    // L'attente annoncee au comptoir : la file entiere repartie sur les
+    // fauteuils ouverts.
+    attenteEstimeeMinutes: Math.ceil(attente.length / fauteuils) * etat.dureeMoyenneMinutes,
   };
 }
 
@@ -304,7 +345,7 @@ export function pourSalon(etat) {
 export function pourClient(etat, ticketId) {
   const t = etat.tickets.find((x) => x.id === ticketId);
   if (!t) return null;
-  const p = etat.positions.get(t.id) || { position: 0, devant: 0, estimationMinutes: 0, phase: 'ATTENTE' };
+  const p = etat.positions.get(t.id) || { position: 0, devant: 0, tours: 0, estimationMinutes: 0, phase: 'ATTENTE' };
   const message = messageDePhase(p.phase, { devant: p.devant, estimationMinutes: p.estimationMinutes, nomSalon: etat.nomSalon });
   return {
     numero: t.numero_affiche,
@@ -368,13 +409,19 @@ async function planifierNotifications(tx, jour, reglages, { saufTicketId = null 
        FROM tickets WHERE jour = $1 AND statut = ANY($2) ORDER BY rang`,
     [jour, STATUTS_ACTIFS],
   );
+  // Le seuil compte en TOURS, pas en personnes : avec deux fauteuils, quatre
+  // personnes devant soi valent deux tours. Sinon « prévenir à 2 personnes »
+  // ne voudrait pas dire la meme chose selon le nombre de fauteuils ouverts.
+  const fauteuils = Math.max(1, await tx.value('SELECT COUNT(*)::int FROM postes WHERE actif') ?? 1);
 
   // Une connexion PostgreSQL ne traite qu'une requete a la fois : les envois
   // s'enfilent l'un apres l'autre, jamais en parallele sur la meme transaction.
   for (const [index, t] of tickets.entries()) {
     const devant = index;
     if (t.id === saufTicketId) continue;
-    if (STATUTS_EN_ATTENTE.includes(t.statut) && devant <= reglages['file.seuilPrevenir']) {
+    if (STATUTS_EN_ATTENTE.includes(t.statut) && Math.floor(devant / fauteuils) <= reglages['file.seuilPrevenir']) {
+      // Le message, lui, annonce le nombre REEL de personnes devant : c'est ce
+      // que le client compte des yeux en entrant dans le salon.
       await enfilerEnvoi(tx, { ticket: t, type: 'APPROCHE', donnees: { devant } });
     }
     if (t.statut === 'CALLED') {
@@ -531,29 +578,38 @@ function geste(nom, executer) {
  * au lieu de l'ecraser : c'est exactement le moment ou le coiffeur risque
  * d'oublier quelqu'un.
  */
-export const appeler = geste('appeler', async ({ tx, ticket, user, jour }) => {
+export const appeler = geste('appeler', async ({ tx, ticket, user, jour, options }) => {
   if (STATUTS_EN_COURS.includes(ticket.statut)) {
     throw conflict('Le ticket ' + ticket.numero_affiche + ' est déjà appelé.');
   }
   if (!STATUTS_EN_ATTENTE.includes(ticket.statut)) {
     throw conflict('Le ticket ' + ticket.numero_affiche + ' n’est plus en attente (' + libelleStatut(ticket.statut) + ').');
   }
+
+  // Le fauteuil demande, ou le premier libre. Un salon a un seul fauteuil n'a
+  // jamais a le designer.
+  const poste = await posteLibre(jour, { prefere: options.posteId ?? null });
+
   const occupe = await tx.one(
-    'SELECT numero_affiche, prenom FROM tickets WHERE jour = $1 AND statut = ANY($2) LIMIT 1',
-    [jour, STATUTS_EN_COURS],
+    `SELECT numero_affiche, prenom FROM tickets
+      WHERE jour = $1 AND poste_id = $2 AND statut = ANY($3) LIMIT 1`,
+    [jour, poste.id, STATUTS_EN_COURS],
   );
   if (occupe) {
     throw new AppError(409,
-      occupe.prenom + ' (' + occupe.numero_affiche + ') est déjà au fauteuil. '
+      occupe.prenom + ' (' + occupe.numero_affiche + ') est déjà au fauteuil « ' + poste.nom + ' ». '
       + 'Terminez ce client, ou marquez-le absent, avant d’appeler le suivant.',
       { code: 'FAUTEUIL_OCCUPE' });
   }
+
   const maj = await tx.one(
-    `UPDATE tickets SET statut = 'CALLED', statut_at = now(), appele_at = now(), version = version + 1
+    `UPDATE tickets SET statut = 'CALLED', poste_id = $2, statut_at = now(), appele_at = now(),
+            version = version + 1
       WHERE id = $1 RETURNING ` + COLONNES,
-    [ticket.id],
+    [ticket.id, poste.id],
   );
-  await tracer(tx, maj, { statut: 'CALLED', user, detail: 'Client appelé.' });
+  await tracer(tx, maj, { statut: 'CALLED', user, detail: 'Client appelé au fauteuil « ' + poste.nom +' ».' });
+  maj.poste = poste;
   return maj;
 });
 
@@ -612,8 +668,10 @@ export const marquerAbsent = geste('absent', async ({ tx, ticket, journee, user 
     throw conflict('Le ticket ' + ticket.numero_affiche + ' n’est plus dans la file (' + libelleStatut(ticket.statut).toLowerCase() + ').');
   }
   const rang = await prochainRang(tx, journee);
+  // Le fauteuil est libere du meme geste : le client n'y est plus, et le
+  // coiffeur doit pouvoir appeler quelqu'un d'autre a sa place tout de suite.
   const maj = await tx.one(
-    `UPDATE tickets SET statut = 'LATE', rang = $2, retards = retards + 1,
+    `UPDATE tickets SET statut = 'LATE', rang = $2, retards = retards + 1, poste_id = NULL,
             statut_at = now(), file_depuis_at = now(), appele_at = NULL, version = version + 1
       WHERE id = $1 RETURNING ` + COLONNES,
     [ticket.id, rang],
@@ -691,17 +749,18 @@ export async function annulerParClient(jeton) {
 }
 
 /**
- * APPELER LE SUIVANT : le premier de la file, quel qu'il soit. Raccourci du
- * tableau de bord, pour n'avoir jamais a choisir dans une liste.
+ * APPELER LE SUIVANT : le premier de la file, quel qu'il soit, sur le fauteuil
+ * demande (ou le premier libre). Raccourci du tableau de bord, pour n'avoir
+ * jamais a choisir dans une liste pendant le travail.
  */
-export async function appelerSuivant({ user = null } = {}) {
+export async function appelerSuivant({ user = null, posteId = null } = {}) {
   const jour = jourLocal();
   const suivant = await one(
     `SELECT id FROM tickets WHERE jour = $1 AND statut = ANY($2) ORDER BY rang LIMIT 1`,
     [jour, STATUTS_EN_ATTENTE],
   );
   if (!suivant) throw badRequest('Personne n’attend pour le moment.');
-  return appeler(suivant.id, { user });
+  return appeler(suivant.id, { user, posteId });
 }
 
 /** Ajout d'un client AU COMPTOIR, par le coiffeur (client sans telephone en main). */

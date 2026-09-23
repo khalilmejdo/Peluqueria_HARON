@@ -189,6 +189,23 @@ export async function demarrer({ env = {} } = {}) {
   }
 
   /**
+   * Le client assis au premier fauteuil occupe, ou null.
+   *
+   * La file rend une carte par fauteuil ; la plupart des tests travaillent sur
+   * un salon a un seul fauteuil et veulent simplement « celui qui est au
+   * fauteuil ». Cette aide evite de repeter la meme recherche partout, et fait
+   * que les tests d'un salon a un fauteuil restent lisibles.
+   */
+  function auFauteuil(file) {
+    return (file?.postes || []).map((p) => p.client).find(Boolean) || null;
+  }
+
+  /** Tous les clients assis, dans l'ordre des fauteuils. */
+  function auxFauteuils(file) {
+    return (file?.postes || []).map((p) => p.client).filter(Boolean);
+  }
+
+  /**
    * Remet les compteurs de debit a zero.
    *
    * Les tests parlent tous depuis 127.0.0.1 : sans cela, le quinzieme ticket
@@ -215,6 +232,6 @@ export async function demarrer({ env = {} } = {}) {
 
   return {
     base, db, importer, client, compte, connecter, prendreTour,
-    reinitialiserDebit, arreter, nomBase: nom, dossier,
+    auFauteuil, auxFauteuils, reinitialiserDebit, arreter, nomBase: nom, dossier,
   };
 }

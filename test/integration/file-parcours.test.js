@@ -19,7 +19,7 @@ test('la file du salon, du premier ticket au dernier client servi', { skip: IGNO
     const r = await salon.get('/api/file');
     assert.equal(r.status, 200);
     assert.equal(r.body.file.attente.length, 0);
-    assert.equal(r.body.file.enCours, null);
+    assert.equal(banc.auFauteuil(r.body.file), null);
     assert.equal(r.body.file.prochain, null);
     assert.equal(r.body.file.compteurs.total, 0);
   });
@@ -76,8 +76,8 @@ test('la file du salon, du premier ticket au dernier client servi', { skip: IGNO
     const r = await salon.post('/api/file/suivant');
     assert.equal(r.status, 200);
     assert.equal(r.body.appele, 'A001');
-    assert.equal(r.body.file.enCours.numero, 'A001');
-    assert.equal(r.body.file.enCours.statut, 'CALLED');
+    assert.equal(banc.auFauteuil(r.body.file).numero, 'A001');
+    assert.equal(banc.auFauteuil(r.body.file).statut, 'CALLED');
     assert.equal(r.body.file.attente.length, 3);
     assert.equal(r.body.file.prochain.numero, 'A002');
   });
@@ -100,12 +100,12 @@ test('la file du salon, du premier ticket au dernier client servi', { skip: IGNO
 
   await t.test('servir le client fait avancer toute la file', async () => {
     const avant = await salon.get('/api/file');
-    const idEnCours = avant.body.file.enCours.id;
+    const idEnCours = banc.auFauteuil(avant.body.file).id;
 
     const r = await salon.post('/api/file/' + idEnCours + '/servi');
     assert.equal(r.status, 200);
     assert.equal(r.body.servi, 'A001');
-    assert.equal(r.body.file.enCours, null);
+    assert.equal(banc.auFauteuil(r.body.file), null);
     assert.equal(r.body.file.compteurs.servis, 1);
     assert.deepEqual(r.body.file.attente.map((x) => x.numero), ['A002', 'A003', 'A004']);
 
@@ -140,10 +140,10 @@ test('la file du salon, du premier ticket au dernier client servi', { skip: IGNO
     const cible = file.body.file.attente.find((x) => x.numero === 'A003');
 
     const appel = await salon.post('/api/file/' + cible.id + '/appeler');
-    assert.equal(appel.body.file.enCours.statut, 'CALLED');
+    assert.equal(banc.auFauteuil(appel.body.file).statut, 'CALLED');
 
     const debut = await salon.post('/api/file/' + cible.id + '/commencer');
-    assert.equal(debut.body.file.enCours.statut, 'IN_SERVICE');
+    assert.equal(banc.auFauteuil(debut.body.file).statut, 'IN_SERVICE');
 
     const vue = await banc.client().get('/api/public/tickets/' + karim.jeton);
     assert.equal(vue.body.phase, 'EN_COURS');

@@ -87,16 +87,47 @@ CANCELLED   annulé
 dans la file, à sa nouvelle place. Le coiffeur voit du même coup d'œil qui est
 déjà reparti une fois.
 
-### Un seul fauteuil
+### Les fauteuils
 
-Un index unique partiel interdit d'avoir deux tickets `CALLED` ou `IN_SERVICE`
-le même jour. C'est ce que décrivait la commande (« CLIENT ACTUEL », au
-singulier), et cela évite au coiffeur d'appeler deux personnes par mégarde.
+Le salon en déclare autant qu'il en a. Chaque fauteuil sert **un** client à la
+fois ; la file, elle, reste **unique et commune**. C'est ce qui distingue cette
+application d'un système de rendez-vous : le client prend un tour, pas un
+fauteuil. Il ne choisit ni son siège ni son coiffeur, et n'a d'ailleurs jamais
+besoin de savoir combien il y en a — seulement combien de temps il attendra.
 
-**Pour ouvrir un second fauteuil**, il faudrait : retirer l'index
-`tickets_un_seul_en_cours`, retirer le garde dans `appeler()`
-(`server/domain/file.js`), et décider ce qu'affiche « CLIENT ACTUEL ». Ce n'est
-pas une évolution anodine : elle change ce que voit le coiffeur.
+L'invariant est porté par un index unique partiel sur `(jour, poste_id)` : deux
+fauteuils servent en parallèle, mais deux clients ne peuvent jamais atterrir sur
+le même, quoi que fassent deux tablettes au même instant. Un `CHECK` garantit en
+plus qu'un client appelé est toujours rattaché à un fauteuil.
+
+Le fauteuil est posé à l'appel, gardé jusqu'au bout, et **conservé après coup** :
+c'est lui qui dit « qui a servi qui », y compris un an plus tard. Il est en
+revanche effacé si le client repart en fin de file — il libère son siège du même
+geste.
+
+Un fauteuil qui a déjà servi ne se supprime pas, il se **ferme** : le supprimer
+emporterait l'historique de tous ses tickets. Le salon garde toujours au moins
+un fauteuil ouvert, et on ne ferme pas un fauteuil occupé.
+
+### L'attente, divisée par le nombre de fauteuils
+
+Avec N fauteuils ouverts et des coupes de durée d, les N premiers de la file
+commencent tout de suite, les N suivants à d, et ainsi de suite. Celui qui a
+`devant` personnes devant lui attend donc :
+
+```
+tours = floor(devant / N)
+attente = tours × d
+```
+
+On appelle **tour** cette unité : zéro tour = je passe dans la foulée, un tour =
+il y a une fournée avant moi. Le seuil de prévenance compte lui aussi en tours,
+sans quoi « prévenir à 2 personnes » n'aurait pas le même sens selon le nombre
+de fauteuils ouverts. Le message WhatsApp, lui, annonce le nombre **réel** de
+personnes devant : c'est ce que le client compte des yeux en entrant.
+
+Avec un seul fauteuil, `tours = devant` : le comportement d'origine, à
+l'identique.
 
 ---
 

@@ -144,6 +144,42 @@
 .actuel--service::before { background: var(--vert); }
 .actuel--vide::before { background: var(--bordure); }
 
+/*
+ * Plusieurs fauteuils : une carte chacun, cote a cote des que la place le
+ * permet. Sous 34 rem, elles s'empilent — le coiffeur qui tient son telephone
+ * d'une main fait defiler, il ne plisse pas les yeux.
+ */
+.fauteuils {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: 0.9rem;
+}
+
+/* En-tete d'une carte quand le salon a plusieurs fauteuils. */
+.actuel__fauteuil {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.actuel__fauteuil-nom {
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.actuel__fauteuil-coiffeur {
+  font-size: 0.8rem;
+  color: var(--texte-doux);
+}
+
+/* Avec plusieurs cartes, le nom du client n'a plus besoin d'etre gigantesque. */
+.fauteuils .actuel__nom { font-size: clamp(1.5rem, 5vw, 2.3rem); }
+.fauteuils .bouton--servi { min-height: 3.75rem; font-size: clamp(1rem, 3.5vw, 1.25rem); }
+
 .actuel__label {
   font-size: 0.72rem;
   font-weight: 700;
@@ -269,6 +305,42 @@
 .prise__detail { font-size: 0.85rem; color: var(--texte-doux); }
 .prise--fermee .prise__etat { color: var(--ambre); }
 .prise--conges .prise__etat { color: var(--rouge); }
+
+/* ------------------------------------------------------------------ */
+/*  Fauteuils (réglages)                                               */
+/* ------------------------------------------------------------------ */
+
+.fauteuils-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+
+.fauteuil {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--r);
+  background: var(--fond-carte-2);
+}
+.fauteuil--ferme { opacity: 0.6; }
+
+.fauteuil__tete { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+.fauteuil__nom { font-family: var(--police-titre); font-weight: 700; font-size: 1.1rem; }
+.fauteuil__coiffeur {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+}
+.fauteuil__badge {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--texte-doux);
+}
+.fauteuil__meta { display: flex; gap: 0.4rem; flex-wrap: wrap; font-size: 0.82rem; color: var(--texte-doux); }
+.fauteuil__occupe { color: var(--vert); font-weight: 600; }
+.fauteuil__actions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.4rem; }
 
 /* ------------------------------------------------------------------ */
 /*  Congés                                                             */
@@ -577,6 +649,30 @@
   }
 
   .file > .file__titre { display: none; }
+
+  /*
+   * PLUSIEURS FAUTEUILS : ils passent en bandeau sur toute la largeur, et la
+   * file s'installe dessous. Les garder dans la colonne de gauche les
+   * empilerait les uns sous les autres et repousserait la file hors de l'ecran
+   * des le troisieme fauteuil.
+   *
+   * `:has()` n'existe pas sur les navigateurs anciens : ils retombent alors sur
+   * la disposition a une colonne ci-dessus, qui reste utilisable.
+   */
+  .file:has(> .fauteuils) {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
+    grid-template-areas:
+      'fauteuils  fauteuils'
+      'chiffres   liste'
+      'comptoir   liste'
+      'historique liste';
+  }
+  .file:has(> .fauteuils) > .fauteuils {
+    grid-area: fauteuils;
+    position: static;
+    margin-bottom: 0.5rem;
+  }
+  .file:has(> .fauteuils) > .file__chiffres { grid-area: chiffres; }
   /* Le bandeau « journée close » et l'interrupteur des prises de tour n'ont pas
      de zone : ils barrent les deux colonnes plutot que de se faire placer au
      hasard par la grille. */
@@ -584,7 +680,8 @@
   .file > .prise { grid-column: 1 / -1; }
   .file > .comptoir,
   .file > .historique { align-self: start; }
-  .file > .actuel { grid-area: actuel; position: sticky; top: 5rem; }
+  .file > .actuel,
+  .file > .fauteuils { grid-area: actuel; position: sticky; top: 5rem; }
   .file > .file__chiffres { grid-area: chiffres; }
   .file > .file__titre { grid-area: titre; }
   .file > .file__liste,

@@ -13,6 +13,7 @@
 import { config } from '../core/config.js';
 import { execute, one } from './index.js';
 import { newId, hashPassword } from '../core/crypto.js';
+import { normalize } from '../core/text.js';
 import { CATALOGUE } from '../core/reglages.js';
 
 export async function seed({ silencieux = false } = {}) {
@@ -28,6 +29,20 @@ export async function seed({ silencieux = false } = {}) {
   }
   dire('  Reglages : ' + poses + ' valeur(s) par defaut posee(s), '
     + (Object.keys(CATALOGUE).length - poses) + ' deja definie(s).');
+
+  // Un salon a toujours au moins un fauteuil. Celui-ci n'est cree que si la
+  // table est vide : un gerant qui l'a renomme « Poste vitrine » ne le verra
+  // pas revenir a chaque redeploiement.
+  const fauteuils = await one('SELECT COUNT(*)::int AS n FROM postes');
+  if (fauteuils.n === 0) {
+    await execute(
+      'INSERT INTO postes (id, nom, nom_lower, ordre) VALUES ($1, $2, $3, 1)',
+      [newId(), 'Fauteuil 1', normalize('Fauteuil 1')],
+    );
+    dire('  Fauteuils : « Fauteuil 1 » cree.');
+  } else {
+    dire('  Fauteuils : ' + fauteuils.n + ' deja present(s).');
+  }
 
   const compte = await one('SELECT COUNT(*)::int AS n FROM utilisateurs');
   if (compte.n > 0) {

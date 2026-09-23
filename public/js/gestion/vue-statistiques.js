@@ -45,6 +45,17 @@ export async function vueStatistiques(conteneur, { etat }) {
     el('section.carte', grille),
   ];
 
+  // Le détail par fauteuil n'a de sens qu'à partir de deux.
+  if ((jour.fauteuils || []).length > 1) {
+    contenu.push(el('section.carte',
+      el('h2.reglages__titre', { texte: 'Par fauteuil' }),
+      el('ul.liste-etat', jour.fauteuils.map((f) => el('li', {
+        texte: f.nom + (f.coiffeur ? ' (' + f.coiffeur + ')' : '') + ' : '
+          + f.servis + ' client' + (f.servis > 1 ? 's' : '') + ' servi' + (f.servis > 1 ? 's' : '')
+          + (f.coupeMoyenneMinutes === null ? '' : ', coupe moyenne ' + minutesLisibles(f.coupeMoyenneMinutes)),
+      })))));
+  }
+
   if (gerant) {
     const historique = await api.get('/api/statistiques/historique?limite=30');
     const lignes = historique.items.map((l) => el('tr',

@@ -70,7 +70,7 @@ test('le salon peut fermer son entree sans jamais interrompre la file', { skip: 
     // Et le client qui attend est servi normalement.
     const suivant = await coiffeur.post('/api/file/suivant');
     assert.equal(suivant.status, 200);
-    const servi = await coiffeur.post('/api/file/' + suivant.body.file.enCours.id + '/servi');
+    const servi = await coiffeur.post('/api/file/' + banc.auFauteuil(suivant.body.file).id + '/servi');
     assert.equal(servi.status, 200);
     assert.equal(servi.body.file.compteurs.servis, 1);
 

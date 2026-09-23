@@ -56,8 +56,28 @@ export async function duJour(jour = jourLocal()) {
   );
   const journee = await one('SELECT jour, ouverte, duree_moyenne_minutes, ouverte_at, close_at FROM journees WHERE jour = $1', [jour]);
 
+  // Par fauteuil : combien de tetes, et en combien de temps. C'est le seul
+  // chiffre qui ait un sens quand le salon en ouvre plusieurs.
+  const parFauteuil = await all(
+    `SELECT p.id, p.nom, p.coiffeur,
+            COUNT(t.id) FILTER (WHERE t.statut = 'COMPLETED')::int AS servis,
+            ` + MOYENNE_MINUTES('t.termine_at - t.service_at', "t.statut = 'COMPLETED' AND t.service_at IS NOT NULL") + ` AS coupe_moyenne
+       FROM postes p
+       LEFT JOIN tickets t ON t.poste_id = p.id AND t.jour = $1
+      GROUP BY p.id, p.nom, p.coiffeur, p.ordre, p.nom_lower
+      ORDER BY p.ordre, p.nom_lower`,
+    [jour],
+  );
+
   return {
     jour,
+    fauteuils: parFauteuil.map((f) => ({
+      id: f.id,
+      nom: f.nom,
+      coiffeur: f.coiffeur,
+      servis: f.servis,
+      coupeMoyenneMinutes: f.coupe_moyenne,
+    })),
     ouverte: journee ? journee.ouverte : null,
     dureeMoyenneReglee: journee ? journee.duree_moyenne_minutes : null,
     total: ligne?.total ?? 0,

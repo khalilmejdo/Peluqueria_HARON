@@ -68,23 +68,43 @@ async function recharger() {
 /*  Le client actuel                                                   */
 /* ------------------------------------------------------------------ */
 
-function blocActuel(file) {
-  const actuel = file.enCours;
+/**
+ * La carte d'UN fauteuil.
+ *
+ * Elle porte tout ce que le coiffeur fait pendant le service : le nom du
+ * client en tres gros, le gros bouton, l'absence. Un salon a plusieurs
+ * fauteuils en affiche une par fauteuil, cote a cote ; un salon a un seul
+ * fauteuil retrouve exactement l'ecran d'avant, sans en-tete inutile.
+ *
+ * @param {object} poste  { id, nom, coiffeur, client }
+ * @param {object} file
+ * @param {boolean} seul  vrai si le salon n'a qu'un fauteuil ouvert
+ */
+function carteFauteuil(poste, file, seul) {
+  const actuel = poste.client;
+  const enTete = seul
+    ? el('p.actuel__label', { texte: 'Client actuel' })
+    : el('div.actuel__fauteuil',
+      el('span.actuel__fauteuil-nom', { texte: poste.nom }),
+      poste.coiffeur ? el('span.actuel__fauteuil-coiffeur', { texte: poste.coiffeur }) : null);
 
   if (!actuel) {
     const prochain = file.prochain;
     return el('section.actuel.actuel--vide',
-      el('p.actuel__label', { texte: 'Client actuel' }),
-      el('p.actuel__aucun', { texte: prochain ? 'Le fauteuil est libre.' : 'Personne n’attend.' }),
+      enTete,
+      el('p.actuel__aucun', { texte: prochain ? 'Fauteuil libre.' : 'Personne n’attend.' }),
       prochain
         ? el('div.actuel__suite',
-          el('p.actuel__prochain-label', { texte: 'Prochain' }),
+          el('p.actuel__prochain-label', { texte: 'Prochain dans la file' }),
           el('p.actuel__prochain', { texte: prochain.prenom + ' ' + prochain.nom }),
           el('p.actuel__prochain-numero', { texte: prochain.numero }),
           el('button.bouton.bouton--principal.bouton--geant', {
             type: 'button',
             texte: 'Appeler ' + prochain.prenom,
-            surClick: () => geste('/api/file/suivant', { annonce: prochain.prenom + ' est appelé.' }),
+            surClick: () => geste('/api/file/suivant', {
+              corps: { posteId: poste.id },
+              annonce: prochain.prenom + ' est appelé au fauteuil ' + poste.nom + '.',
+            }),
           }))
         : el('p.texte-doux', { texte: 'La file se remplira dès qu’un client prendra son tour.' }));
   }
@@ -92,7 +112,7 @@ function blocActuel(file) {
   const appele = actuel.statut === 'CALLED';
 
   return el('section.actuel' + (appele ? '.actuel--appele' : '.actuel--service'),
-    el('p.actuel__label', { texte: 'Client actuel' }),
+    enTete,
     el('p.actuel__numero', { texte: actuel.numero }),
     el('h1.actuel__nom', { texte: actuel.prenom + ' ' + actuel.nom }),
     el('p.actuel__etat', { texte: appele ? 'Appelé ' + depuis(actuel.appeleA) : 'Au fauteuil ' + depuis(actuel.serviA) }),
@@ -118,6 +138,20 @@ function blocActuel(file) {
           annonce: actuel.prenom + ' est replacé en fin de file.',
         }),
       })));
+}
+
+/** Tous les fauteuils, cote a cote. */
+function blocFauteuils(file) {
+  const postes = file.postes || [];
+  if (!postes.length) {
+    return el('section.actuel.actuel--vide',
+      el('p.actuel__label', { texte: 'Client actuel' }),
+      el('p.actuel__aucun', { texte: 'Aucun fauteuil ouvert.' }),
+      el('p.texte-doux', { texte: 'Ouvrez un fauteuil dans Réglages pour pouvoir appeler un client.' }));
+  }
+  const seul = postes.length === 1;
+  const cartes = postes.map((p) => carteFauteuil(p, file, seul));
+  return seul ? cartes[0] : el('div.fauteuils', cartes);
 }
 
 /* ------------------------------------------------------------------ */
@@ -233,10 +267,16 @@ function peindre(file) {
   if (!zone) return;
 
   const attente = file.attente || [];
+  const fauteuils = file.compteurs.fauteuils ?? 1;
   const enTete = el('div.file__chiffres',
     chiffre(attente.length, attente.length === 1 ? 'client en attente' : 'clients en attente'),
     chiffre(file.compteurs.servis, file.compteurs.servis === 1 ? 'client servi' : 'clients servis'),
-    chiffre(minutesLisibles(file.attenteEstimeeMinutes), 'd’attente estimée'));
+    chiffre(minutesLisibles(file.attenteEstimeeMinutes), 'd’attente estimée'),
+    // Le nombre de fauteuils n'a d'interet que s'il y en a plusieurs : sinon
+    // c'est une case qui dit « 1 » toute la journee.
+    fauteuils > 1
+      ? chiffre(file.compteurs.fauteuilsLibres + ' / ' + fauteuils, 'fauteuils libres')
+      : null);
 
   const liste = attente.length
     ? el('ul.file__liste', attente.map((t, i) => carteAttente(t, i)))
@@ -256,7 +296,7 @@ function peindre(file) {
   remplacer(zone,
     !file.ouverte ? el('p.alerte.alerte--refus', { texte: 'La journée est close. La file repartira demain à A001.' }) : null,
     blocPriseDeTour(file.priseDeTour),
-    blocActuel(file),
+    blocFauteuils(file),
     enTete,
     el('h2.file__titre', { texte: 'File d’attente' }),
     liste,

@@ -80,14 +80,21 @@ fileRoutes.get('/flux', async (ctx) => {
 
 /* ---------------- les quatre gestes ---------------- */
 
+/**
+ * `posteId` designe le fauteuil. Facultatif : sans lui, le premier fauteuil
+ * libre est pris — ce qui est exactement ce qu'il faut dans un salon a un seul
+ * fauteuil, ou personne n'a a le choisir.
+ */
+const posteDemande = (ctx) => validate(ctx.body, { posteId: { type: 'uuid' } }).posteId ?? null;
+
 fileRoutes.post('/suivant', async (ctx) => {
-  const ticket = await appelerSuivant({ user: ctx.user });
-  await repondreAvecLaFile(ctx, { appele: ticket.numero_affiche });
+  const ticket = await appelerSuivant({ user: ctx.user, posteId: posteDemande(ctx) });
+  await repondreAvecLaFile(ctx, { appele: ticket.numero_affiche, fauteuil: ticket.poste?.nom ?? null });
 }, { rateLimit: PROFILES.file });
 
 fileRoutes.post('/:id/appeler', async (ctx) => {
-  const ticket = await appeler(idDe(ctx), { user: ctx.user });
-  await repondreAvecLaFile(ctx, { appele: ticket.numero_affiche });
+  const ticket = await appeler(idDe(ctx), { user: ctx.user, posteId: posteDemande(ctx) });
+  await repondreAvecLaFile(ctx, { appele: ticket.numero_affiche, fauteuil: ticket.poste?.nom ?? null });
 }, { rateLimit: PROFILES.file });
 
 fileRoutes.post('/:id/commencer', async (ctx) => {

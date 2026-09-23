@@ -29,7 +29,7 @@ test('un client absent repart en fin de file, sans jamais perdre son tour', { sk
   };
   const idDe = async (numero) => {
     const r = await salon.get('/api/file');
-    const trouve = [...r.body.file.attente, r.body.file.enCours].filter(Boolean).find((x) => x.numero === numero);
+    const trouve = [...r.body.file.attente, banc.auFauteuil(r.body.file)].filter(Boolean).find((x) => x.numero === numero);
     return trouve?.id ?? null;
   };
 
@@ -42,9 +42,9 @@ test('un client absent repart en fin de file, sans jamais perdre son tour', { sk
   await t.test('Ahmed est appele, puis declare absent', async () => {
     await salon.post('/api/file/suivant');
     const enCours = await salon.get('/api/file');
-    assert.equal(enCours.body.file.enCours.numero, 'A001');
+    assert.equal(banc.auFauteuil(enCours.body.file).numero, 'A001');
 
-    const r = await salon.post('/api/file/' + enCours.body.file.enCours.id + '/absent');
+    const r = await salon.post('/api/file/' + banc.auFauteuil(enCours.body.file).id + '/absent');
     assert.equal(r.status, 200);
     assert.equal(r.body.absent, 'A001');
     assert.equal(r.body.retards, 1);
@@ -54,7 +54,7 @@ test('un client absent repart en fin de file, sans jamais perdre son tour', { sk
     assert.deepEqual(await numerosEnAttente(), ['A002', 'A003', 'A004', 'A001']);
     // Le fauteuil est libre : Ahmed n'occupe plus la place.
     const r = await salon.get('/api/file');
-    assert.equal(r.body.file.enCours, null);
+    assert.equal(banc.auFauteuil(r.body.file), null);
     assert.equal(r.body.file.prochain.numero, 'A002');
   });
 

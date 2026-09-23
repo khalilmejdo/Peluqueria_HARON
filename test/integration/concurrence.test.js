@@ -66,7 +66,7 @@ test('la file tient sous des gestes simultanes', { skip: IGNORE }, async (t) => 
     );
   });
 
-  await t.test('deux appels simultanes ne mettent qu un seul client au fauteuil', async () => {
+  await t.test('un seul fauteuil : deux appels simultanes, un seul aboutit', async () => {
     const file = await salon.get('/api/file');
     const [a, b] = file.body.file.attente;
 
@@ -79,7 +79,8 @@ test('la file tient sous des gestes simultanes', { skip: IGNORE }, async (t) => 
     assert.equal(reussis.length, 1, 'un seul appel aurait du aboutir');
     const refuse = [r1, r2].find((r) => r.status !== 200);
     assert.equal(refuse.status, 409);
-    assert.equal(refuse.body.error.code, 'FAUTEUIL_OCCUPE');
+    assert.ok(['FAUTEUIL_OCCUPE', 'FAUTEUILS_OCCUPES', 'FILE_CONCURRENTE'].includes(refuse.body.error.code),
+      'code inattendu : ' + refuse.body.error.code);
 
     // La base le confirme : un seul ticket appele ou en cours.
     const enCours = await banc.db.value(
@@ -88,9 +89,69 @@ test('la file tient sous des gestes simultanes', { skip: IGNORE }, async (t) => 
     assert.equal(enCours, 1);
   });
 
+  await t.test('deux fauteuils : deux appels simultanes aboutissent tous les deux', async () => {
+    const gerant = await banc.connecter('GERANT');
+    const second = await gerant.post('/api/postes', { nom: 'Fauteuil 2', coiffeur: 'Youssef' });
+    assert.equal(second.status, 201);
+
+    const postes = await salon.get('/api/postes');
+    const [p1, p2] = postes.body.items;
+    const file = await salon.get('/api/file');
+    // Le fauteuil deja occupe est libere pour partir d'une situation nette.
+    const assis = file.body.file.postes.find((p) => p.client)?.client;
+    if (assis) await salon.post('/api/file/' + assis.id + '/servi');
+
+    const enAttente = (await salon.get('/api/file')).body.file.attente;
+    const [a, b] = enAttente;
+
+    const [r1, r2] = await Promise.all([
+      salon.post('/api/file/' + a.id + '/appeler', { posteId: p1.id }),
+      salon.post('/api/file/' + b.id + '/appeler', { posteId: p2.id }),
+    ]);
+    assert.equal(r1.status, 200, JSON.stringify(r1.body));
+    assert.equal(r2.status, 200, JSON.stringify(r2.body));
+
+    const enCours = await banc.db.value(
+      "SELECT COUNT(*)::int FROM tickets WHERE statut IN ('CALLED','IN_SERVICE')",
+    );
+    assert.equal(enCours, 2, 'les deux fauteuils doivent servir en meme temps');
+    // Et chacun sur SON fauteuil : jamais deux sur le meme.
+    const doublons = await banc.db.all(
+      `SELECT poste_id FROM tickets WHERE statut IN ('CALLED','IN_SERVICE')
+        GROUP BY jour, poste_id HAVING COUNT(*) > 1`,
+    );
+    assert.deepEqual(doublons, []);
+  });
+
+  await t.test('deux appels simultanes sur LE MEME fauteuil : un seul passe', async () => {
+    // On libere les deux fauteuils.
+    const file = await salon.get('/api/file');
+    for (const poste of file.body.file.postes) {
+      if (poste.client) await salon.post('/api/file/' + poste.client.id + '/servi');
+    }
+    const postes = await salon.get('/api/postes');
+    const cible = postes.body.items[0];
+    const enAttente = (await salon.get('/api/file')).body.file.attente;
+    const [a, b] = enAttente;
+
+    const [r1, r2] = await Promise.all([
+      salon.post('/api/file/' + a.id + '/appeler', { posteId: cible.id }),
+      salon.post('/api/file/' + b.id + '/appeler', { posteId: cible.id }),
+    ]);
+    const reussis = [r1, r2].filter((r) => r.status === 200);
+    assert.equal(reussis.length, 1, 'un fauteuil ne sert qu un client a la fois');
+
+    const surCeFauteuil = await banc.db.value(
+      `SELECT COUNT(*)::int FROM tickets WHERE poste_id = $1 AND statut IN ('CALLED','IN_SERVICE')`,
+      [cible.id],
+    );
+    assert.equal(surCeFauteuil, 1);
+  });
+
   await t.test('servir deux fois le meme client ne le compte qu une fois', async () => {
     const file = await salon.get('/api/file');
-    const actuel = file.body.file.enCours;
+    const actuel = banc.auFauteuil(file.body.file);
+    const avant = await banc.db.value("SELECT COUNT(*)::int FROM tickets WHERE statut = 'COMPLETED'");
 
     const [r1, r2] = await Promise.all([
       salon.post('/api/file/' + actuel.id + '/servi'),
@@ -99,8 +160,9 @@ test('la file tient sous des gestes simultanes', { skip: IGNORE }, async (t) => 
     assert.equal(r1.status, 200);
     assert.equal(r2.status, 200);
 
+    // Un seul client de plus, pas deux : le second geste est sans effet.
     const servis = await banc.db.value("SELECT COUNT(*)::int FROM tickets WHERE statut = 'COMPLETED'");
-    assert.equal(servis, 1);
+    assert.equal(servis, avant + 1);
 
     // Et l'historique ne raconte pas deux fois le meme geste.
     const traces = await banc.db.value(
@@ -163,7 +225,7 @@ test('la file tient sous des gestes simultanes', { skip: IGNORE }, async (t) => 
     const attente = r.body.file.attente;
 
     // Les positions affichees sont 1, 2, 3... sans trou ni doublon.
-    assert.deepEqual(attente.map((x) => x.position), attente.map((_, i) => i + 1 + (r.body.file.enCours ? 1 : 0)));
+    assert.deepEqual(attente.map((x) => x.position), attente.map((_, i) => i + 1 + (banc.auFauteuil(r.body.file) ? 1 : 0)));
     // Les numeros de ticket sont tous distincts.
     assert.equal(new Set(attente.map((x) => x.numero)).size, attente.length);
     // Le total recoupe la base.

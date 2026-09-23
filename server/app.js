@@ -12,7 +12,8 @@ import { publicRoutes } from './routes/public.js';
 import { authRoutes } from './routes/auth.js';
 import { fileRoutes } from './routes/file.js';
 import {
-  metaRoutes, reglagesRoutes, comptesRoutes, statistiquesRoutes, serviceRoutes, fermeturesRoutes,
+  metaRoutes, reglagesRoutes, comptesRoutes, statistiquesRoutes, serviceRoutes,
+  fermeturesRoutes, postesRoutes,
 } from './routes/administration.js';
 
 export function buildRouter() {
@@ -32,6 +33,9 @@ export function buildRouter() {
   // Espace du personnel.
   router.mount('/api/auth', authRoutes);
   router.mount('/api/file', fileRoutes);
+  // Lisible par tout le personnel (l'ecran de la file en a besoin), modifiable
+  // par le gerant seul : les exigences sont posees route par route.
+  router.mount('/api/postes', postesRoutes);
   router.mount('/api/statistiques', statistiquesRoutes);
 
   // Reserve au gerant.

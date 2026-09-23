@@ -99,6 +99,7 @@ Mise en place et modèles à faire approuver : [`docs/WHATSAPP.md`](docs/WHATSAP
 
 | | |
 |---|---|
+| **Fauteuils** | Autant que le salon en a. Nom libre, nom du coiffeur si besoin, ouverture et fermeture à la demande. La file reste **unique** : elle avance simplement plus vite, et l'attente annoncée en tient compte. |
 | **Arrêter les prises de tour** | Un appui. La file en cours continue, personne de nouveau n'entre. |
 | **Congés** | Une période déclarée à l'avance, annoncée aux clients avec la date de réouverture. |
 | **Durée moyenne d'une coupe** | Sert à estimer l'attente. 20 minutes par défaut. |
@@ -118,7 +119,8 @@ vérifiées par des tests qui font agir deux personnes au même instant.
 |---|---|
 | Deux clients n'occupent jamais la même position | index unique `(jour, rang)` — un rang n'est jamais réutilisé |
 | Deux clients n'ont jamais le même numéro | index unique `(jour, numéro)` |
-| Un seul client au fauteuil | index unique partiel sur `(jour)` |
+| Un fauteuil ne sert qu'un client à la fois | index unique partiel `(jour, poste_id)` |
+| Un client appelé est toujours rattaché à un fauteuil | contrainte `CHECK` |
 | Un ticket d'une journée close ne bouge plus | déclencheur PostgreSQL, erreur `HR001` |
 | Un client ne reçoit jamais deux fois le même message | unique `(ticket, type, passage)` |
 | Personne n'atteint le ticket d'un autre | jeton de 192 bits, stocké en condensat seul |
@@ -137,7 +139,8 @@ server/
   http/             routeur, contexte, corps, fichiers statiques, en-têtes
   db/               schema.sql (idempotent), accès, données de référence
   domain/           file.js  ← LE CŒUR
-                    journee.js, fermetures.js, notifications.js, statistiques.js
+                    journee.js, postes.js, fermetures.js,
+                    notifications.js, statistiques.js
   routes/           public (sans compte) / salon (session)
   site/             pages du client, rendues par le serveur
 public/             CSS, JS vanille, polices, images — zéro framework

@@ -125,6 +125,80 @@ test('la duree moyenne du salon change l estimation, pas l ordre', () => {
   assert.equal(rapide.get('c').position, lent.get('c').position);
 });
 
+/* ------------------------------------------------------------------ */
+/*  Plusieurs fauteuils                                                */
+/* ------------------------------------------------------------------ */
+
+test('deux fauteuils font avancer la file deux fois plus vite', () => {
+  const tickets = [t('a', 1), t('b', 2), t('c', 3), t('d', 4), t('e', 5)];
+  const un = calculerPositions(tickets, { ...REGLAGES, postesActifs: 1 });
+  const deux = calculerPositions(tickets, { ...REGLAGES, postesActifs: 2 });
+
+  // La POSITION dans la file ne change pas : c'est la meme file, le meme ordre.
+  for (const id of ['a', 'b', 'c', 'd', 'e']) {
+    assert.equal(un.get(id).position, deux.get(id).position, id);
+    assert.equal(un.get(id).devant, deux.get(id).devant, id);
+  }
+
+  // L'ATTENTE, elle, est divisee. Avec deux fauteuils : a et b passent tout de
+  // suite, c et d a 20 minutes, e a 40.
+  assert.deepEqual(['a', 'b', 'c', 'd', 'e'].map((id) => deux.get(id).estimationMinutes), [0, 0, 20, 20, 40]);
+  assert.deepEqual(['a', 'b', 'c', 'd', 'e'].map((id) => un.get(id).estimationMinutes), [0, 20, 40, 60, 80]);
+});
+
+test('trois fauteuils : les trois premiers passent dans la foulee', () => {
+  const tickets = Array.from({ length: 7 }, (_, i) => t('t' + i, i + 1));
+  const positions = calculerPositions(tickets, { ...REGLAGES, postesActifs: 3 });
+
+  assert.deepEqual(tickets.map((x) => positions.get(x.id).tours), [0, 0, 0, 1, 1, 1, 2]);
+  assert.deepEqual(tickets.map((x) => positions.get(x.id).estimationMinutes), [0, 0, 0, 20, 20, 20, 40]);
+  // Les trois premiers sont « prochains » : un fauteuil se libere pour chacun.
+  assert.deepEqual(tickets.slice(0, 3).map((x) => positions.get(x.id).phase), ['PROCHAIN', 'PROCHAIN', 'PROCHAIN']);
+});
+
+test('le seuil de prevenance compte en tours, pas en personnes', () => {
+  // Avec un seul fauteuil et un seuil de 2, le 4e (3 devant) attend encore.
+  const tickets = Array.from({ length: 8 }, (_, i) => t('t' + i, i + 1));
+  const un = calculerPositions(tickets, { dureeMoyenneMinutes: 20, seuilPrevenir: 2, postesActifs: 1 });
+  assert.equal(un.get('t3').phase, 'ATTENTE');
+  assert.equal(un.get('t2').phase, 'APPROCHE');
+
+  // Avec deux fauteuils, ce meme 4e n'a plus qu'un tour devant lui : son tour
+  // approche vraiment. Sans cette regle, « prévenir à 2 personnes » n'aurait
+  // pas le meme sens selon le nombre de fauteuils ouverts.
+  const deux = calculerPositions(tickets, { dureeMoyenneMinutes: 20, seuilPrevenir: 2, postesActifs: 2 });
+  assert.equal(deux.get('t3').phase, 'APPROCHE');
+  assert.equal(deux.get('t3').tours, 1);
+  assert.equal(deux.get('t6').phase, 'ATTENTE');
+  assert.equal(deux.get('t6').tours, 3);
+});
+
+test('deux clients peuvent etre aux fauteuils en meme temps', () => {
+  const tickets = [
+    { id: 'a', rang: 1, statut: 'IN_SERVICE', poste_id: 'p1' },
+    { id: 'b', rang: 2, statut: 'CALLED', poste_id: 'p2' },
+    { id: 'c', rang: 3, statut: 'WAITING', poste_id: null },
+  ];
+  const positions = calculerPositions(tickets, { ...REGLAGES, postesActifs: 2 });
+
+  assert.equal(positions.get('a').phase, 'EN_COURS');
+  assert.equal(positions.get('b').phase, 'VOTRE_TOUR');
+  // Deux personnes devant lui, deux fauteuils : il passe au prochain tour.
+  assert.equal(positions.get('c').devant, 2);
+  assert.equal(positions.get('c').tours, 1);
+  assert.equal(positions.get('c').estimationMinutes, 20);
+});
+
+test('un nombre de fauteuils absurde ne casse pas le calcul', () => {
+  const tickets = [t('a', 1), t('b', 2)];
+  for (const postesActifs of [0, -3, null, undefined, NaN]) {
+    const positions = calculerPositions(tickets, { ...REGLAGES, postesActifs });
+    // On retombe sur un fauteuil : jamais de division par zero, jamais
+    // d'estimation infinie affichee a un client.
+    assert.equal(positions.get('b').estimationMinutes, 20, 'postesActifs = ' + postesActifs);
+  }
+});
+
 test('chaque phase dit au client quoi faire', () => {
   const tour = messageDePhase('VOTRE_TOUR', { nomSalon: 'HARON' });
   assert.match(tour.titre, /votre tour/i);

@@ -11,10 +11,8 @@
 --       d'une meme journee          -> index unique (jour, rang)
 --    2. deux clients ne peuvent pas porter le meme numero dans la journee
 --                                   -> index unique (jour, numero)
---    3. un seul client a la fois est appele ou en cours de service
---                                   -> index unique partiel sur (jour)
---       (le salon a un fauteuil ; voir docs/ARCHITECTURE.md pour en ouvrir
---        plusieurs)
+--    3. un fauteuil ne sert qu'un client a la fois
+--                                   -> index unique partiel (jour, poste_id)
 --    4. un ticket d'une journee close ne bouge plus
 --                                   -> declencheur, erreur HR001
 --    5. deux liens de suivi ne peuvent pas se confondre
@@ -119,6 +117,36 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 CREATE INDEX IF NOT EXISTS journees_ouvertes ON journees (jour) WHERE ouverte;
 
 -- ---------------------------------------------------------------------
+--  Fauteuils
+--
+--  Le salon en a un, deux ou cinq. Chaque fauteuil sert UN client a la
+--  fois ; la file, elle, reste unique et commune a tous. C'est ce qui
+--  distingue cette application d'un systeme de rendez-vous : le client
+--  prend un tour, pas un fauteuil.
+--
+--  Un fauteuil desactive ne peut plus recevoir de client, mais son
+--  historique reste : « qui a servi qui » se lit encore dans les tickets.
+--  C'est pourquoi on desactive plutot que de supprimer des qu'un fauteuil
+--  a servi au moins une fois.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS postes (
+  id          uuid PRIMARY KEY,
+  nom         text NOT NULL,
+  nom_lower   text NOT NULL,
+  coiffeur    text,
+  ordre       integer NOT NULL DEFAULT 0,
+  actif       boolean NOT NULL DEFAULT TRUE,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- Deux fauteuils du meme nom rendraient la file incomprehensible a l'ecran.
+CREATE UNIQUE INDEX IF NOT EXISTS postes_nom_unique ON postes (nom_lower);
+CREATE INDEX IF NOT EXISTS postes_actifs ON postes (ordre, nom_lower) WHERE actif;
+-- Le declencheur d'horodatage est pose en fin de fichier, avec les autres :
+-- la fonction qu'il appelle n'existe pas encore a cet endroit.
+
+-- ---------------------------------------------------------------------
 --  Fermetures : conges, jours feries, fermeture exceptionnelle
 --
 --  Une periode fermee couvre ses deux bornes incluses. Pendant cette
@@ -182,6 +210,10 @@ CREATE TABLE IF NOT EXISTS tickets (
   source          text NOT NULL,
   statut          text NOT NULL,
   retards         integer NOT NULL DEFAULT 0,
+  -- Le fauteuil qui sert ce client. Pose a l'appel, garde jusqu'au bout, et
+  -- conserve apres coup : c'est lui qui dit « qui a servi qui ». Efface si le
+  -- client repart en fin de file (il libere le fauteuil).
+  poste_id        uuid REFERENCES postes(id) ON DELETE RESTRICT,
   -- Lien de suivi. Deux colonnes, deux usages :
   --   jeton_hash : la cle de recherche. Un condensat SHA-256 ne se renverse
   --                pas : personne ne remonte d'un ticket vers son lien.
@@ -221,9 +253,27 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 CREATE UNIQUE INDEX IF NOT EXISTS tickets_journee_rang ON tickets (jour, rang);
 -- INVARIANT 2 : jamais deux clients avec le meme numero dans la journee.
 CREATE UNIQUE INDEX IF NOT EXISTS tickets_journee_numero ON tickets (jour, numero);
--- INVARIANT 3 : un seul client appele ou en cours a la fois.
-CREATE UNIQUE INDEX IF NOT EXISTS tickets_un_seul_en_cours
-  ON tickets (jour) WHERE statut IN ('CALLED', 'IN_SERVICE');
+-- INVARIANT 3 : un fauteuil ne sert qu'un client a la fois.
+--
+-- L'index porte sur (jour, poste_id) : deux fauteuils servent donc deux
+-- clients en parallele, mais deux clients ne peuvent jamais atterrir sur le
+-- meme fauteuil, quoi que fassent deux tablettes au meme instant.
+--
+-- L'ancien index portait sur (jour) seul, c'est-a-dire « un seul client dans
+-- tout le salon ». Il est retire ici : le schema est rejoue a chaque
+-- demarrage, et le laisser rendrait le second fauteuil inutilisable.
+DROP INDEX IF EXISTS tickets_un_seul_en_cours;
+CREATE UNIQUE INDEX IF NOT EXISTS tickets_un_client_par_poste
+  ON tickets (jour, poste_id) WHERE statut IN ('CALLED', 'IN_SERVICE');
+
+-- Un client appele est forcement sur un fauteuil : sans cela, l'index
+-- ci-dessus laisserait passer plusieurs clients « nulle part ».
+DO $$ BEGIN
+  ALTER TABLE tickets ADD CONSTRAINT tickets_en_cours_sur_un_poste
+    CHECK (statut NOT IN ('CALLED', 'IN_SERVICE') OR poste_id IS NOT NULL);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+CREATE INDEX IF NOT EXISTS tickets_poste ON tickets (poste_id, jour) WHERE poste_id IS NOT NULL;
 -- INVARIANT 5 : un lien de suivi designe un ticket et un seul.
 CREATE UNIQUE INDEX IF NOT EXISTS tickets_jeton_unique ON tickets (jeton_hash);
 
@@ -344,4 +394,8 @@ END $$;
 
 DROP TRIGGER IF EXISTS utilisateurs_touch ON utilisateurs;
 CREATE TRIGGER utilisateurs_touch BEFORE UPDATE ON utilisateurs
+  FOR EACH ROW EXECUTE FUNCTION haron_touch_updated_at();
+
+DROP TRIGGER IF EXISTS postes_touch ON postes;
+CREATE TRIGGER postes_touch BEFORE UPDATE ON postes
   FOR EACH ROW EXECUTE FUNCTION haron_touch_updated_at();

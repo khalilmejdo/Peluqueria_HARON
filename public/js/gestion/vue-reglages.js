@@ -15,6 +15,118 @@ const GROUPES = [
   { titre: 'Adresse publique', prefixes: ['public.'] },
 ];
 
+/**
+ * Les fauteuils du salon.
+ *
+ * Un fauteuil qui a deja servi ne se supprime pas, il se ferme : son historique
+ * reste attache aux tickets qu'il a servis. Le bouton change donc de nom selon
+ * le cas, plutot que de proposer une suppression qui sera refusee.
+ */
+async function sectionFauteuils(recharger, dire) {
+  const donnees = await api.get('/api/postes');
+
+  const lignes = donnees.items.map((p) => el('li.fauteuil' + (p.actif ? '' : '.fauteuil--ferme'),
+    el('div.fauteuil__tete',
+      el('span.fauteuil__nom', { texte: p.nom }),
+      p.coiffeur ? el('span.fauteuil__coiffeur', { texte: p.coiffeur }) : null,
+      p.actif ? null : el('span.fauteuil__badge', { texte: 'fermé' })),
+    el('p.fauteuil__meta',
+      p.occupePar ? el('span.fauteuil__occupe', { texte: 'occupé — ' + p.occupePar }) : el('span', { texte: p.actif ? 'libre' : 'hors service' }),
+      el('span', { texte: '·' }),
+      el('span', { texte: p.servisAujourdhui + ' servi' + (p.servisAujourdhui > 1 ? 's' : '') + ' aujourd’hui' })),
+    el('div.fauteuil__actions',
+      el('button.bouton.bouton--discret.bouton--petit', {
+        type: 'button',
+        texte: 'Renommer',
+        surClick: async () => {
+          const nom = window.prompt('Nom du fauteuil :', p.nom);
+          if (nom === null || nom.trim() === p.nom) return;
+          try {
+            await api.patch('/api/postes/' + p.id, { nom: nom.trim() });
+            await recharger();
+          } catch (err) {
+            dire(err instanceof ErreurApi ? err.message : 'Renommage impossible.');
+          }
+        },
+      }),
+      el('button.bouton.bouton--discret.bouton--petit', {
+        type: 'button',
+        texte: p.coiffeur ? 'Changer le coiffeur' : 'Nommer le coiffeur',
+        surClick: async () => {
+          const coiffeur = window.prompt('Coiffeur à ce fauteuil (laissez vide pour retirer) :', p.coiffeur || '');
+          if (coiffeur === null) return;
+          try {
+            await api.patch('/api/postes/' + p.id, { coiffeur: coiffeur.trim() });
+            await recharger();
+          } catch (err) {
+            dire(err instanceof ErreurApi ? err.message : 'Modification impossible.');
+          }
+        },
+      }),
+      el('button.bouton.bouton--discret.bouton--petit', {
+        type: 'button',
+        texte: p.actif ? 'Fermer' : 'Rouvrir',
+        surClick: async () => {
+          try {
+            await api.patch('/api/postes/' + p.id, { actif: !p.actif });
+            dire(p.actif ? 'Fauteuil fermé.' : 'Fauteuil rouvert.', true);
+            await recharger();
+          } catch (err) {
+            dire(err instanceof ErreurApi ? err.message : 'Modification impossible.');
+          }
+        },
+      }),
+      p.servisAujourdhui === 0
+        ? el('button.bouton.bouton--discret.bouton--petit.bouton--danger', {
+          type: 'button',
+          texte: 'Supprimer',
+          surClick: async () => {
+            if (!window.confirm('Supprimer le fauteuil « ' + p.nom + ' » ?')) return;
+            try {
+              await api.supprimer('/api/postes/' + p.id);
+              dire('Fauteuil supprimé.', true);
+              await recharger();
+            } catch (err) {
+              dire(err instanceof ErreurApi ? err.message : 'Suppression impossible.');
+            }
+          },
+        })
+        : null)));
+
+  const nom = el('input', { id: 'p-nom', type: 'text', maxlength: '40', required: true, placeholder: 'Fauteuil 2' });
+  const coiffeur = el('input', { id: 'p-coiffeur', type: 'text', maxlength: '60', placeholder: 'Nom du coiffeur (facultatif)' });
+
+  const ajout = el('form.formulaire', {
+    surSubmit: async (evenement) => {
+      evenement.preventDefault();
+      try {
+        await api.post('/api/postes', { nom: nom.value.trim(), coiffeur: coiffeur.value.trim() || undefined });
+        dire('Fauteuil ajouté.', true);
+        await recharger();
+      } catch (err) {
+        dire(err instanceof ErreurApi ? err.message : 'Création impossible.');
+      }
+    },
+  },
+  el('div.reglages__grille',
+    el('div.champ', el('label', { for: 'p-nom', texte: 'Nom du fauteuil' }), nom),
+    el('div.champ', el('label', { for: 'p-coiffeur', texte: 'Coiffeur' }), coiffeur,
+      el('p.champ__aide', { texte: 'Affiché sur la carte du fauteuil. Facultatif.' }))),
+  el('button.bouton.bouton--principal', { type: 'submit', texte: 'Ajouter le fauteuil' }));
+
+  return el('section.carte.reglages__groupe',
+    el('h2.reglages__titre', { texte: 'Fauteuils' }),
+    el('p.texte-doux', {
+      texte: donnees.actifs > 1
+        ? donnees.actifs + ' fauteuils ouverts : la file reste unique, mais elle avance ' + donnees.actifs + ' fois plus vite, et l’attente annoncée aux clients en tient compte.'
+        : 'Un seul fauteuil ouvert. Ajoutez-en un second et l’écran de la file affichera une carte par fauteuil.',
+    }),
+    el('ul.fauteuils-liste', lignes),
+    el('details.creation',
+      el('summary', { texte: 'Ajouter un fauteuil' }),
+      ajout));
+}
+
 export async function vueReglages(conteneur) {
   const donnees = await api.get('/api/reglages');
   const champs = new Map();
@@ -99,7 +211,9 @@ export async function vueReglages(conteneur) {
       }
     },
   },
-  erreurGlobale, succes, sections, el('div.reglages__pied', bouton));
+  // Les deux bandeaux d'alerte vivent plus haut dans la page : ils servent
+  // aussi a la section des fauteuils.
+  sections, el('div.reglages__pied', bouton));
 
   const whatsapp = el('section.carte.reglages__groupe',
     el('h2.reglages__titre', { texte: 'WhatsApp' }),
@@ -112,9 +226,22 @@ export async function vueReglages(conteneur) {
       texte: 'Le jeton d’accès et l’identifiant du numéro se posent dans les variables d’environnement (WHATSAPP_ACTIF, WHATSAPP_NUMERO_ID, WHATSAPP_JETON), jamais ici : un secret n’a rien à faire en base.',
     }));
 
+  const dire = (message, bon = false) => {
+    const cible = bon ? succes : erreurGlobale;
+    const autre = bon ? erreurGlobale : succes;
+    cible.textContent = message;
+    cible.hidden = false;
+    autre.hidden = true;
+    annoncer(message);
+  };
+
+  const fauteuils = await sectionFauteuils(() => vueReglages(conteneur), dire);
+
   remplacer(conteneur, el('div.enveloppe.page-gestion',
     el('h1.titre-page', { texte: 'Réglages' }),
     el('p.texte-doux', { texte: 'Adresse publique du QR Code : ' + donnees.adressePublique }),
+    erreurGlobale, succes,
+    fauteuils,
     formulaire,
     whatsapp));
 }
