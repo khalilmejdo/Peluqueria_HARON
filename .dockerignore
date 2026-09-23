@@ -10,3 +10,6 @@ docs
 coverage
 .vscode
 .idea
+sauvegardes
+Caddyfile
+docker-compose*.yml

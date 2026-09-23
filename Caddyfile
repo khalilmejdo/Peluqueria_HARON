@@ -1,0 +1,40 @@
+# =====================================================================
+#  Peluquería HARON — entrée HTTPS
+#
+#  Caddy demande et renouvelle le certificat Let's Encrypt tout seul. Il n'y
+#  a rien à faire de plus que : le nom de domaine pointe sur la machine, et
+#  les ports 80 et 443 sont ouverts DANS LES DEUX pare-feux d'OCI (la liste
+#  de sécurité du réseau ET iptables sur la machine).
+#
+#  DOMAINE et COURRIEL_TLS viennent de l'environnement (docker-compose.oci.yml).
+#
+#  POURQUOI SI COURT. Le suivi d'un client et l'écran du coiffeur tiennent une
+#  connexion ouverte pendant des heures (Server-Sent Events). Avec nginx il
+#  faudrait couper la mise en tampon et rallonger les délais à la main ;
+#  Caddy reconnaît « text/event-stream » et écrit au fil de l'eau de lui-même,
+#  et son transport HTTP n'impose aucun délai de lecture par défaut. Le flux
+#  passe donc sans un mot de configuration — et c'est une configuration qu'on
+#  ne peut pas se tromper en écrivant.
+# =====================================================================
+
+{
+	email {$COURRIEL_TLS}
+	log {
+		output stdout
+		format json
+	}
+}
+
+{$DOMAINE} {
+	encode zstd gzip
+
+	reverse_proxy app:3000
+
+	# L'application pose déjà ses propres en-têtes de sécurité (CSP stricte,
+	# nosniff, frame-ancestors, Referrer-Policy). On n'ajoute ici que ce que
+	# seul le point d'entrée HTTPS peut légitimement affirmer.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+}

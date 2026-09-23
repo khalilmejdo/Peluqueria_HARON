@@ -1,0 +1,105 @@
+# =====================================================================
+#  Peluquería HARON — déploiement sur une machine nue
+#
+#  Pensé pour Oracle Cloud Infrastructure, offre Always Free (ARM Ampere
+#  A1), mais valable sur n'importe quel serveur avec Docker.
+#
+#  Trois conteneurs, et rien d'autre à installer :
+#     caddy   entrée HTTPS, certificat Let's Encrypt automatique
+#     app     l'application
+#     base    PostgreSQL
+#
+#  Mise en route :
+#     cp .env.example .env     puis renseigner (npm run keygen pour les clés)
+#     docker compose -f docker-compose.oci.yml up -d --build
+#
+#  L'image se construit directement sur la machine : pas de registre à
+#  gérer, et l'architecture (ARM ou x86) est forcément la bonne.
+# =====================================================================
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAINE: ${DOMAINE:?DOMAINE requis (ex. file.peluqueria-haron.com)}
+      COURRIEL_TLS: ${COURRIEL_TLS:?COURRIEL_TLS requis (avis d expiration Let s Encrypt)}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Les certificats survivent aux redémarrages : sans ce volume, Caddy en
+      # redemanderait à chaque fois et se ferait limiter par Let's Encrypt.
+      - caddy_donnees:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+  app:
+    build:
+      context: .
+      args:
+        SOURCE_COMMIT: ${SOURCE_COMMIT:-}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Fuseau du salon : c'est lui qui définit ce qu'est « aujourd'hui ».
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Madrid}
+      TELEPHONE_INDICATIF_DEFAUT: ${TELEPHONE_INDICATIF_DEFAUT:-34}
+
+      DATABASE_URL: postgresql://haron:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}@base:5432/haron
+      DATABASE_SSL: "off"
+
+      APP_SECRET: ${APP_SECRET:?APP_SECRET requis}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?APP_ENCRYPTION_KEY requis}
+      APP_PASSWORD_PEPPER: ${APP_PASSWORD_PEPPER:?APP_PASSWORD_PEPPER requis}
+
+      # L'adresse qu'encode le QR Code de la vitrine. Elle ne doit plus
+      # changer une fois l'affiche imprimée.
+      PUBLIC_URL: https://${DOMAINE}
+      ALLOWED_ORIGINS: https://${DOMAINE}
+      # Un seul relais devant l'application : Caddy.
+      TRUST_PROXY: "true"
+      TRUST_PROXY_HOPS: "1"
+      SECURE_COOKIES: "true"
+      ENABLE_HSTS: "true"
+
+      BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-haron}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+
+      WHATSAPP_ACTIF: ${WHATSAPP_ACTIF:-false}
+      WHATSAPP_NUMERO_ID: ${WHATSAPP_NUMERO_ID:-}
+      WHATSAPP_JETON: ${WHATSAPP_JETON:-}
+      WHATSAPP_LANGUE: ${WHATSAPP_LANGUE:-fr}
+    depends_on:
+      base:
+        condition: service_healthy
+    # Aucun port publié : l'application n'est joignable que par Caddy.
+    expose:
+      - "3000"
+
+  base:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: haron
+      POSTGRES_USER: haron
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}
+      # Le salon vit en Europe/Madrid ; les journaux de la base aussi.
+      TZ: ${APP_TIMEZONE:-Europe/Madrid}
+    volumes:
+      - base:/var/lib/postgresql/data
+      # Les sauvegardes atterrissent ici, lisibles depuis la machine.
+      - ./sauvegardes:/sauvegardes
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U haron -d haron"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  base:
+  caddy_donnees:
+  caddy_config:

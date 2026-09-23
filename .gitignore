@@ -6,3 +6,6 @@ data/
 .DS_Store
 Thumbs.db
 coverage/
+
+# Sauvegardes produites sur le serveur : jamais dans le depot.
+sauvegardes/

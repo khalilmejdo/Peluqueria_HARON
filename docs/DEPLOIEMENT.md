@@ -2,6 +2,11 @@
 
 Écrit pour la personne qui met le salon en ligne et qui s'en occupe ensuite.
 
+> **Vous déployez sur une machine nue (Oracle Cloud, VPS) ?** Suivez plutôt
+> [`DEPLOIEMENT-OCI.md`](DEPLOIEMENT-OCI.md), qui reprend tout pas à pas, ports
+> et certificat compris. La présente page couvre les principes communs et
+> l'exploitation : secrets, sauvegardes, mises à jour, surveillance.
+
 ---
 
 ## 1. Avant de commencer
@@ -73,7 +78,17 @@ ENABLE_HSTS=true
 élément de cette chaîne est écrit par le client et ne vaut rien. Une valeur trop
 grande laisse un client choisir l'adresse que voit la limitation de débit.
 
-### Les flux temps réel derrière nginx
+### Les flux temps réel derrière un proxy
+
+Le suivi d'un client et l'écran du coiffeur tiennent une connexion ouverte
+pendant des heures. Un proxy qui met les réponses en tampon, ou qui coupe au
+bout de soixante secondes, casse le direct — sans erreur visible, ce qui est
+pire : l'écran reste simplement figé.
+
+**Avec Caddy** (`docker-compose.oci.yml`), il n'y a rien à faire : il reconnaît
+`text/event-stream`, écrit au fil de l'eau, et n'impose aucun délai de lecture.
+
+**Avec nginx**, il faut le dire explicitement :
 
 ```nginx
 location / {

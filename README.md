@@ -50,8 +50,20 @@ npm run coiffeur -- --identifiant=youssef --nom="Youssef Haron" --role=GERANT
 
 ## Mise en production
 
+**Sur une machine nue** — Oracle Cloud *Always Free*, ou n'importe quel serveur
+avec Docker. Trois conteneurs : Caddy (HTTPS automatique), l'application,
+PostgreSQL.
+
 ```bash
-npm run keygen                      # les trois secrets, dans l'hébergeur
+npm run keygen                                       # les trois secrets → .env
+docker compose -f docker-compose.oci.yml up -d --build
+```
+
+Guide complet, pas à pas : [`docs/DEPLOIEMENT-OCI.md`](docs/DEPLOIEMENT-OCI.md).
+
+**Derrière un proxy déjà en place** (Coolify, Traefik, nginx) :
+
+```bash
 docker compose up -d --build
 ```
 
@@ -69,7 +81,7 @@ Le conteneur applique le schéma et les données de référence à chaque démar
 Les deux opérations sont idempotentes : un redéploiement en pleine journée ne
 touche ni la file en cours, ni les réglages du salon.
 
-Détails : [`docs/DEPLOIEMENT.md`](docs/DEPLOIEMENT.md).
+Détails et exploitation : [`docs/DEPLOIEMENT.md`](docs/DEPLOIEMENT.md).
 
 ---
 
