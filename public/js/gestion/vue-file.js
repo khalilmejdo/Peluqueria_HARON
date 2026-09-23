@@ -82,20 +82,24 @@ async function recharger() {
  */
 function carteFauteuil(poste, file, seul) {
   const actuel = poste.client;
-  const enTete = seul
+  const parFauteuil = file.mode === 'PAR_FAUTEUIL';
+  const enTete = seul && !parFauteuil
     ? el('p.actuel__label', { texte: 'Client actuel' })
     : el('div.actuel__fauteuil',
       el('span.actuel__fauteuil-nom', { texte: poste.nom }),
       poste.coiffeur ? el('span.actuel__fauteuil-coiffeur', { texte: poste.coiffeur }) : null);
 
   if (!actuel) {
-    const prochain = file.prochain;
+    // En file par coiffeur, « le prochain » est le prochain DE CE COIFFEUR :
+    // proposer le premier du salon ferait passer devant quelqu'un qui attend
+    // quelqu'un d'autre.
+    const prochain = parFauteuil ? poste.prochain : file.prochain;
     return el('section.actuel.actuel--vide',
       enTete,
-      el('p.actuel__aucun', { texte: prochain ? 'Fauteuil libre.' : 'Personne n’attend.' }),
+      el('p.actuel__aucun', { texte: prochain ? 'Fauteuil libre.' : (parFauteuil ? 'Personne n’attend ce coiffeur.' : 'Personne n’attend.') }),
       prochain
         ? el('div.actuel__suite',
-          el('p.actuel__prochain-label', { texte: 'Prochain dans la file' }),
+          el('p.actuel__prochain-label', { texte: parFauteuil ? 'Prochain dans sa file' : 'Prochain dans la file' }),
           el('p.actuel__prochain', { texte: prochain.prenom + ' ' + prochain.nom }),
           el('p.actuel__prochain-numero', { texte: prochain.numero }),
           el('button.bouton.bouton--principal.bouton--geant', {
@@ -106,7 +110,11 @@ function carteFauteuil(poste, file, seul) {
               annonce: prochain.prenom + ' est appelé au fauteuil ' + poste.nom + '.',
             }),
           }))
-        : el('p.texte-doux', { texte: 'La file se remplira dès qu’un client prendra son tour.' }));
+        : el('p.texte-doux', {
+          texte: parFauteuil
+            ? 'Vous pouvez prendre un client d’une autre file avec « Appeler maintenant ».'
+            : 'La file se remplira dès qu’un client prendra son tour.',
+        }));
   }
 
   const appele = actuel.statut === 'CALLED';
@@ -278,9 +286,33 @@ function peindre(file) {
       ? chiffre(file.compteurs.fauteuilsLibres + ' / ' + fauteuils, 'fauteuils libres')
       : null);
 
-  const liste = attente.length
-    ? el('ul.file__liste', attente.map((t, i) => carteAttente(t, i)))
-    : el('p.file__vide', { texte: 'Aucun client en attente.' });
+  // En file par coiffeur, la file se lit coiffeur par coiffeur : une liste
+  // melangee n'apprendrait rien a personne, puisque chacun ne sert que la
+  // sienne. Les clients sans coiffeur (bascule de mode) sont montres a part —
+  // on ne cache jamais quelqu'un qui attend.
+  const liste = file.mode === 'PAR_FAUTEUIL'
+    ? el('div.files-par-coiffeur',
+      (file.postes || []).map((p) => el('section.file-coiffeur',
+        el('h3.file-coiffeur__titre',
+          el('span', { texte: p.coiffeur || p.nom }),
+          el('span.file-coiffeur__compte', {
+            texte: p.attente.length + ' en attente'
+              + (p.attente.length ? ' · ≈ ' + minutesLisibles(p.attenteEstimeeMinutes) : ''),
+          })),
+        p.attente.length
+          ? el('ul.file__liste', p.attente.map((t, i) => carteAttente(t, i)))
+          : el('p.file__vide', { texte: 'Personne n’attend ce coiffeur.' }))),
+      (file.sansFauteuil || []).length
+        ? el('section.file-coiffeur.file-coiffeur--orphelins',
+          el('h3.file-coiffeur__titre',
+            el('span', { texte: 'Sans coiffeur' }),
+            el('span.file-coiffeur__compte', { texte: file.sansFauteuil.length + ' en attente' })),
+          el('p.texte-doux', { texte: 'Ces clients ont pris leur tour avant le changement d’organisation. Appelez-les depuis le fauteuil de votre choix.' }),
+          el('ul.file__liste', file.sansFauteuil.map((t, i) => carteAttente(t, i))))
+        : null)
+    : (attente.length
+      ? el('ul.file__liste', attente.map((t, i) => carteAttente(t, i)))
+      : el('p.file__vide', { texte: 'Aucun client en attente.' }));
 
   const termines = (file.termines || []).slice(0, 8);
   const historique = termines.length

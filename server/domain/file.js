@@ -21,7 +21,7 @@
 import { transaction, all, one } from '../db/index.js';
 import { newId, jetonSuivi, hashToken, encrypt, decrypt, blindIndexTous, blindIndex } from '../core/crypto.js';
 import { jourLocal, attenteLisible, attenteCourte, jourSemaine, minutesDepuisMinuit } from '../core/temps.js';
-import { conflict, notFound, badRequest, AppError } from '../core/errors.js';
+import { conflict, notFound, badRequest, AppError, ValidationError } from '../core/errors.js';
 import { lireTous, estOuvert } from '../core/reglages.js';
 import { annoncerChangement } from '../core/flux.js';
 import { log } from '../core/logger.js';
@@ -31,10 +31,25 @@ import {
 } from './journee.js';
 import { enfilerEnvoi } from './notifications.js';
 import { fermetureDuJour, prochaine as prochaineFermeture, messageDeFermeture } from './fermetures.js';
-import { lister as listerPostes, posteLibre, versClient as posteVersClient } from './postes.js';
+import {
+  lister as listerPostes, posteLibre, parId as posteParId, versClient as posteVersClient,
+} from './postes.js';
+
+/**
+ * Les deux organisations possibles de la file.
+ *
+ *   UNIQUE       une seule file pour tout le salon. Le client prend un tour, le
+ *                premier coiffeur libre le sert. C'est le mode par defaut, et
+ *                celui qui fait avancer le salon le plus vite.
+ *   PAR_FAUTEUIL une file par coiffeur. Le client CHOISIT son coiffeur et
+ *                attend dans sa file, meme si le voisin est libre. Plus lent
+ *                pour le salon, mais c'est parfois ce que veut la clientele.
+ */
+export const MODE_UNIQUE = 'UNIQUE';
+export const MODE_PAR_FAUTEUIL = 'PAR_FAUTEUIL';
 
 const COLONNES = `id, jour, numero, numero_affiche, rang, prenom, nom, telephone_enc, telephone_fin,
-                  source, statut, retards, poste_id, jeton_enc, arrive_at, file_depuis_at, statut_at,
+                  source, statut, retards, poste_choisi_id, poste_id, jeton_enc, arrive_at, file_depuis_at, statut_at,
                   appele_at, service_at, termine_at, motif, version`;
 
 /* ================================================================== */
@@ -63,17 +78,36 @@ const COLONNES = `id, jour, numero, numero_affiche, rang, prenom, nom, telephone
  * @returns {Map<string, { position:number, devant:number, tours:number,
  *                         estimationMinutes:number, phase:string }>}
  */
-export function calculerPositions(tickets, { dureeMoyenneMinutes, seuilPrevenir, postesActifs = 1 }) {
+export function calculerPositions(tickets, {
+  dureeMoyenneMinutes, seuilPrevenir, postesActifs = 1, mode = MODE_UNIQUE,
+}) {
   const fauteuils = Math.max(1, Math.trunc(postesActifs) || 1);
+  const parFauteuil = mode === MODE_PAR_FAUTEUIL;
+
+  // Le COULOIR : l'ensemble de ceux qui se disputent la meme place.
+  //
+  //   file unique      -> un seul couloir, servi par tous les fauteuils ;
+  //   file par coiffeur -> un couloir par fauteuil, servi par lui seul.
+  //
+  // Une seule formule couvre donc les deux modes, et il n'existe pas de
+  // seconde regle de calcul quelque part ailleurs qui pourrait diverger.
+  const couloirDe = (t) => (parFauteuil ? String(t.poste_choisi_id ?? 'sans-coiffeur') : '');
+  const serveurs = parFauteuil ? 1 : fauteuils;
+
   const actifs = tickets.filter((t) => STATUTS_ACTIFS.includes(t.statut)).sort((a, b) => a.rang - b.rang);
   const sortie = new Map();
+  const rangsDuCouloir = new Map();
 
-  actifs.forEach((ticket, index) => {
-    // Personnes devant : tous les actifs de rang inferieur, y compris ceux qui
-    // sont deja aux fauteuils. C'est le compte qu'attend un client, pas une
-    // subtilite — et c'est ce chiffre-la qui part dans le message WhatsApp.
-    const devant = index;
-    const tours = Math.floor(devant / fauteuils);
+  for (const ticket of actifs) {
+    const couloir = couloirDe(ticket);
+    const devant = rangsDuCouloir.get(couloir) ?? 0;
+    rangsDuCouloir.set(couloir, devant + 1);
+
+    // Personnes devant : tous les actifs de SON couloir situes avant lui, y
+    // compris celui qui est deja au fauteuil. C'est le compte qu'attend un
+    // client, pas une subtilite — et c'est ce chiffre-la qui part dans le
+    // message WhatsApp.
+    const tours = Math.floor(devant / serveurs);
     const estimationMinutes = tours * dureeMoyenneMinutes;
     let phase;
     if (ticket.statut === 'IN_SERVICE') phase = 'EN_COURS';
@@ -81,8 +115,9 @@ export function calculerPositions(tickets, { dureeMoyenneMinutes, seuilPrevenir,
     else if (tours === 0) phase = 'PROCHAIN';
     else if (tours <= seuilPrevenir) phase = 'APPROCHE';
     else phase = 'ATTENTE';
-    sortie.set(ticket.id, { position: index + 1, devant, tours, estimationMinutes, phase });
-  });
+
+    sortie.set(ticket.id, { position: devant + 1, devant, tours, estimationMinutes, phase, couloir });
+  }
 
   for (const ticket of tickets) {
     if (sortie.has(ticket.id)) continue;
@@ -92,6 +127,7 @@ export function calculerPositions(tickets, { dureeMoyenneMinutes, seuilPrevenir,
       tours: 0,
       estimationMinutes: 0,
       phase: ticket.statut === 'COMPLETED' ? 'TERMINE' : 'ANNULE',
+      couloir: couloirDe(ticket),
     });
   }
   return sortie;
@@ -222,10 +258,12 @@ export async function chargerEtat(jour) {
   const postesActifs = postes.filter((p) => p.actif);
   const dureeMoyenneMinutes = journee?.duree_moyenne_minutes ?? reglages['file.dureeMoyenneMinutes'];
   const seuilPrevenir = reglages['file.seuilPrevenir'];
+  const mode = reglages['file.mode'];
   const positions = calculerPositions(tickets, {
     dureeMoyenneMinutes,
     seuilPrevenir,
     postesActifs: postesActifs.length,
+    mode,
   });
 
   const actifs = tickets.filter((t) => STATUTS_ACTIFS.includes(t.statut)).sort((a, b) => a.rang - b.rang);
@@ -235,6 +273,7 @@ export async function chargerEtat(jour) {
   return {
     jour,
     ouverte: journee ? journee.ouverte : true,
+    mode,
     dureeMoyenneMinutes,
     seuilPrevenir,
     nomSalon: reglages['salon.nom'],
@@ -308,11 +347,22 @@ export function pourSalon(etat) {
   // ou, et lequel est libre. Les fauteuils fermes qui portent encore un client
   // (cas impossible par construction, mais on ne cache jamais un client) sont
   // rendus eux aussi.
+  const parFauteuil = etat.mode === MODE_PAR_FAUTEUIL;
+
   const cartes = etat.postes
-    .filter((p) => p.actif || actifs.some((t) => t.poste_id === p.id && STATUTS_EN_COURS.includes(t.statut)))
+    .filter((p) => p.actif || actifs.some((t) => t.poste_id === p.id || t.poste_choisi_id === p.id))
     .map((p) => {
       const assis = actifs.find((t) => t.poste_id === p.id && STATUTS_EN_COURS.includes(t.statut)) || null;
-      return { ...posteVersClient(p), client: assis ? ticket(assis) : null };
+      // En file par coiffeur, chaque fauteuil porte SA file : c'est elle que
+      // le coiffeur regarde, et le total du salon ne lui dit plus rien.
+      const sienne = parFauteuil ? attente.filter((t) => t.poste_choisi_id === p.id) : [];
+      return {
+        ...posteVersClient(p),
+        client: assis ? ticket(assis) : null,
+        attente: sienne.map(ticket),
+        prochain: sienne.length ? ticket(sienne[0]) : null,
+        attenteEstimeeMinutes: parFauteuil ? sienne.length * etat.dureeMoyenneMinutes : null,
+      };
     });
 
   const fauteuils = Math.max(1, etat.postesActifs.length);
@@ -320,18 +370,27 @@ export function pourSalon(etat) {
   return {
     jour: etat.jour,
     ouverte: etat.ouverte,
+    mode: etat.mode,
     priseDeTour: etat.priseDeTour,
     maj: etat.maj,
     dureeMoyenneMinutes: etat.dureeMoyenneMinutes,
     seuilPrevenir: etat.seuilPrevenir,
     postes: cartes,
     prochain: attente.length ? ticket(attente[0]) : null,
+    // La file entiere reste rendue dans les deux modes : en file par coiffeur,
+    // elle sert au bandeau « toute la file » et aux clients sans fauteuil.
     attente: attente.map(ticket),
+    // Ceux qui n'ont pas de fauteuil alors que le mode en exige un : cas de
+    // bascule de mode en cours de journee. On ne les cache jamais.
+    sansFauteuil: parFauteuil ? attente.filter((t) => !t.poste_choisi_id).map(ticket) : [],
     termines: termines.slice(0, 40).map(ticket),
     compteurs: etat.compteurs,
     // L'attente annoncee au comptoir : la file entiere repartie sur les
-    // fauteuils ouverts.
-    attenteEstimeeMinutes: Math.ceil(attente.length / fauteuils) * etat.dureeMoyenneMinutes,
+    // fauteuils ouverts. En file par coiffeur, c'est la plus longue des files
+    // qui commande — un client qui arrive attend au pire celle-la.
+    attenteEstimeeMinutes: parFauteuil
+      ? Math.max(0, ...cartes.filter((c) => c.actif).map((c) => c.attente.length)) * etat.dureeMoyenneMinutes
+      : Math.ceil(attente.length / fauteuils) * etat.dureeMoyenneMinutes,
   };
 }
 
@@ -347,9 +406,17 @@ export function pourClient(etat, ticketId) {
   if (!t) return null;
   const p = etat.positions.get(t.id) || { position: 0, devant: 0, tours: 0, estimationMinutes: 0, phase: 'ATTENTE' };
   const message = messageDePhase(p.phase, { devant: p.devant, estimationMinutes: p.estimationMinutes, nomSalon: etat.nomSalon });
+  // En file par coiffeur, le client a CHOISI : son ticket doit le lui rappeler.
+  const posteRef = t.poste_id || t.poste_choisi_id;
+  const poste = etat.mode === MODE_PAR_FAUTEUIL && posteRef
+    ? etat.postes.find((x) => x.id === posteRef) || null
+    : null;
+
   return {
     numero: t.numero_affiche,
     prenom: t.prenom,
+    // Le nom du coiffeur s'il a ete choisi, sinon le nom du fauteuil.
+    coiffeur: poste ? (poste.coiffeur || poste.nom) : null,
     statut: t.statut,
     phase: p.phase,
     position: p.position,
@@ -405,24 +472,35 @@ export async function ticketParJeton(jeton) {
  */
 async function planifierNotifications(tx, jour, reglages, { saufTicketId = null } = {}) {
   const tickets = await tx.all(
-    `SELECT id, statut, retards, telephone_enc, jeton_enc, numero_affiche, prenom
+    `SELECT id, rang, statut, retards, poste_choisi_id, poste_id, telephone_enc, jeton_enc, numero_affiche, prenom
        FROM tickets WHERE jour = $1 AND statut = ANY($2) ORDER BY rang`,
     [jour, STATUTS_ACTIFS],
   );
-  // Le seuil compte en TOURS, pas en personnes : avec deux fauteuils, quatre
-  // personnes devant soi valent deux tours. Sinon « prévenir à 2 personnes »
-  // ne voudrait pas dire la meme chose selon le nombre de fauteuils ouverts.
   const fauteuils = Math.max(1, await tx.value('SELECT COUNT(*)::int FROM postes WHERE actif') ?? 1);
+
+  // On repasse par calculerPositions plutot que de recompter ici : c'est la
+  // MEME regle qui decide de ce que le client voit a l'ecran et de ce qu'il
+  // recoit sur WhatsApp. Deux comptages separes finiraient par diverger, et le
+  // client lirait « 4 personnes devant vous » en recevant « votre tour
+  // approche ». Le seuil compte en TOURS, pas en personnes.
+  const positions = calculerPositions(tickets, {
+    dureeMoyenneMinutes: reglages['file.dureeMoyenneMinutes'],
+    seuilPrevenir: reglages['file.seuilPrevenir'],
+    postesActifs: fauteuils,
+    mode: reglages['file.mode'],
+  });
 
   // Une connexion PostgreSQL ne traite qu'une requete a la fois : les envois
   // s'enfilent l'un apres l'autre, jamais en parallele sur la meme transaction.
-  for (const [index, t] of tickets.entries()) {
-    const devant = index;
+  for (const t of tickets) {
     if (t.id === saufTicketId) continue;
-    if (STATUTS_EN_ATTENTE.includes(t.statut) && Math.floor(devant / fauteuils) <= reglages['file.seuilPrevenir']) {
+    const p = positions.get(t.id);
+    if (!p) continue;
+
+    if (STATUTS_EN_ATTENTE.includes(t.statut) && p.tours <= reglages['file.seuilPrevenir']) {
       // Le message, lui, annonce le nombre REEL de personnes devant : c'est ce
       // que le client compte des yeux en entrant dans le salon.
-      await enfilerEnvoi(tx, { ticket: t, type: 'APPROCHE', donnees: { devant } });
+      await enfilerEnvoi(tx, { ticket: t, type: 'APPROCHE', donnees: { devant: p.devant } });
     }
     if (t.statut === 'CALLED') {
       await enfilerEnvoi(tx, { ticket: t, type: 'TOUR', donnees: { devant: 0 } });
@@ -447,11 +525,15 @@ async function tracer(tx, ticket, { statut, rang, user = null, detail = null }) 
  * exactement le meme chemin et la meme file : seule l'origine enregistree
  * change, et elle n'influe pas sur l'ordre.
  *
- * @param {{ prenom:string, nom:string, telephone:string, source:'ONLINE'|'QR'|'COMPTOIR' }} donnees
+ * En mode « une file par coiffeur », le client choisit son fauteuil a ce
+ * moment-la, et il ne bouge plus : il attend dans SA file.
+ *
+ * @param {{ prenom:string, nom:string, telephone:string,
+ *           source:'ONLINE'|'QR'|'COMPTOIR', posteId?:string|null }} donnees
  * @param {{ user?:object|null }} [contexte]
  * @returns {Promise<{ ticket:object, jeton:string, position:object }>}
  */
-export async function prendreTour({ prenom, nom, telephone, source = 'ONLINE' }, { user = null } = {}) {
+export async function prendreTour({ prenom, nom, telephone, source = 'ONLINE', posteId = null }, { user = null } = {}) {
   const reglages = await lireTous();
   const maintenant = new Date();
   const jour = jourLocal(maintenant);
@@ -464,6 +546,21 @@ export async function prendreTour({ prenom, nom, telephone, source = 'ONLINE' },
   if (source !== 'COMPTOIR') {
     const etat = await etatPriseDeTour({ instant: maintenant });
     if (!etat.ouverte) throw new AppError(409, etat.message, { code: etat.code });
+  }
+
+  // En file par coiffeur, le choix du fauteuil est OBLIGATOIRE : sans lui, le
+  // client atterrirait dans aucune file et n'avancerait jamais.
+  let poste = null;
+  if (reglages['file.mode'] === MODE_PAR_FAUTEUIL) {
+    if (!posteId) {
+      throw new ValidationError({ posteId: 'Choisissez votre coiffeur.' },
+        'Le salon fonctionne avec une file par coiffeur : choisissez le vôtre.');
+    }
+    poste = await posteParId(posteId);
+    if (!poste || !poste.actif) {
+      throw new ValidationError({ posteId: 'Ce coiffeur n’est pas disponible.' },
+        'Ce coiffeur n’est plus disponible. Choisissez-en un autre.');
+    }
   }
 
   const jeton = jetonSuivi();
@@ -507,15 +604,22 @@ export async function prendreTour({ prenom, nom, telephone, source = 'ONLINE' },
 
     const ticket = await tx.one(
       `INSERT INTO tickets (id, jour, numero, numero_affiche, rang, prenom, nom,
-                            telephone_enc, telephone_idx, telephone_fin, source, statut, jeton_hash, jeton_enc)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'WAITING',$12,$13)
+                            telephone_enc, telephone_idx, telephone_fin, source, statut, jeton_hash,
+                            jeton_enc, poste_choisi_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'WAITING',$12,$13,$14)
        RETURNING ` + COLONNES,
       [id, jour, numero, affiche, rang, prenom, nom,
         encrypt(telephone), blindIndex(telephone), telephone.slice(-4), source,
-        hashToken(jeton), encrypt(jeton)],
+        hashToken(jeton), encrypt(jeton), poste ? poste.id : null],
     );
 
-    await tracer(tx, ticket, { statut: 'WAITING', rang, user, detail: 'Tour pris (' + libelleSource(source) + ').' });
+    await tracer(tx, ticket, {
+      statut: 'WAITING',
+      rang,
+      user,
+      detail: 'Tour pris (' + libelleSource(source) + ')'
+        + (poste ? ', file de ' + (poste.coiffeur || poste.nom) : '') + '.',
+    });
     await enfilerEnvoi(tx, { ticket, type: 'CONFIRMATION', donnees: { jeton } });
     await planifierNotifications(tx, jour, reglages, { saufTicketId: id });
 
@@ -578,7 +682,7 @@ function geste(nom, executer) {
  * au lieu de l'ecraser : c'est exactement le moment ou le coiffeur risque
  * d'oublier quelqu'un.
  */
-export const appeler = geste('appeler', async ({ tx, ticket, user, jour, options }) => {
+export const appeler = geste('appeler', async ({ tx, ticket, user, jour, options, reglages }) => {
   if (STATUTS_EN_COURS.includes(ticket.statut)) {
     throw conflict('Le ticket ' + ticket.numero_affiche + ' est déjà appelé.');
   }
@@ -586,9 +690,14 @@ export const appeler = geste('appeler', async ({ tx, ticket, user, jour, options
     throw conflict('Le ticket ' + ticket.numero_affiche + ' n’est plus en attente (' + libelleStatut(ticket.statut) + ').');
   }
 
-  // Le fauteuil demande, ou le premier libre. Un salon a un seul fauteuil n'a
-  // jamais a le designer.
-  const poste = await posteLibre(jour, { prefere: options.posteId ?? null });
+  // En file par coiffeur, le fauteuil du client est celui qu'il a choisi. Le
+  // coiffeur peut malgre tout le prendre a un autre fauteuil : un client qui
+  // attend depuis une heure pendant que le voisin est libre ne doit pas rester
+  // planté au nom d'une regle. Le deplacement est alors ECRIT dans l'historique.
+  const parFauteuil = reglages['file.mode'] === MODE_PAR_FAUTEUIL;
+  const demande = options.posteId ?? (parFauteuil ? ticket.poste_choisi_id : null);
+  const poste = await posteLibre(jour, { prefere: demande });
+  const deplace = parFauteuil && ticket.poste_choisi_id && ticket.poste_choisi_id !== poste.id;
 
   const occupe = await tx.one(
     `SELECT numero_affiche, prenom FROM tickets
@@ -608,8 +717,14 @@ export const appeler = geste('appeler', async ({ tx, ticket, user, jour, options
       WHERE id = $1 RETURNING ` + COLONNES,
     [ticket.id, poste.id],
   );
-  await tracer(tx, maj, { statut: 'CALLED', user, detail: 'Client appelé au fauteuil « ' + poste.nom +' ».' });
+  await tracer(tx, maj, {
+    statut: 'CALLED',
+    user,
+    detail: 'Client appelé au fauteuil « ' + poste.nom + ' »'
+      + (deplace ? ' (déplacé depuis un autre fauteuil).' : '.'),
+  });
   maj.poste = poste;
+  maj.deplace = deplace;
   return maj;
 });
 
@@ -670,6 +785,10 @@ export const marquerAbsent = geste('absent', async ({ tx, ticket, journee, user 
   const rang = await prochainRang(tx, journee);
   // Le fauteuil est libere du meme geste : le client n'y est plus, et le
   // coiffeur doit pouvoir appeler quelqu'un d'autre a sa place tout de suite.
+  //
+  // Le coiffeur CHOISI, lui, ne bouge pas : le client repart en fin de SA file,
+  // meme s'il venait d'etre depanne par un collegue. Il avait choisi quelqu'un,
+  // ce choix lui appartient.
   const maj = await tx.one(
     `UPDATE tickets SET statut = 'LATE', rang = $2, retards = retards + 1, poste_id = NULL,
             statut_at = now(), file_depuis_at = now(), appele_at = NULL, version = version + 1
@@ -754,12 +873,29 @@ export async function annulerParClient(jeton) {
  * jamais a choisir dans une liste pendant le travail.
  */
 export async function appelerSuivant({ user = null, posteId = null } = {}) {
+  const reglages = await lireTous();
   const jour = jourLocal();
-  const suivant = await one(
-    `SELECT id FROM tickets WHERE jour = $1 AND statut = ANY($2) ORDER BY rang LIMIT 1`,
-    [jour, STATUTS_EN_ATTENTE],
-  );
-  if (!suivant) throw badRequest('Personne n’attend pour le moment.');
+  const parFauteuil = reglages['file.mode'] === MODE_PAR_FAUTEUIL;
+
+  // En file par coiffeur, « le suivant » est le suivant DE CE FAUTEUIL : celui
+  // qui a choisi ce coiffeur. Prendre le premier du salon ferait passer devant
+  // quelqu'un qui attend un autre coiffeur.
+  const suivant = parFauteuil && posteId
+    ? await one(
+      `SELECT id FROM tickets WHERE jour = $1 AND statut = ANY($2) AND poste_choisi_id = $3
+        ORDER BY rang LIMIT 1`,
+      [jour, STATUTS_EN_ATTENTE, posteId],
+    )
+    : await one(
+      `SELECT id FROM tickets WHERE jour = $1 AND statut = ANY($2) ORDER BY rang LIMIT 1`,
+      [jour, STATUTS_EN_ATTENTE],
+    );
+
+  if (!suivant) {
+    throw badRequest(parFauteuil && posteId
+      ? 'Personne n’attend ce coiffeur pour le moment.'
+      : 'Personne n’attend pour le moment.');
+  }
   return appeler(suivant.id, { user, posteId });
 }
 

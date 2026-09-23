@@ -210,9 +210,19 @@ CREATE TABLE IF NOT EXISTS tickets (
   source          text NOT NULL,
   statut          text NOT NULL,
   retards         integer NOT NULL DEFAULT 0,
-  -- Le fauteuil qui sert ce client. Pose a l'appel, garde jusqu'au bout, et
-  -- conserve apres coup : c'est lui qui dit « qui a servi qui ». Efface si le
-  -- client repart en fin de file (il libere le fauteuil).
+  -- DEUX choses distinctes, et il ne faut pas les confondre :
+  --
+  --   poste_choisi_id  le coiffeur que le CLIENT a choisi, en mode « une file
+  --                    par coiffeur ». C'est sa file : il y revient toujours,
+  --                    y compris apres une absence. Ne change jamais. Reste
+  --                    NULL en file unique, ou le client ne choisit pas.
+  --   poste_id         le fauteuil qui le SERT en ce moment, pose a l'appel.
+  --                    Efface des qu'il quitte le fauteuil (absence), garde
+  --                    apres coup : c'est lui qui dit « qui a servi qui ».
+  --
+  -- Un coiffeur libre peut donc depanner la file d'un collegue sans que le
+  -- client change de coiffeur pour autant.
+  poste_choisi_id uuid REFERENCES postes(id) ON DELETE RESTRICT,
   poste_id        uuid REFERENCES postes(id) ON DELETE RESTRICT,
   -- Lien de suivi. Deux colonnes, deux usages :
   --   jeton_hash : la cle de recherche. Un condensat SHA-256 ne se renverse
@@ -274,6 +284,9 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE INDEX IF NOT EXISTS tickets_poste ON tickets (poste_id, jour) WHERE poste_id IS NOT NULL;
+-- La file d'un coiffeur : c'est LA requete du mode « une file par coiffeur ».
+CREATE INDEX IF NOT EXISTS tickets_file_du_coiffeur ON tickets (jour, poste_choisi_id, rang)
+  WHERE statut IN ('WAITING', 'LATE');
 -- INVARIANT 5 : un lien de suivi designe un ticket et un seul.
 CREATE UNIQUE INDEX IF NOT EXISTS tickets_jeton_unique ON tickets (jeton_hash);
 

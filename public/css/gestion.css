@@ -438,6 +438,30 @@
   border-radius: var(--r);
 }
 
+/* Une file par coiffeur : chacune sous son nom. */
+.files-par-coiffeur { display: grid; gap: 1.25rem; }
+
+.file-coiffeur { display: grid; gap: 0.6rem; }
+.file-coiffeur--orphelins { padding: 0.9rem 1rem; border: 1px dashed color-mix(in srgb, var(--ambre) 45%, var(--bordure)); border-radius: var(--r); }
+
+.file-coiffeur__titre {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 0;
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.file-coiffeur__compte {
+  font-family: var(--police);
+  font-weight: 500;
+  font-size: 0.82rem;
+  color: var(--texte-doux);
+}
+
 .carte-file {
   display: grid;
   gap: 0.35rem;
@@ -685,7 +709,8 @@
   .file > .file__chiffres { grid-area: chiffres; }
   .file > .file__titre { grid-area: titre; }
   .file > .file__liste,
-  .file > .file__vide { grid-area: liste; }
+  .file > .file__vide,
+  .file > .files-par-coiffeur { grid-area: liste; }
   .file > .comptoir { grid-area: comptoir; }
   .file > .historique { grid-area: historique; }
 }

@@ -74,6 +74,7 @@ reglagesRoutes.get('/', async (ctx) => {
       min: regle.min ?? null,
       max: regle.max ?? null,
       maxLongueur: regle.maxLongueur ?? null,
+      options: regle.options ?? null,
       defaut: regle.defaut,
     })),
     horaires: horairesLisibles(valeurs),
@@ -93,6 +94,28 @@ reglagesRoutes.put('/', async (ctx) => {
   if (!valeurs || typeof valeurs !== 'object' || Array.isArray(valeurs)) {
     throw badRequest('Envoyez un objet « valeurs » contenant les réglages à enregistrer.');
   }
+
+  // Changer l'organisation de la file en pleine journee laisserait les clients
+  // deja en attente dans un entre-deux : en file unique ils n'ont pas de
+  // coiffeur, en file par coiffeur ils en ont un que personne n'a choisi. On
+  // exige une file vide — c'est un reglage qu'on pose une fois, le matin.
+  if (Object.hasOwn(valeurs, 'file.mode')) {
+    const actuel = await lireTous();
+    const demande = String(valeurs['file.mode']).toUpperCase();
+    if (demande !== actuel['file.mode']) {
+      const enFile = await one(
+        'SELECT COUNT(*)::int AS n FROM tickets WHERE jour = $1 AND statut = ANY($2)',
+        [jourLocal(), ['WAITING', 'LATE', 'CALLED', 'IN_SERVICE']],
+      );
+      if ((enFile?.n ?? 0) > 0) {
+        throw conflict('Impossible de changer l’organisation de la file : ' + enFile.n
+          + ' client' + (enFile.n > 1 ? 's sont' : ' est') + ' encore dans la file du jour. '
+          + 'Servez-les, ou clôturez la journée, puis changez le réglage.',
+        );
+      }
+    }
+  }
+
   const n = await enregistrer(valeurs, { parUtilisateurId: ctx.user.id });
   log.info('Reglages enregistres', { nombre: n, par: ctx.user.identifiant });
   const frais = await lireTous({ frais: true });

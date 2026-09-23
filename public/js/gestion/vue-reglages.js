@@ -141,6 +141,13 @@ export async function vueReglages(conteneur) {
     if (regle.type === 'booleen') {
       entree = el('input', { id, type: 'checkbox' });
       entree.checked = Boolean(valeur);
+    } else if (regle.type === 'choix') {
+      entree = el('select', { id }, ...(regle.options || []).map((o) => el('option', {
+        value: o.valeur,
+        texte: o.libelle,
+        selected: o.valeur === valeur ? true : null,
+      })));
+      entree.value = String(valeur ?? regle.defaut);
     } else if (regle.type === 'entier') {
       entree = el('input', {
         id, type: 'number', inputmode: 'numeric',
@@ -160,7 +167,7 @@ export async function vueReglages(conteneur) {
     champs.set(regle.cle, { regle, entree });
     const erreur = el('p.champ__erreur', { hidden: true, donnees: { erreur: regle.cle } });
 
-    return el('div.champ' + (regle.type === 'booleen' ? '.champ--case' : ''),
+    return el('div.champ' + (regle.type === 'booleen' ? '.champ--case' : '') + (regle.type === 'choix' ? '.champ--large' : ''),
       el('label', { for: id, texte: regle.libelle }),
       entree,
       regle.aide ? el('p.champ__aide', { texte: regle.aide }) : null,

@@ -109,6 +109,49 @@ Un fauteuil qui a déjà servi ne se supprime pas, il se **ferme** : le supprime
 emporterait l'historique de tous ses tickets. Le salon garde toujours au moins
 un fauteuil ouvert, et on ne ferme pas un fauteuil occupé.
 
+### Deux organisations possibles
+
+Le réglage **`file.mode`** décide comment la file est organisée. Il vaut
+`UNIQUE` par défaut.
+
+| | `UNIQUE` | `PAR_FAUTEUIL` |
+|---|---|---|
+| Le client | prend un tour | **choisit son coiffeur** |
+| Il est servi par | le premier coiffeur libre | le sien, et lui seul |
+| Il voit devant lui | toute la file du salon | la file de son coiffeur |
+| Le salon avance | le plus vite possible | au rythme de chaque coiffeur |
+
+Le mode ne se change **qu'avec une file vide**. En pleine journée, les clients
+déjà en attente se retrouveraient dans un entre-deux : en file unique ils n'ont
+pas de coiffeur, en file par coiffeur ils en auraient un que personne n'a
+choisi. C'est un réglage qu'on pose une fois, le matin.
+
+### Le couloir : une seule formule pour les deux modes
+
+Un **couloir** est l'ensemble de ceux qui se disputent la même place :
+
+- en file unique, **un seul couloir**, servi par tous les fauteuils ;
+- en file par coiffeur, **un couloir par coiffeur**, servi par lui seul.
+
+`calculerPositions()` ne connaît que cette notion. Il n'existe donc pas une
+seconde règle de calcul ailleurs qui pourrait diverger, et le mode n'ajoute pas
+un second chemin de code à maintenir.
+
+### Coiffeur choisi et fauteuil qui sert : deux choses
+
+Le ticket porte **deux** références de fauteuil, et il ne faut pas les
+confondre :
+
+| Colonne | Ce que c'est | Quand elle change |
+|---|---|---|
+| `poste_choisi_id` | le coiffeur que **le client** a choisi | jamais |
+| `poste_id` | le fauteuil qui **le sert** | posé à l'appel, effacé s'il quitte le fauteuil |
+
+Cette séparation permet à un coiffeur libre de **dépanner la file d'un
+collègue** : le client est appelé à son fauteuil, mais il reste le client de
+celui qu'il a choisi. S'il est absent, il repart en fin de **sa** file, pas
+chez celui qui le dépannait. Le déplacement est écrit dans son historique.
+
 ### L'attente, divisée par le nombre de fauteuils
 
 Avec N fauteuils ouverts et des coupes de durée d, les N premiers de la file

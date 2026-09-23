@@ -86,6 +86,24 @@ export async function modifier(id, champs) {
       throw conflict(occupe.prenom + ' (' + occupe.numero_affiche + ') est assis à ce fauteuil. '
         + 'Terminez-le, ou marquez-le absent, avant de fermer le fauteuil.');
     }
+
+    // En file par coiffeur, fermer un fauteuil abandonnerait sa file : ces
+    // clients ont CHOISI ce coiffeur et n'attendent dans aucune autre file.
+    // On refuse plutot que de les deplacer en silence vers quelqu'un d'autre.
+    const { lire } = await import('../core/reglages.js');
+    if ((await lire('file.mode')) === 'PAR_FAUTEUIL') {
+      const attente = await one(
+        `SELECT COUNT(*)::int AS n FROM tickets
+          WHERE poste_choisi_id = $1 AND statut IN ('WAITING', 'LATE')`,
+        [id],
+      );
+      if ((attente?.n ?? 0) > 0) {
+        throw conflict(attente.n + ' client' + (attente.n > 1 ? 's attendent' : ' attend')
+          + ' ce coiffeur. Servez-' + (attente.n > 1 ? 'les' : 'le')
+          + ', appelez-' + (attente.n > 1 ? 'les' : 'le') + ' depuis un autre fauteuil, ou annulez '
+          + (attente.n > 1 ? 'ces tours' : 'ce tour') + ' avant de fermer.');
+      }
+    }
     const restants = await one('SELECT COUNT(*)::int AS n FROM postes WHERE actif AND id <> $1', [id]);
     if ((restants?.n ?? 0) === 0) {
       throw conflict('C’est le dernier fauteuil ouvert : le salon doit en garder un. Créez-en un autre avant de fermer celui-ci.');

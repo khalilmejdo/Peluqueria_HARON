@@ -99,7 +99,8 @@ Mise en place et modèles à faire approuver : [`docs/WHATSAPP.md`](docs/WHATSAP
 
 | | |
 |---|---|
-| **Fauteuils** | Autant que le salon en a. Nom libre, nom du coiffeur si besoin, ouverture et fermeture à la demande. La file reste **unique** : elle avance simplement plus vite, et l'attente annoncée en tient compte. |
+| **Fauteuils** | Autant que le salon en a. Nom libre, nom du coiffeur, ouverture et fermeture à la demande. |
+| **Organisation de la file** | **Une seule file** (par défaut) : le client prend un tour, le premier coiffeur libre le sert. **Une file par coiffeur** : le client choisit le sien et attend dans sa file. Se change avec une file vide. |
 | **Arrêter les prises de tour** | Un appui. La file en cours continue, personne de nouveau n'entre. |
 | **Congés** | Une période déclarée à l'avance, annoncée aux clients avec la date de réouverture. |
 | **Durée moyenne d'une coupe** | Sert à estimer l'attente. 20 minutes par défaut. |

@@ -61,6 +61,18 @@ export const CATALOGUE = {
     libelle: 'Prévenir le client quand il reste N personnes devant lui',
     aide: 'Au-dessous de ce seuil, le client voit « votre tour approche » et reçoit un message WhatsApp.',
   },
+  'file.mode': {
+    type: 'choix',
+    defaut: 'UNIQUE',
+    options: [
+      { valeur: 'UNIQUE', libelle: 'Une seule file pour tout le salon' },
+      { valeur: 'PAR_FAUTEUIL', libelle: 'Une file par coiffeur' },
+    ],
+    libelle: 'Organisation de la file',
+    aide: 'Une seule file : le client prend un tour, le premier coiffeur libre le sert. '
+      + 'Une file par coiffeur : le client choisit son coiffeur et attend dans SA file. '
+      + 'Ne se change qu’avec une file vide.',
+  },
   'file.priseDeTourOuverte': {
     type: 'booleen', defaut: true,
     libelle: 'Accepter de nouveaux tours',
@@ -125,6 +137,8 @@ function depuisTexte(cle, brut) {
       return /^(1|true|oui|on)$/i.test(brut);
     case 'heure':
       return heureValide(brut) ? brut : '';
+    case 'choix':
+      return regle.options.some((o) => o.valeur === brut) ? brut : regle.defaut;
     default:
       return String(brut);
   }
@@ -155,6 +169,13 @@ export function versTexte(cle, valeur) {
       if (vide) return '';
       const texte = String(valeur).trim().slice(0, 5);
       if (!heureValide(texte)) throw new ValidationError({ [cle]: 'Heure attendue au format HH:MM.' });
+      return texte;
+    }
+    case 'choix': {
+      const texte = String(valeur).trim().toUpperCase();
+      if (!regle.options.some((o) => o.valeur === texte)) {
+        throw new ValidationError({ [cle]: 'Valeur attendue parmi : ' + regle.options.map((o) => o.valeur).join(', ') + '.' });
+      }
       return texte;
     }
     case 'url': {

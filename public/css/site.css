@@ -543,6 +543,75 @@ main { flex: 1; }
 .champ__aide { font-size: 0.8rem; color: var(--texte-doux); }
 .champ__erreur { font-size: 0.85rem; color: var(--rouge); font-weight: 600; }
 
+/* ------------------------------------------------------------------ */
+/*  Choix du coiffeur (mode « une file par coiffeur »)                 */
+/* ------------------------------------------------------------------ */
+
+.bloc-coiffeurs {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.bloc-coiffeurs__titre {
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--texte-doux);
+}
+
+.coiffeurs { display: grid; gap: 0.6rem; }
+
+/*
+ * Une vignette par coiffeur, avec la longueur de sa file. Le client choisit en
+ * connaissance de cause : c'est la seule information qui l'aide vraiment.
+ * La cible reste haute — c'est un doigt qui appuie, pas une souris.
+ */
+.coiffeur {
+  position: relative;
+  display: grid;
+  gap: 0.15rem;
+  min-height: 3.75rem;
+  padding: 0.85rem 1rem 0.85rem 3rem;
+  border-radius: var(--r);
+  border: 1px solid var(--bordure);
+  background: var(--fond-carte-2);
+  cursor: pointer;
+  transition: border-color var(--transition), background-color var(--transition);
+}
+
+.coiffeur__choix {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  translate: 0 -50%;
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--laiton);
+  cursor: pointer;
+}
+
+.coiffeur__nom { font-family: var(--police-titre); font-weight: 700; font-size: 1.05rem; }
+.coiffeur__attente { font-size: 0.85rem; color: var(--texte-doux); }
+
+.coiffeur:hover { border-color: color-mix(in srgb, var(--laiton) 55%, var(--bordure)); }
+.coiffeur:has(.coiffeur__choix:checked) {
+  border-color: var(--laiton);
+  background: color-mix(in srgb, var(--laiton) 10%, var(--fond-carte-2));
+}
+.coiffeur:has(.coiffeur__choix:focus-visible) { outline: 3px solid var(--laiton); outline-offset: 3px; }
+
+.ticket__coiffeur {
+  font-size: 0.95rem;
+  color: var(--texte-doux);
+  margin-top: -0.4rem;
+  margin-bottom: 0.6rem;
+}
+
 .formulaire__note {
   font-size: 0.8rem;
   color: var(--texte-doux);

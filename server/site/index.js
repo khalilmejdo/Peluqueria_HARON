@@ -129,7 +129,44 @@ const CHAMPS = [
   },
 ];
 
-function formulaire({ valeurs = {}, erreurs = {}, source = 'ONLINE', messageGlobal = null }) {
+/**
+ * Le choix du coiffeur, en file par coiffeur.
+ *
+ * Des vignettes, pas une liste deroulante : le client doit voir d'un coup
+ * combien de monde attend chez chacun, et choisir en connaissance de cause.
+ * C'est la seule information qui l'aide vraiment.
+ */
+function choixDuCoiffeur(coiffeurs, choisi) {
+  const cartes = coiffeurs.map((c, i) => {
+    const id = 'coiffeur-' + c.id;
+    const coche = choisi ? choisi === c.id : i === 0;
+    return '<label class="coiffeur" for="' + id + '">'
+      + '<input class="coiffeur__choix" type="radio" name="posteId" id="' + id + '" '
+      + 'value="' + escapeHtml(c.id) + '"' + (coche ? ' checked' : '') + ' required>'
+      + '<span class="coiffeur__nom">' + escapeHtml(c.nom) + '</span>'
+      + '<span class="coiffeur__attente">'
+      + (c.enAttente === 0
+        ? 'Libre tout de suite'
+        : c.enAttente + ' personne' + (c.enAttente > 1 ? 's' : '') + ' · ≈ '
+          + escapeHtml(attenteLisible(c.attenteEstimeeMinutes).replace(/^environ /, '')))
+      + '</span>'
+      + '</label>';
+  }).join('');
+
+  // Volontairement HORS de la classe « champ » : les regles de champ
+  // (majuscules, hauteur de saisie, largeur pleine) s'appliqueraient au
+  // libelle et au bouton radio, et donneraient un radio de la taille d'un
+  // champ de texte.
+  return '<fieldset class="bloc-coiffeurs">'
+    + '<legend class="bloc-coiffeurs__titre">Votre coiffeur</legend>'
+    + '<div class="coiffeurs">' + cartes + '</div>'
+    + '</fieldset>';
+}
+
+function formulaire({
+  valeurs = {}, erreurs = {}, source = 'ONLINE', messageGlobal = null,
+  coiffeurs = [], posteId = null,
+}) {
   const champs = CHAMPS.map((c) => {
     const erreur = erreurs[c.nom];
     const id = 'champ-' + c.nom;
@@ -151,6 +188,8 @@ function formulaire({ valeurs = {}, erreurs = {}, source = 'ONLINE', messageGlob
   return '<form class="formulaire" method="post" action="/join" novalidate data-formulaire-tour>'
     + '<input type="hidden" name="source" value="' + escapeHtml(source) + '">'
     + (messageGlobal ? '<p class="alerte alerte--refus" role="alert">' + escapeHtml(messageGlobal) + '</p>' : '')
+    + (erreurs.posteId ? '<p class="champ__erreur" role="alert">' + escapeHtml(erreurs.posteId) + '</p>' : '')
+    + (coiffeurs.length ? choixDuCoiffeur(coiffeurs, posteId) : '')
     + champs
     + '<button class="bouton bouton--principal bouton--geant" type="submit">Prendre mon tour</button>'
     + '<p class="formulaire__note">Votre numéro ne sert qu’à vous prévenir. Il n’est jamais affiché publiquement.</p>'
@@ -191,13 +230,34 @@ function pageJoin(ctx, reglages, options) {
   });
 }
 
+/**
+ * Les coiffeurs proposes au client, avec la longueur de leur file.
+ * Liste vide en file unique : le client ne choisit pas.
+ */
+async function coiffeursProposes(reglages) {
+  if (reglages['file.mode'] !== 'PAR_FAUTEUIL') return [];
+  const etat = await chargerEtat(jourLocal());
+  return etat.postesActifs.map((p) => {
+    const sienne = etat.tickets.filter(
+      (t) => t.poste_choisi_id === p.id && ['WAITING', 'LATE'].includes(t.statut),
+    ).length;
+    return {
+      id: p.id,
+      nom: p.coiffeur || p.nom,
+      enAttente: sienne,
+      attenteEstimeeMinutes: sienne * etat.dureeMoyenneMinutes,
+    };
+  });
+}
+
 siteRoutes.get('/join', async (ctx) => {
   const reglages = await lireTous();
   const prise = await etatPriseDeTour();
   // « ?qr=1 » : c'est le QR Code de la vitrine qui amene ici. La file est la
   // meme, seule l'origine enregistree change.
   const source = ctx.queryBool('qr') ? 'QR' : 'ONLINE';
-  ctx.html(prise.ouverte ? 200 : 409, pageJoin(ctx, reglages, { source, prise }));
+  const coiffeurs = prise.ouverte ? await coiffeursProposes(reglages) : [];
+  ctx.html(prise.ouverte ? 200 : 409, pageJoin(ctx, reglages, { source, prise, coiffeurs }));
 }, { public: true });
 
 /**
@@ -213,17 +273,21 @@ siteRoutes.post('/join', async (ctx) => {
   };
   const source = String(ctx.body.source ?? 'ONLINE').toUpperCase() === 'QR' ? 'QR' : 'ONLINE';
 
+  const posteId = String(ctx.body.posteId ?? '') || null;
+  const coiffeurs = await coiffeursProposes(reglages);
+
   let data;
   try {
-    data = validate({ ...brut, source }, {
+    data = validate({ ...brut, source, posteId }, {
       prenom: rules.prenom,
       nom: rules.nomFamille,
       telephone: rules.whatsapp,
       source: { type: 'enum', values: ['ONLINE', 'QR'], upper: true, default: 'ONLINE' },
+      posteId: { type: 'uuid' },
     });
   } catch (err) {
     if (!(err instanceof ValidationError)) throw err;
-    ctx.html(422, pageJoin(ctx, reglages, { valeurs: brut, erreurs: err.fields, source }));
+    ctx.html(422, pageJoin(ctx, reglages, { valeurs: brut, erreurs: err.fields, source, coiffeurs, posteId }));
     return;
   }
 
@@ -233,7 +297,7 @@ siteRoutes.post('/join', async (ctx) => {
   );
   if (!debit.allowed) {
     ctx.res.setHeader('Retry-After', String(debit.retryAfterSeconds));
-    ctx.html(429, pageJoin(ctx, reglages, { valeurs: brut, source, messageGlobal: debit.message }));
+    ctx.html(429, pageJoin(ctx, reglages, { valeurs: brut, source, coiffeurs, posteId, messageGlobal: debit.message }));
     return;
   }
 
@@ -241,8 +305,14 @@ siteRoutes.post('/join', async (ctx) => {
   try {
     resultat = await prendreTour(data);
   } catch (err) {
+    if (err instanceof ValidationError) {
+      ctx.html(422, pageJoin(ctx, reglages, {
+        valeurs: brut, erreurs: err.fields, source, coiffeurs, posteId, messageGlobal: err.message,
+      }));
+      return;
+    }
     if (err instanceof AppError && err.status === 409) {
-      ctx.html(409, pageJoin(ctx, reglages, { valeurs: brut, source, messageGlobal: err.message }));
+      ctx.html(409, pageJoin(ctx, reglages, { valeurs: brut, source, coiffeurs, posteId, messageGlobal: err.message }));
       return;
     }
     throw err;
@@ -265,6 +335,7 @@ function blocTicket(vue) {
     + '<p class="ticket__label">Votre tour</p>'
     + '<p class="ticket__prenom" data-prenom>' + escapeHtml(vue.prenom) + '</p>'
     + '<p class="ticket__numero" data-numero>' + escapeHtml(vue.numero) + '</p>'
+    + (vue.coiffeur ? '<p class="ticket__coiffeur" data-coiffeur>chez ' + escapeHtml(vue.coiffeur) + '</p>' : '')
     + '<div class="ticket__etat" data-etat>'
     + '<p class="ticket__titre" data-titre>' + escapeHtml(vue.titre) + '</p>'
     + '<p class="ticket__detail" data-detail>' + escapeHtml(vue.detail) + '</p>'

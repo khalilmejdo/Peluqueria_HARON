@@ -37,6 +37,9 @@ publicRoutes.post('/tickets', async (ctx) => {
     nom: rules.nomFamille,
     telephone: rules.whatsapp,
     source: { type: 'enum', values: ['ONLINE', 'QR'], upper: true, default: 'ONLINE' },
+    // Le coiffeur choisi. Ignore en file unique, obligatoire en file par
+    // coiffeur — c'est prendreTour() qui tranche, selon le reglage du salon.
+    posteId: { type: 'uuid' },
   });
 
   // Le debit se mesure APRES la validation : le numero est alors connu, et
@@ -58,6 +61,7 @@ publicRoutes.post('/tickets', async (ctx) => {
   ctx.created({
     numero: ticket.numero_affiche,
     prenom: ticket.prenom,
+    coiffeur: position.coiffeur,
     jeton,
     lien: base + '/ticket/' + jeton,
     position: position.position,
@@ -127,6 +131,24 @@ publicRoutes.get('/file', async (ctx) => {
     enCours: etat.compteurs.enCours,
     dureeMoyenneMinutes: etat.dureeMoyenneMinutes,
     attenteEstimeeMinutes: (enAttente + etat.compteurs.enCours) * etat.dureeMoyenneMinutes,
+    mode: etat.mode,
+    // En file par coiffeur, le client doit savoir qui est disponible et
+    // combien de monde attend chez chacun. En file unique, la liste n'a pas
+    // lieu d'etre : il ne choisit pas.
+    coiffeurs: etat.mode === 'PAR_FAUTEUIL'
+      ? etat.postesActifs.map((p) => {
+        const sienne = etat.tickets.filter(
+          (t) => t.poste_choisi_id === p.id && ['WAITING', 'LATE'].includes(t.statut),
+        ).length;
+        return {
+          id: p.id,
+          nom: p.coiffeur || p.nom,
+          fauteuil: p.nom,
+          enAttente: sienne,
+          attenteEstimeeMinutes: sienne * etat.dureeMoyenneMinutes,
+        };
+      })
+      : [],
     // Peut-on entrer dans la file en ce moment, et sinon pourquoi.
     priseDeTour: {
       ouverte: prise.ouverte,

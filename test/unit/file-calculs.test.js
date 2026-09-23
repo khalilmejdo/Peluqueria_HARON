@@ -175,9 +175,9 @@ test('le seuil de prevenance compte en tours, pas en personnes', () => {
 
 test('deux clients peuvent etre aux fauteuils en meme temps', () => {
   const tickets = [
-    { id: 'a', rang: 1, statut: 'IN_SERVICE', poste_id: 'p1' },
-    { id: 'b', rang: 2, statut: 'CALLED', poste_id: 'p2' },
-    { id: 'c', rang: 3, statut: 'WAITING', poste_id: null },
+    { id: 'a', rang: 1, statut: 'IN_SERVICE', poste_id: 'p1', poste_choisi_id: null },
+    { id: 'b', rang: 2, statut: 'CALLED', poste_id: 'p2', poste_choisi_id: null },
+    { id: 'c', rang: 3, statut: 'WAITING', poste_id: null, poste_choisi_id: null },
   ];
   const positions = calculerPositions(tickets, { ...REGLAGES, postesActifs: 2 });
 
@@ -197,6 +197,99 @@ test('un nombre de fauteuils absurde ne casse pas le calcul', () => {
     // d'estimation infinie affichee a un client.
     assert.equal(positions.get('b').estimationMinutes, 20, 'postesActifs = ' + postesActifs);
   }
+});
+
+/* ------------------------------------------------------------------ */
+/*  Une file par coiffeur                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Ticket rattache a un coiffeur CHOISI.
+ *
+ * C'est `poste_choisi_id` qui definit le couloir, pas `poste_id` : le second dit
+ * seulement quel fauteuil sert le client en ce moment, et un coiffeur libre
+ * peut depanner la file d'un collegue sans que le client change de file.
+ */
+const tp = (id, rang, coiffeur, statut = 'WAITING', sert = null) => ({
+  id, rang, poste_choisi_id: coiffeur, poste_id: sert, statut,
+});
+
+test('en file par coiffeur, chacun n a devant lui que SA file', () => {
+  // Ordre d'arrivee : a(p1) b(p2) c(p1) d(p2) e(p1)
+  const tickets = [tp('a', 1, 'p1'), tp('b', 2, 'p2'), tp('c', 3, 'p1'), tp('d', 4, 'p2'), tp('e', 5, 'p1')];
+  const positions = calculerPositions(tickets, { ...REGLAGES, postesActifs: 2, mode: 'PAR_FAUTEUIL' });
+
+  // Chez p1 : a, c, e — donc 0, 1, 2 devant.
+  assert.equal(positions.get('a').devant, 0);
+  assert.equal(positions.get('c').devant, 1);
+  assert.equal(positions.get('e').devant, 2);
+  // Chez p2 : b, d — donc 0 et 1.
+  assert.equal(positions.get('b').devant, 0);
+  assert.equal(positions.get('d').devant, 1);
+
+  // La position affichee est celle de SA file, pas celle du salon.
+  assert.equal(positions.get('c').position, 2);
+  assert.equal(positions.get('d').position, 2);
+});
+
+test('en file par coiffeur, un coiffeur ne sert qu une personne a la fois', () => {
+  // Trois clients chez le meme coiffeur, deux fauteuils ouverts : le second
+  // fauteuil ne les aide pas, ils ont choisi celui-la.
+  const tickets = [tp('a', 1, 'p1'), tp('b', 2, 'p1'), tp('c', 3, 'p1')];
+  const unique = calculerPositions(tickets, { ...REGLAGES, postesActifs: 2, mode: 'UNIQUE' });
+  const parCoiffeur = calculerPositions(tickets, { ...REGLAGES, postesActifs: 2, mode: 'PAR_FAUTEUIL' });
+
+  // En file unique, deux fauteuils se partagent ces trois clients.
+  assert.equal(unique.get('c').estimationMinutes, 20);
+  // En file par coiffeur, ils font la queue derriere un seul.
+  assert.equal(parCoiffeur.get('c').estimationMinutes, 40);
+});
+
+test('le choix du coiffeur ne change pas l ordre a l interieur d une file', () => {
+  const tickets = [tp('tard', 9, 'p1'), tp('tot', 2, 'p1')];
+  const positions = calculerPositions(tickets, { ...REGLAGES, postesActifs: 2, mode: 'PAR_FAUTEUIL' });
+  // C'est le rang qui decide, comme toujours.
+  assert.equal(positions.get('tot').position, 1);
+  assert.equal(positions.get('tard').position, 2);
+});
+
+test('un client au fauteuil compte devant ceux de SA file, pas des autres', () => {
+  const tickets = [
+    tp('assis1', 1, 'p1', 'IN_SERVICE', 'p1'),
+    tp('assis2', 2, 'p2', 'IN_SERVICE', 'p2'),
+    tp('suit1', 3, 'p1'),
+    tp('suit2', 4, 'p2'),
+  ];
+  const positions = calculerPositions(tickets, { ...REGLAGES, postesActifs: 2, mode: 'PAR_FAUTEUIL' });
+
+  assert.equal(positions.get('suit1').devant, 1, 'seulement celui de sa file');
+  assert.equal(positions.get('suit2').devant, 1);
+  assert.equal(positions.get('suit1').phase, 'APPROCHE');
+});
+
+test('un client sans coiffeur n est jamais perdu : il forme son propre couloir', () => {
+  // Cas de bascule de mode : un ticket pris avant le changement.
+  const tickets = [tp('orphelin', 1, null), tp('a', 2, 'p1'), tp('b', 3, 'p1')];
+  const positions = calculerPositions(tickets, { ...REGLAGES, postesActifs: 2, mode: 'PAR_FAUTEUIL' });
+
+  assert.equal(positions.get('orphelin').position, 1);
+  assert.equal(positions.get('orphelin').devant, 0);
+  // Et il ne compte devant personne d'autre.
+  assert.equal(positions.get('a').devant, 0);
+  assert.equal(positions.get('b').devant, 1);
+});
+
+test('le mode par defaut reste la file unique', () => {
+  const tickets = [tp('a', 1, 'p1'), tp('b', 2, 'p2'), tp('c', 3, 'p1')];
+  // Sans `mode`, on doit retrouver exactement le comportement d'une file unique.
+  const sansMode = calculerPositions(tickets, { ...REGLAGES, postesActifs: 2 });
+  const explicite = calculerPositions(tickets, { ...REGLAGES, postesActifs: 2, mode: 'UNIQUE' });
+
+  for (const id of ['a', 'b', 'c']) {
+    assert.deepEqual(sansMode.get(id), explicite.get(id), id);
+  }
+  // Le fauteuil choisi n'entre pas dans le calcul.
+  assert.equal(sansMode.get('c').devant, 2);
 });
 
 test('chaque phase dit au client quoi faire', () => {
