@@ -96,10 +96,19 @@ Les images Ubuntu d'Oracle arrivent avec des règles `iptables` qui **bloquent
 tout sauf le 22**. En SSH sur la machine :
 
 ```bash
-sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
-sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+sudo iptables -I INPUT 1 -p tcp --dport 80 -j ACCEPT
+sudo iptables -I INPUT 1 -p tcp --dport 443 -j ACCEPT
 sudo netfilter-persistent save        # sinon tout est perdu au redémarrage
+sudo iptables -L INPUT -n --line-numbers
 ```
+
+La dernière commande dit où les règles ont atterri. Les deux `ACCEPT` doivent
+apparaître **avant** la ligne `REJECT ... icmp-host-prohibited`.
+
+C'est la raison du `1` : un numéro plus grand que la longueur de la chaîne place
+la règle *après* le `REJECT`, où elle ne sert à rien — et `iptables` l'accepte
+sans rien dire. La chaîne d'une image Ubuntu ne compte que cinq règles au
+départ.
 
 Sur une image **Oracle Linux**, c'est `firewalld` à la place :
 
@@ -144,7 +153,8 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.
   | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
 sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io \
+  docker-buildx-plugin docker-compose-plugin
 
 sudo usermod -aG docker $USER
 sudo systemctl enable docker      # pour que tout reparte après un redémarrage
@@ -355,8 +365,8 @@ octets par visite : il n'y a aucun risque d'en approcher.
 # 1. machine ARM Ampere A1, Ubuntu 22.04, 2 OCPU / 12 Go
 # 2. Security List : 80 et 443 en TCP depuis 0.0.0.0/0
 # 3. sur la machine :
-sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
-sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+sudo iptables -I INPUT 1 -p tcp --dport 80 -j ACCEPT
+sudo iptables -I INPUT 1 -p tcp --dport 443 -j ACCEPT
 sudo netfilter-persistent save
 # 4. enregistrement DNS A vers l'IP publique
 # 5. Docker (étape 5)
