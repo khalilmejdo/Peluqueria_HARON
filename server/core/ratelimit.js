@@ -117,6 +117,15 @@ export const PROFILES = {
   },
   /** Fichiers servis depuis le cache : un budget large, a part. */
   statique: { max: 3000, windowMs: 60000 },
+  /**
+   * Adresses qui ne correspondent a aucune route.
+   *
+   * Un client legitime n'en demande presque jamais : il suit des liens. Un
+   * robot d'exploration, lui, en essaie des centaines a la suite — « /.env »,
+   * « /.aws/credentials », « /terraform.tfstate ». Un budget etroit le freine
+   * donc sans jamais gener personne, et evite de noyer le journal.
+   */
+  inconnu: { max: 60, windowMs: 60000 },
   /** Tentatives de connexion du personnel, par adresse IP. */
   get login() {
     return { max: config.security.loginRateMax, windowMs: 300000 };

@@ -17,6 +17,8 @@
 --                                   -> declencheur, erreur HR001
 --    5. deux liens de suivi ne peuvent pas se confondre
 --                                   -> index unique sur le condensat du jeton
+--    6. la fiche de prix ne peut pas porter deux fois la meme prestation
+--                                   -> index unique (nombre_lower)
 -- =====================================================================
 
 SET client_min_messages = warning;
@@ -176,6 +178,48 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE INDEX IF NOT EXISTS fermetures_periode ON fermetures (du, au);
+
+-- ---------------------------------------------------------------------
+--  Fiche de prix
+--
+--  La liste affichee en vitrine, tenue depuis l'espace de gestion.
+--
+--  Le prix est un ENTIER DE CENTIMES, jamais un flottant. « 14,90 € » se
+--  stocke 1490. Un prix en nombre a virgule flottante finit toujours par
+--  afficher 14,899999999999999 a quelqu'un, et une somme de flottants ne
+--  tombe pas juste : sur de l'argent, on ne prend pas ce risque.
+--
+--  « ordre » n'est pas unique, volontairement : monter une ligne se fait en
+--  echangeant deux valeurs, et un index unique obligerait a passer par une
+--  valeur intermediaire. L'affichage tranche les egalites par le nom, donc
+--  l'ordre reste deterministe.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tarifas (
+  id          uuid PRIMARY KEY,
+  nombre      text NOT NULL,
+  nombre_lower text NOT NULL,
+  precio_cts  integer NOT NULL,
+  nota        text,
+  ordre       integer NOT NULL DEFAULT 0,
+  visible     boolean NOT NULL DEFAULT TRUE,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+DO $$ BEGIN
+  ALTER TABLE tarifas ADD CONSTRAINT tarifas_prix_plausible
+    CHECK (precio_cts >= 0 AND precio_cts <= 100000);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE tarifas ADD CONSTRAINT tarifas_nom_non_vide
+    CHECK (btrim(nombre) <> '');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Deux lignes du meme nom dans une fiche de prix affichee au mur : le client
+-- ne saurait pas laquelle s'applique, et le coiffeur non plus.
+CREATE UNIQUE INDEX IF NOT EXISTS tarifas_nom_unique ON tarifas (nombre_lower);
+CREATE INDEX IF NOT EXISTS tarifas_visibles ON tarifas (ordre, nombre_lower) WHERE visible;
 
 -- ---------------------------------------------------------------------
 --  Tickets : la file
@@ -411,4 +455,8 @@ CREATE TRIGGER utilisateurs_touch BEFORE UPDATE ON utilisateurs
 
 DROP TRIGGER IF EXISTS postes_touch ON postes;
 CREATE TRIGGER postes_touch BEFORE UPDATE ON postes
+  FOR EACH ROW EXECUTE FUNCTION haron_touch_updated_at();
+
+DROP TRIGGER IF EXISTS tarifas_touch ON tarifas;
+CREATE TRIGGER tarifas_touch BEFORE UPDATE ON tarifas
   FOR EACH ROW EXECUTE FUNCTION haron_touch_updated_at();

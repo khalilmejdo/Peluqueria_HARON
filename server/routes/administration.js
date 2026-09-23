@@ -25,6 +25,10 @@ import {
   lister as listerPostes, creer as creerPoste, modifier as modifierPoste,
   supprimer as supprimerPoste, versClient as posteVersClient,
 } from '../domain/postes.js';
+import {
+  lister as listerTarifas, crear as crearTarifa, modificar as modificarTarifa,
+  eliminar as eliminarTarifa, mover as moverTarifa, prixLegible,
+} from '../domain/tarifas.js';
 import { etatBoite } from '../domain/notifications.js';
 import { executerTache, nomsDesTaches } from '../core/taches.js';
 import { jourLocal } from '../core/temps.js';
@@ -311,6 +315,85 @@ postesRoutes.delete('/:id', async (ctx) => {
   const id = idDe(ctx);
   await supprimerPoste(id);
   log.info('Fauteuil supprime', { id, par: ctx.user.identifiant });
+  ctx.noContent();
+}, { role: 'GERANT', rateLimit: PROFILES.administration });
+
+/* ================================================================== */
+/*  Fiche de prix                                                      */
+/* ================================================================== */
+
+export const tarifasRoutes = new Router();
+
+/**
+ * Le prix voyage en CENTIMES et en toutes lettres.
+ *
+ * `precioCts` est la valeur de travail — un entier, sur lequel l'interface peut
+ * recalculer sans jamais reinterpreter une virgule. `precio` est la meme chose
+ * deja mise en forme pour l'affichage : c'est le serveur qui decide comment un
+ * prix s'ecrit, pas chaque ecran.
+ */
+const tarifaVersClient = (t) => ({
+  id: t.id,
+  nombre: t.nombre,
+  nota: t.nota || '',
+  precioCts: t.precio_cts,
+  precio: prixLegible(t.precio_cts),
+  ordre: t.ordre,
+  visible: t.visible,
+});
+
+/**
+ * La fiche entiere, masquees comprises. Lisible par tout le personnel : le
+ * coiffeur a besoin de dire un prix a quelqu'un qui le demande au comptoir.
+ */
+tarifasRoutes.get('/', async (ctx) => {
+  const items = await listerTarifas();
+  ctx.ok({
+    items: items.map(tarifaVersClient),
+    visibles: items.filter((t) => t.visible).length,
+  });
+});
+
+tarifasRoutes.post('/', async (ctx) => {
+  // « precio » reste une chaine : c'est le domaine qui sait lire « 14,90 », et
+  // lui seul. Le faire ici en ferait deux endroits a garder d'accord.
+  const data = validate(ctx.body, {
+    nombre: { type: 'string', required: true, min: 1, max: 60, requiredMessage: 'Indique el nombre del servicio.' },
+    precio: { type: 'string', required: true, max: 12, requiredMessage: 'Indique el precio.' },
+    nota: { type: 'string', max: 80 },
+  });
+  const cree = await crearTarifa(data);
+  log.info('Tarif cree', { nombre: cree.nombre, par: ctx.user.identifiant });
+  ctx.created(tarifaVersClient(cree));
+}, { role: 'GERANT', rateLimit: PROFILES.administration });
+
+tarifasRoutes.patch('/:id', async (ctx) => {
+  const data = validatePartial(ctx.body, {
+    nombre: { type: 'string', min: 1, max: 60 },
+    precio: { type: 'string', max: 12 },
+    nota: { type: 'string', max: 80 },
+    visible: { type: 'bool' },
+  });
+  // Une note effacee arrive en chaine vide, que validate() rend en null : le
+  // domaine doit comprendre « retirer la note », pas « ne rien changer ».
+  if (Object.hasOwn(ctx.body ?? {}, 'nota') && !data.nota) data.nota = '';
+  const maj = await modificarTarifa(idDe(ctx), data);
+  log.info('Tarif modifie', { nombre: maj.nombre, champs: Object.keys(data), par: ctx.user.identifiant });
+  ctx.ok(tarifaVersClient(maj));
+}, { role: 'GERANT', rateLimit: PROFILES.administration });
+
+/** Monter ou descendre une ligne d'un cran. */
+tarifasRoutes.post('/:id/mover', async (ctx) => {
+  const sens = String(ctx.body?.sens || '');
+  const bouge = await moverTarifa(idDe(ctx), sens);
+  const items = await listerTarifas();
+  ctx.ok({ bouge, items: items.map(tarifaVersClient) });
+}, { role: 'GERANT', rateLimit: PROFILES.administration });
+
+tarifasRoutes.delete('/:id', async (ctx) => {
+  const id = idDe(ctx);
+  await eliminarTarifa(id);
+  log.info('Tarif supprime', { id, par: ctx.user.identifiant });
   ctx.noContent();
 }, { role: 'GERANT', rateLimit: PROFILES.administration });
 

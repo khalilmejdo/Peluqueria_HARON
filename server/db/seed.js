@@ -1,12 +1,15 @@
 /**
  * Donnees de reference.
  *
- * Idempotent, joue a chaque demarrage du conteneur. Il ne fait que deux choses :
+ * Idempotent, joue a chaque demarrage du conteneur :
  *
  *   - poser les reglages par defaut qui n'existent pas encore. Il ne TOUCHE
  *     JAMAIS a un reglage deja enregistre : le gerant est maitre chez lui, et
  *     un redeploiement ne doit pas lui remettre 20 minutes par coupe alors
  *     qu'il en a mis 35 ;
+ *   - creer un premier fauteuil et une fiche de prix de depart, uniquement si
+ *     ces tables sont VIDES. Une ligne de tarif supprimee ne doit pas
+ *     reapparaitre au redeploiement suivant ;
  *   - creer le premier compte du salon si la table est vide, et seulement dans
  *     ce cas, a partir de BOOTSTRAP_ADMIN_USERNAME / BOOTSTRAP_ADMIN_PASSWORD.
  */
@@ -37,11 +40,38 @@ export async function seed({ silencieux = false } = {}) {
   if (fauteuils.n === 0) {
     await execute(
       'INSERT INTO postes (id, nom, nom_lower, ordre) VALUES ($1, $2, $3, 1)',
-      [newId(), 'Fauteuil 1', normalize('Fauteuil 1')],
+      [newId(), 'Sillón 1', normalize('Sillón 1')],
     );
-    dire('  Fauteuils : « Fauteuil 1 » cree.');
+    dire('  Fauteuils : « Sillón 1 » cree.');
   } else {
     dire('  Fauteuils : ' + fauteuils.n + ' deja present(s).');
+  }
+
+  // Une fiche de prix de depart, pour que la vitrine ne soit jamais vide le
+  // premier jour. Le gerant la corrige en deux minutes depuis l'espace de
+  // gestion ; les prix ci-dessous sont des ordres de grandeur, pas une verite.
+  const tarifs = await one('SELECT COUNT(*)::int AS n FROM tarifas');
+  if (tarifs.n === 0) {
+    const depart = [
+      ['Corte de pelo', 1400, ''],
+      ['Corte + lavado', 1700, 'Incluye secado'],
+      ['Arreglo de barba', 1000, ''],
+      ['Corte + barba', 2200, 'El más pedido'],
+      ['Afeitado clásico', 1200, 'A navaja'],
+      ['Corte infantil', 1100, 'Hasta 12 años'],
+      ['Rapado', 1000, ''],
+      ['Cejas', 500, ''],
+    ];
+    for (let i = 0; i < depart.length; i += 1) {
+      const [nombre, cts, nota] = depart[i];
+      await execute(
+        'INSERT INTO tarifas (id, nombre, nombre_lower, precio_cts, nota, ordre) VALUES ($1,$2,$3,$4,$5,$6)',
+        [newId(), nombre, normalize(nombre), cts, nota || null, i],
+      );
+    }
+    dire('  Fiche de prix : ' + depart.length + ' ligne(s) de depart creee(s).');
+  } else {
+    dire('  Fiche de prix : ' + tarifs.n + ' ligne(s) deja presente(s).');
   }
 
   const compte = await one('SELECT COUNT(*)::int AS n FROM utilisateurs');
@@ -62,7 +92,7 @@ export async function seed({ silencieux = false } = {}) {
   await execute(
     `INSERT INTO utilisateurs (id, identifiant, identifiant_lower, nom_complet, mot_de_passe_hash, role, doit_changer_mot_de_passe)
      VALUES ($1,$2,$2,$3,$4,'GERANT',TRUE)`,
-    [newId(), identifiant, 'Gérant du salon', await hashPassword(config.bootstrap.password)],
+    [newId(), identifiant, 'Gerente del salón', await hashPassword(config.bootstrap.password)],
   );
   dire('  Compte gerant « ' + identifiant + ' » cree. Il devra changer son mot de passe a la premiere connexion.');
   return { reglagesPoses: poses, compteCree: true };

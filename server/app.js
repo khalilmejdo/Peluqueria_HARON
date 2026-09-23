@@ -13,7 +13,7 @@ import { authRoutes } from './routes/auth.js';
 import { fileRoutes } from './routes/file.js';
 import {
   metaRoutes, reglagesRoutes, comptesRoutes, statistiquesRoutes, serviceRoutes,
-  fermeturesRoutes, postesRoutes,
+  fermeturesRoutes, postesRoutes, tarifasRoutes,
 } from './routes/administration.js';
 
 export function buildRouter() {
@@ -37,6 +37,9 @@ export function buildRouter() {
   // par le gerant seul : les exigences sont posees route par route.
   router.mount('/api/postes', postesRoutes);
   router.mount('/api/statistiques', statistiquesRoutes);
+  // Fiche de prix : lisible par tout le personnel (on la demande au comptoir),
+  // modifiable par le gerant seul.
+  router.mount('/api/tarifas', tarifasRoutes);
 
   // Reserve au gerant.
   router.mount('/api/fermetures', fermeturesRoutes);

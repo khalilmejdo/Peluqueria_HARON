@@ -8,6 +8,7 @@
  *   3. limitation de debit generale, par adresse IP
  *   4. recherche de la route
  *      - aucune : coquille de l'espace de gestion, ou page d'erreur
+ *        (budget de debit propre aux adresses inexistantes)
  *   5. session depuis le cookie
  *   6. controle d'origine et jeton CSRF pour toute requete mutante
  *   7. exigences de la route (session, role, debit propre)
@@ -95,9 +96,25 @@ export async function handle(ctx) {
     const allowed = router.allowedMethods(ctx.path);
     if (allowed.length) {
       ctx.res.setHeader('Allow', allowed.join(', '));
-      throw new AppError(405, 'Méthode non autorisée pour cette adresse.');
+      throw new AppError(405, 'Método no permitido para esta dirección.');
     }
-    throw new AppError(404, 'Adresse inconnue.');
+
+    // Aucune route, et ce n'est pas l'espace de gestion : c'est une adresse qui
+    // n'existe pas. Un budget propre, bien plus etroit que le general, freine
+    // les robots qui en essaient des centaines a la suite. Le drapeau sert
+    // ensuite a journaliser ces 404 en « debug » plutot qu'en « info » : sans
+    // cela, une seule exploration ecrit cent lignes et cache les vrais
+    // evenements de la journee.
+    ctx.routeInconnue = true;
+    const inconnu = consume('inconnu:' + ctx.ip, PROFILES.inconnu);
+    if (!inconnu.allowed) {
+      ctx.res.setHeader('Retry-After', String(inconnu.retryAfterSeconds));
+      if (premierRefusDeLaMinute('inconnu:' + ctx.ip)) {
+        log.warn('Exploration d adresses inexistantes', { ip: ctx.ip, path: ctx.path });
+      }
+      throw new AppError(429, 'Demasiadas peticiones. Espere unos instantes.', { details: { retryAfter: inconnu.retryAfterSeconds } });
+    }
+    throw new AppError(404, 'Dirección desconocida.');
   }
 
   const { route, params } = matched;
@@ -231,7 +248,10 @@ export function creerServeur() {
       })
       .finally(() => {
         if (!/\.(css|js|svg|png|jpg|jpeg|webp|ico|woff2)$/.test(ctx.path) || res.statusCode >= 400) {
-          log.info('requete', { method: ctx.method, path: ctx.path, status: res.statusCode, ms: ctx.elapsedMs, user: ctx.user?.identifiant || null, ip: ctx.ip });
+          // Une adresse qui n'existe pas est du bruit de robot, pas un
+          // evenement du salon : « debug », donc invisible en production.
+          const ecrire = ctx.routeInconnue && res.statusCode === 404 ? log.debug : log.info;
+          ecrire('requete', { method: ctx.method, path: ctx.path, status: res.statusCode, ms: ctx.elapsedMs, user: ctx.user?.identifiant || null, ip: ctx.ip });
         }
       });
   });
