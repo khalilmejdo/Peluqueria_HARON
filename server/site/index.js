@@ -462,11 +462,23 @@ siteRoutes.get('/ticket/:jeton', async (ctx) => {
  * L'adresse qu'encode le QR Code. Elle ne doit JAMAIS changer : l'affiche est
  * imprimee une fois et reste collee des annees en vitrine. « /join?qr=1 » est
  * donc un contrat, au meme titre qu'une API publique.
+ *
+ * Elle vient du reglage « public.url », modifiable depuis l'espace de gestion ;
+ * a defaut, de PUBLIC_URL ; a defaut, de l'adresse vue dans la requete.
  */
 async function adresseDuQr(ctx) {
   const reglages = await lireTous();
   return adressePublique(reglages, ctx.base) + '/join?qr=1';
 }
+
+/**
+ * Le QR Code depend d'un reglage : il change des que le gerant change l'adresse
+ * publique. Une heure de cache lui ferait donc afficher l'ancienne adresse
+ * juste apres la modification — exactement au moment ou on vient verifier
+ * qu'elle a bien ete prise en compte, et avant d'imprimer. Une minute suffit a
+ * absorber les rechargements de la page sans jamais mentir a l'ecran.
+ */
+const CACHE_QR = 'public, max-age=60';
 
 siteRoutes.get('/qr.svg', async (ctx) => {
   const qr = encoder(await adresseDuQr(ctx), { niveau: 'Q' });
@@ -474,7 +486,7 @@ siteRoutes.get('/qr.svg', async (ctx) => {
     filename: 'haron-qr.svg',
     mimeType: 'image/svg+xml',
     download: ctx.queryBool('telecharger'),
-    cache: 'public, max-age=3600',
+    cache: CACHE_QR,
   });
 }, { public: true });
 
@@ -486,7 +498,7 @@ siteRoutes.get('/qr.png', async (ctx) => {
     filename: 'haron-qr.png',
     mimeType: 'image/png',
     download: ctx.queryBool('telecharger'),
-    cache: 'public, max-age=3600',
+    cache: CACHE_QR,
   });
 }, { public: true });
 
