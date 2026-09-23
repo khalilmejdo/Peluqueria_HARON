@@ -33,17 +33,82 @@ est portée par la base, où `passage` vaut `retards + 1`.
 
 ---
 
-## 3. Activer l'envoi automatique
+## 3. Deux choses différentes portent le même nom
 
-L'envoi automatique d'un premier message passe obligatoirement par un **modèle
-approuvé par Meta**. Il faut donc :
+C'est le point qui fait perdre le plus de temps :
 
-1. un compte **WhatsApp Business** vérifié (Meta Business Manager) ;
-2. un **numéro d'envoi** enregistré, avec son identifiant (`numéro ID`) ;
-3. un **jeton d'accès permanent** ;
-4. les **trois modèles approuvés**.
+| | Ce que c'est | Envoi automatique |
+|---|---|---|
+| **Application WhatsApp Business** | l'application gratuite sur le téléphone du salon | **non** |
+| **Plateforme WhatsApp Business** (API Cloud) | un service de Meta, piloté par un serveur | **oui** |
 
-Puis, dans l'environnement :
+Avoir installé l'application WhatsApp Business ne suffit donc pas. L'envoi
+automatique demande la **plateforme**, c'est-à-dire un compte développeur Meta
+et un numéro enregistré chez eux.
+
+> ⚠️ **Un numéro enregistré sur la plateforme quitte l'application.** Le numéro
+> que vous donnez à Meta ne peut plus être utilisé dans WhatsApp ni dans
+> WhatsApp Business sur un téléphone. Si le salon discute avec ses clients
+> depuis son numéro habituel, **prenez une seconde carte SIM pour l'API**, et
+> gardez le numéro du salon pour les échanges à la main.
+
+---
+
+## 4. La démarche, étape par étape
+
+Comptez une demi-journée de mise en place, plus le délai d'approbation des
+modèles (souvent quelques heures, parfois deux jours).
+
+**1. Compte Meta Business** — sur `business.facebook.com`, créer le compte du
+salon. Renseigner le nom légal, l'adresse et le site. La vérification
+d'entreprise demande un justificatif (immatriculation, facture d'un service à
+l'adresse du salon).
+
+**2. Application et compte WhatsApp** — sur `developers.facebook.com`, créer une
+application de type *Business*, puis y ajouter le produit **WhatsApp**. Cela
+crée un *compte WhatsApp Business* (WABA) rattaché au salon.
+
+**3. Enregistrer le numéro d'envoi** — dans l'application, ajouter le numéro
+(celui de la seconde SIM, voir l'avertissement ci-dessus). Meta envoie un code
+de vérification. Une fois validé, l'écran affiche un **identifiant de numéro de
+téléphone** : c'est `WHATSAPP_NUMERO_ID`.
+
+**4. Jeton d'accès permanent** — le jeton affiché par défaut dans l'interface
+**expire au bout de 24 heures** : il ne sert qu'aux essais. Pour un jeton qui
+dure, passer par Business Manager → *Paramètres* → *Utilisateurs système* :
+créer un utilisateur système, lui donner le rôle *Admin* sur le compte WhatsApp,
+puis générer un jeton avec les autorisations `whatsapp_business_messaging` et
+`whatsapp_business_management`, **sans date d'expiration**. C'est
+`WHATSAPP_JETON`.
+
+**5. Les trois modèles** — dans le *Gestionnaire WhatsApp* → *Modèles de
+messages*, créer les trois modèles de la section 6, en catégorie
+**Utility** (service). Attendre l'approbation.
+
+**6. Poser les variables et redémarrer** — voir ci-dessous. `npm run check`
+refuse de démarrer si quelque chose manque.
+
+**7. Vérifier en vrai** — prendre un tour avec votre propre numéro. Le message
+doit arriver dans la minute. Sinon : **Chiffres → État du service**, la boîte
+d'envoi dit exactement ce qui a été refusé.
+
+### Ce que cela coûte
+
+Meta facture **à la conversation** (24 heures d'échanges), à un tarif qui dépend
+du pays du destinataire et de la catégorie du message. Les messages *Utility*
+sont les moins chers, et un quota mensuel gratuit existe. Les tarifs changent
+régulièrement : consultez la grille en vigueur sur le site de Meta avant de
+vous engager, plutôt qu'un chiffre trouvé dans un article.
+
+Pour un salon qui fait trente têtes par jour et envoie deux ou trois messages
+par client, l'ordre de grandeur reste modeste — mais c'est un coût réel, alors
+que le lien `wa.me` du coiffeur est gratuit.
+
+---
+
+## 5. Les variables
+
+Une fois les étapes 1 à 5 faites :
 
 ```bash
 WHATSAPP_ACTIF=true
@@ -63,7 +128,7 @@ manque.
 
 ---
 
-## 4. Les modèles à faire approuver
+## 6. Les modèles à faire approuver
 
 Catégorie **Utility** (service), langue **Français** (ou l'espagnol, selon la
 clientèle — pensez alors à `WHATSAPP_LANGUE=es`).
@@ -122,7 +187,7 @@ vous changez l'ordre dans le modèle, changez-le là aussi.
 
 ---
 
-## 5. Ce que fait l'application
+## 7. Ce que fait l’application
 
 Un message n'est jamais envoyé depuis une route : il est **écrit dans la
 transaction du geste métier**, dans la table `envois_whatsapp`. Un `ROLLBACK`
@@ -148,7 +213,7 @@ ne rien envoyer.
 
 ---
 
-## 6. Dépannage
+## 8. Dépannage
 
 | Symptôme | Cause | Quoi faire |
 |---|---|---|
@@ -163,7 +228,7 @@ Pour vider la boîte sans attendre : **Chiffres → État du service** (gérant)
 
 ---
 
-## 7. Les numéros
+## 9. Les numéros
 
 Le numéro saisi par le client est rangé au **format international, chiffres
 seuls** (`34612345678`), qui est ce qu'attend l'API de Meta.
