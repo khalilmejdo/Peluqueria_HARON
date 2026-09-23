@@ -40,10 +40,26 @@ test('la journee se lit dans le fuseau du salon, pas en UTC', () => {
   assert.equal(nuit.toISOString().slice(0, 10), '2026-09-23'); // ce que donnerait l UTC
 });
 
+/**
+ * Deux fuseaux, un seul instant, deux journees differentes : c'est tout ce que
+ * ce test doit montrer.
+ *
+ * L'instant est volontairement PASSE. Le Maroc vit a UTC+1 toute l'annee depuis
+ * octobre 2018, sauf pendant le Ramadan ou il repasse a UTC+0 — et les dates du
+ * Ramadan des annees a venir sont ESTIMEES par la base de fuseaux, a partir d'un
+ * calendrier lunaire. Chaque version d'ICU les estime un peu differemment.
+ *
+ * Ecrit sur une date future, ce test affirmait donc une prediction, pas une
+ * regle : il passait sur un poste et echouait dans le conteneur Alpine, dont
+ * l'ICU est d'une autre version. Sur septembre 2019, les deux decalages sont de
+ * l'histoire : toutes les versions s'accordent.
+ *
+ * Ne pas « moderniser » cette date.
+ */
 test('le fuseau du salon est configurable : Madrid ou Casablanca', () => {
-  const instant = new Date('2026-09-23T23:30:00Z');
-  assert.equal(jourLocal(instant, 'Europe/Madrid'), '2026-09-24');
-  assert.equal(jourLocal(instant, 'Africa/Casablanca'), '2026-09-24');
+  const instant = new Date('2019-09-23T23:30:00Z');
+  assert.equal(jourLocal(instant, 'Europe/Madrid'), '2019-09-24');      // UTC+2
+  assert.equal(jourLocal(instant, 'Africa/Casablanca'), '2019-09-24');  // UTC+1
   assert.equal(heureLocale(instant, 'Europe/Madrid'), '01:30');
   assert.equal(heureLocale(instant, 'Africa/Casablanca'), '00:30');
 });
