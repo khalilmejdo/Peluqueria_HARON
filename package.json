@@ -1,0 +1,28 @@
+{
+  "name": "peluqueria-haron",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Peluqueria HARON - file d'attente unique du salon : prise de tour en ligne ou par QR Code, suivi temps reel, tableau de bord du coiffeur",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js",
+    "demo": "node scripts/demo.js",
+    "keygen": "node scripts/keygen.js",
+    "check": "node scripts/check-config.js",
+    "coiffeur": "node scripts/coiffeur.js",
+    "start:conteneur": "node scripts/demarrer.js",
+    "test": "node --test \"test/unit/*.test.js\"",
+    "test:integration": "node --test --test-concurrency=2 \"test/integration/*.test.js\"",
+    "verify": "npm test && npm run test:integration",
+    "images": "node scripts/images.js"
+  },
+  "dependencies": {
+    "pg": "^8.13.0"
+  }
+}

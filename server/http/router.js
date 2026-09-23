@@ -1,0 +1,166 @@
+/**
+ * Routeur minimal.
+ *
+ * Les chemins sont declares sous la forme « /api/tickets/:id ». Le filtrage se
+ * fait segment par segment : aucune expression reguliere n'est construite a
+ * partir d'une chaine fournie par le client, ce qui exclut toute attaque par
+ * expression reguliere degeneree.
+ *
+ * Chaque route porte ses propres exigences : authentification, role, debit.
+ * Ces exigences sont declaratives, donc verifiables d'un coup d'oeil.
+ */
+import { notFound, forbidden, unauthorized, AppError } from '../core/errors.js';
+import { aLeRole } from '../core/roles.js';
+
+/** @typedef {import('./context.js').Context} Context */
+
+export class Router {
+  constructor() {
+    /** @type {Map<string, Array<object>>} routes indexees par methode */
+    this.routes = new Map();
+  }
+
+  /**
+   * @param {string} method
+   * @param {string} path       ex. « /api/tickets/:id »
+   * @param {(ctx: Context) => Promise<any>} handler
+   * @param {object} [opts]
+   * @param {boolean} [opts.public]   route accessible sans session
+   * @param {string}  [opts.role]     role minimum requis (COIFFEUR, GERANT)
+   * @param {boolean} [opts.skipCsrf] dispense de jeton CSRF (connexion)
+   * @param {boolean} [opts.flux]     reponse en flux (SSE) : pas de corps a lire
+   * @param {{max:number, windowMs:number}} [opts.rateLimit]
+   */
+  add(method, path, handler, opts = {}) {
+    const verb = method.toUpperCase();
+    if (!this.routes.has(verb)) this.routes.set(verb, []);
+
+    const segments = path.split('/').filter(Boolean);
+    this.routes.get(verb).push({
+      path,
+      segments,
+      // Une route sans parametre se compare directement, sans boucle.
+      isStatic: !segments.some((s) => s.startsWith(':') || s === '*'),
+      handler,
+      options: opts,
+    });
+    return this;
+  }
+
+  get(path, handler, opts) { return this.add('GET', path, handler, opts); }
+  post(path, handler, opts) { return this.add('POST', path, handler, opts); }
+  put(path, handler, opts) { return this.add('PUT', path, handler, opts); }
+  patch(path, handler, opts) { return this.add('PATCH', path, handler, opts); }
+  delete(path, handler, opts) { return this.add('DELETE', path, handler, opts); }
+
+  /** Fusionne un autre routeur, en prefixant ses chemins. */
+  mount(prefix, router) {
+    for (const [verb, routes] of router.routes) {
+      for (const route of routes) {
+        this.add(verb, prefix + route.path, route.handler, route.options);
+      }
+    }
+    return this;
+  }
+
+  /**
+   * Recherche la route correspondant a la requete.
+   * @returns {{route: object, params: Record<string,string>}|null}
+   */
+  match(method, path) {
+    const verb = method.toUpperCase();
+    const candidates = this.routes.get(verb === 'HEAD' ? 'GET' : verb);
+    if (!candidates) return null;
+
+    const segments = path.split('/').filter(Boolean);
+
+    for (const route of candidates) {
+      if (route.isStatic) {
+        if (route.segments.length === segments.length && route.segments.every((s, i) => s === segments[i])) {
+          return { route, params: {} };
+        }
+        continue;
+      }
+      const params = matchSegments(route.segments, segments);
+      if (params) return { route, params };
+    }
+    return null;
+  }
+
+  /** Indique si le chemin existe pour une autre methode (pour un 405 clair). */
+  allowedMethods(path) {
+    const allowed = [];
+    for (const verb of this.routes.keys()) {
+      if (this.match(verb, path)) allowed.push(verb);
+    }
+    return allowed;
+  }
+}
+
+/**
+ * Compare les segments declares aux segments recus.
+ * @returns {Record<string,string>|null}
+ */
+function matchSegments(declared, received) {
+  const params = {};
+
+  for (let i = 0; i < declared.length; i++) {
+    const pattern = declared[i];
+
+    // Segment joker terminal : capture le reste du chemin.
+    if (pattern === '*') {
+      params.rest = received.slice(i).join('/');
+      return params;
+    }
+
+    if (i >= received.length) return null;
+
+    if (pattern.startsWith(':')) {
+      const value = received[i];
+      if (value === '') return null;
+      params[pattern.slice(1)] = value;
+      continue;
+    }
+
+    if (pattern !== received[i]) return null;
+  }
+
+  return declared.length === received.length ? params : null;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Verification des exigences d'une route                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Applique les exigences declarees sur la route avant d'appeler le
+ * gestionnaire. Toute route non explicitement marquee `public` exige une
+ * session : l'oubli d'une annotation ferme l'acces au lieu de l'ouvrir.
+ *
+ * @param {object} route
+ * @param {Context} ctx
+ */
+export function enforceRouteRequirements(route, ctx) {
+  const { options } = route;
+
+  if (options.public) return;
+
+  if (!ctx.user) {
+    throw unauthorized('Votre session a expiré. Reconnectez-vous.');
+  }
+  if (ctx.user.actif === false) {
+    throw forbidden('Votre compte a été désactivé.');
+  }
+  // Un changement de mot de passe impose ne laisse passer que les routes
+  // permettant precisement de le changer.
+  if (ctx.user.doitChangerMotDePasse && !options.allowDuringPasswordChange) {
+    throw new AppError(403, 'Vous devez d’abord définir un nouveau mot de passe.', { code: 'MOT_DE_PASSE_A_CHANGER' });
+  }
+
+  if (!options.role) return;
+  if (!aLeRole(ctx.user, options.role)) {
+    throw forbidden('Cette action est réservée au gérant du salon.');
+  }
+}
+
+export { notFound };

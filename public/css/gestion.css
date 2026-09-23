@@ -1,0 +1,594 @@
+/*
+ * Peluquería HARON — l'écran du salon.
+ *
+ * Même identité que les pages du client, mais pensée pour une main occupée :
+ * un client actuel énorme, un bouton « CLIENT SERVI » qu'on trouve sans
+ * regarder, et tout le reste en dessous. Aucun menu à ouvrir pour travailler.
+ *
+ * Testé du téléphone tenu d'une main à la tablette posée sur le comptoir.
+ */
+
+.theme-gestion {
+  --fond: #0e1013;
+  --fond-carte: #15181e;
+  --fond-carte-2: #1e222a;
+  --texte: #f7f2e8;
+  --texte-doux: #a9a294;
+  --bordure: #2b303a;
+  --accent: #c8a24a;
+  --accent-texte: #14161a;
+}
+
+.gestion { background: var(--fond); }
+
+.gestion__racine { display: flex; flex-direction: column; min-height: 100svh; }
+
+.chargement {
+  margin: auto;
+  color: var(--texte-doux);
+  font-family: var(--police-titre);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Connexion                                                          */
+/* ------------------------------------------------------------------ */
+
+.connexion { display: grid; gap: 0.5rem; }
+.connexion .carte { margin-top: 1rem; }
+
+/* ------------------------------------------------------------------ */
+/*  Bandeau                                                            */
+/* ------------------------------------------------------------------ */
+
+.gestion__entete {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--bordure);
+  background: color-mix(in srgb, var(--fond) 92%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.gestion__entete-contenu {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  min-height: 3.5rem;
+  padding-block: 0.5rem;
+}
+
+.gestion__marque { display: flex; flex-direction: column; line-height: 1; flex: none; }
+.gestion__marque .marque__peluqueria { font-size: 0.48rem; }
+.gestion__marque .marque__haron { font-size: 1.1rem; }
+
+.onglets {
+  display: flex;
+  gap: 0.25rem;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.onglets::-webkit-scrollbar { display: none; }
+
+.onglet {
+  flex: none;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--texte-doux);
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--transition), background-color var(--transition);
+}
+.onglet:hover { color: var(--texte); }
+.onglet[aria-current='page'] {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent);
+}
+
+.gestion__compte { display: flex; align-items: center; gap: 0.6rem; flex: none; }
+.gestion__qui { font-size: 0.8rem; color: var(--texte-doux); }
+
+.bouton--petit { min-height: 2.35rem; padding: 0.35rem 0.85rem; font-size: 0.85rem; }
+
+/* ------------------------------------------------------------------ */
+/*  Contenu                                                            */
+/* ------------------------------------------------------------------ */
+
+.gestion__contenu { flex: 1; padding-block: 1rem 3rem; }
+
+/* Pendant un geste, l'écran reste lisible mais n'accepte plus de second appui :
+   c'est ce qui empêche de servir deux clients d'un double tap. */
+.gestion__contenu--occupe { opacity: 0.62; pointer-events: none; }
+
+.page-gestion { display: grid; gap: 1.25rem; padding-block: 0.5rem; }
+
+.file { display: grid; gap: 1.25rem; }
+.file__alerte { margin: 0 auto 0.75rem; max-width: var(--largeur); }
+.file__cloture { display: flex; justify-content: flex-end; margin-top: 1.5rem; }
+
+/* ------------------------------------------------------------------ */
+/*  Le client actuel                                                   */
+/* ------------------------------------------------------------------ */
+
+.actuel {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 0.35rem;
+  padding: clamp(1.5rem, 5vw, 2.25rem) clamp(1rem, 4vw, 2rem);
+  border-radius: var(--r-grand);
+  border: 1px solid var(--bordure);
+  background: var(--fond-carte);
+  box-shadow: var(--ombre);
+}
+
+.actuel::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 4px;
+  background: var(--accent);
+}
+.actuel--service::before { background: var(--vert); }
+.actuel--vide::before { background: var(--bordure); }
+
+.actuel__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--texte-doux);
+}
+
+.actuel__numero {
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Le nom, énorme : lisible depuis l'autre bout du salon. */
+.actuel__nom {
+  font-size: clamp(2rem, 9vw, 3.4rem);
+  line-height: 1.05;
+  text-wrap: balance;
+  margin-block: 0.15rem 0.35rem;
+}
+
+.actuel__etat { color: var(--texte-doux); font-size: 0.9rem; }
+.actuel__retard { color: var(--ambre); font-size: 0.85rem; font-weight: 600; }
+
+.actuel__aucun {
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: clamp(1.25rem, 5vw, 1.75rem);
+  margin-block: 0.5rem;
+}
+
+.actuel__suite { display: grid; justify-items: center; gap: 0.2rem; margin-top: 1rem; width: 100%; }
+.actuel__prochain-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--texte-doux);
+}
+.actuel__prochain { font-family: var(--police-titre); font-weight: 700; font-size: 1.45rem; }
+.actuel__prochain-numero { color: var(--accent); font-weight: 700; margin-bottom: 0.9rem; }
+
+/* LE bouton. Pleine largeur, très haut, contraste maximal. */
+.bouton--servi {
+  width: 100%;
+  max-width: 28rem;
+  min-height: 4.5rem;
+  margin-top: 1.25rem;
+  border-radius: var(--r-grand);
+  background: var(--vert);
+  color: #06120c;
+  font-family: var(--police-titre);
+  font-size: clamp(1.15rem, 4.5vw, 1.5rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 14px 30px -18px var(--vert);
+  transition: transform var(--transition), background-color var(--transition);
+}
+.bouton--servi:hover { background: color-mix(in srgb, var(--vert) 85%, #ffffff); }
+.bouton--servi:active { transform: scale(0.98); }
+
+.actuel__secondaires {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  margin-top: 0.9rem;
+  width: 100%;
+}
+
+.bouton--absent {
+  min-height: 3rem;
+  padding: 0.7rem 1.3rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--ambre) 55%, transparent);
+  background: color-mix(in srgb, var(--ambre) 12%, transparent);
+  color: var(--ambre);
+  font-family: var(--police-titre);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color var(--transition);
+}
+.bouton--absent:hover { background: color-mix(in srgb, var(--ambre) 22%, transparent); }
+
+.bouton--danger { color: var(--rouge); border-color: color-mix(in srgb, var(--rouge) 45%, transparent); }
+.bouton--danger:hover { color: var(--rouge); border-color: var(--rouge); }
+
+/* ------------------------------------------------------------------ */
+/*  Interrupteur des prises de tour                                    */
+/* ------------------------------------------------------------------ */
+
+.prise {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1.1rem;
+  border-radius: var(--r);
+  border: 1px solid var(--bordure);
+  background: var(--fond-carte);
+}
+
+.prise--fermee {
+  border-color: color-mix(in srgb, var(--ambre) 50%, var(--bordure));
+  background: color-mix(in srgb, var(--ambre) 9%, var(--fond-carte));
+}
+.prise--conges {
+  display: grid;
+  gap: 0.2rem;
+  border-color: color-mix(in srgb, var(--rouge) 45%, var(--bordure));
+  background: color-mix(in srgb, var(--rouge) 9%, var(--fond-carte));
+}
+
+.prise__texte { display: grid; gap: 0.15rem; }
+.prise__etat { font-family: var(--police-titre); font-weight: 700; }
+.prise__detail { font-size: 0.85rem; color: var(--texte-doux); }
+.prise--fermee .prise__etat { color: var(--ambre); }
+.prise--conges .prise__etat { color: var(--rouge); }
+
+/* ------------------------------------------------------------------ */
+/*  Congés                                                             */
+/* ------------------------------------------------------------------ */
+
+.fermetures { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+
+.fermeture {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--r);
+  background: var(--fond-carte-2);
+}
+.fermeture--active { border: 1px solid color-mix(in srgb, var(--rouge) 45%, transparent); }
+
+.fermeture__dates { font-family: var(--police-titre); font-weight: 700; font-size: 1.05rem; }
+.fermeture__meta { display: flex; gap: 0.4rem; flex-wrap: wrap; font-size: 0.82rem; color: var(--texte-doux); }
+.fermeture__badge {
+  color: var(--rouge);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.7rem;
+}
+.fermeture .bouton { justify-self: start; margin-top: 0.3rem; }
+
+.fermeture-active { border-color: color-mix(in srgb, var(--rouge) 45%, var(--bordure)); }
+.annonce-prochaine { padding-left: 0.2rem; }
+
+.champ input[type='date'] {
+  min-height: 3rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--r);
+  border: 1px solid var(--bordure);
+  background: var(--fond-carte-2);
+  color: var(--texte);
+  font-family: inherit;
+  font-size: 1rem;
+  /* Sans cela, l'icone du calendrier reste noire sur fond sombre. */
+  color-scheme: dark;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Chiffres du jour                                                   */
+/* ------------------------------------------------------------------ */
+
+.file__chiffres {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: 0.75rem;
+}
+
+.chiffre {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--r);
+  border: 1px solid var(--bordure);
+  background: var(--fond-carte);
+}
+.chiffre__valeur {
+  font-family: var(--police-titre);
+  font-weight: 800;
+  font-size: 1.65rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.chiffre__libelle { font-size: 0.8rem; color: var(--texte-doux); }
+
+/* ------------------------------------------------------------------ */
+/*  La file                                                            */
+/* ------------------------------------------------------------------ */
+
+.file__titre {
+  font-size: 0.8rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--texte-doux);
+}
+
+.file__liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.file__vide {
+  color: var(--texte-doux);
+  padding: 1.5rem;
+  text-align: center;
+  border: 1px dashed var(--bordure);
+  border-radius: var(--r);
+}
+
+.carte-file {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--r);
+  border: 1px solid var(--bordure);
+  background: var(--fond-carte);
+  animation: apparition var(--transition) both;
+}
+
+.carte-file--retard { border-color: color-mix(in srgb, var(--ambre) 40%, var(--bordure)); }
+
+.carte-file__tete { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+
+.carte-file__position {
+  font-family: var(--police-titre);
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--texte-doux);
+  font-variant-numeric: tabular-nums;
+}
+.carte-file__numero {
+  font-family: var(--police-titre);
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.carte-file__source {
+  margin-left: auto;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--texte-doux);
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+}
+
+.carte-file__nom { font-family: var(--police-titre); font-weight: 700; font-size: 1.25rem; }
+
+.carte-file__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--texte-doux);
+}
+.carte-file__retard { color: var(--ambre); font-weight: 600; }
+
+.carte-file__actions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.5rem; }
+
+/* ------------------------------------------------------------------ */
+/*  Comptoir et historique                                             */
+/* ------------------------------------------------------------------ */
+
+.comptoir,
+.historique,
+.creation {
+  border: 1px dashed var(--bordure);
+  border-radius: var(--r);
+  padding: 0.85rem 1.1rem;
+}
+
+.comptoir summary,
+.historique summary,
+.creation summary {
+  cursor: pointer;
+  font-family: var(--police-titre);
+  font-weight: 700;
+  color: var(--texte-doux);
+  list-style-position: outside;
+}
+.comptoir summary:hover,
+.historique summary:hover,
+.creation summary:hover { color: var(--texte); }
+
+.comptoir__formulaire { display: grid; gap: 0.75rem; margin-top: 0.75rem; }
+.comptoir__champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.6rem; }
+.comptoir__champs input {
+  min-height: 3rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--r-petit);
+  border: 1px solid var(--bordure);
+  background: var(--fond-carte-2);
+  color: var(--texte);
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.historique__liste { list-style: none; margin: 0.75rem 0 0; padding: 0; display: grid; gap: 0.35rem; }
+.historique__liste li {
+  display: grid;
+  grid-template-columns: 4rem 1fr auto auto;
+  gap: 0.6rem;
+  align-items: baseline;
+  font-size: 0.875rem;
+  padding-block: 0.25rem;
+  border-bottom: 1px dotted var(--bordure);
+}
+.historique__numero { font-family: var(--police-titre); font-weight: 700; color: var(--accent); }
+.historique__statut,
+.historique__heure { color: var(--texte-doux); font-size: 0.8rem; }
+
+/* ------------------------------------------------------------------ */
+/*  Réglages, comptes, chiffres                                        */
+/* ------------------------------------------------------------------ */
+
+.reglages { display: grid; gap: 1.25rem; }
+.reglages__groupe { display: grid; gap: 1rem; }
+.reglages__titre { font-size: 1.05rem; }
+.reglages__grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem; }
+.reglages__pied { display: flex; justify-content: flex-end; }
+.reglages__note { font-size: 0.8rem; }
+
+.champ--case { flex-direction: row; grid-template-columns: auto 1fr; align-items: center; }
+.champ--case input { width: 1.4rem; height: 1.4rem; min-height: 0; accent-color: var(--accent); }
+
+.champ select {
+  min-height: 3rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--r);
+  border: 1px solid var(--bordure);
+  background: var(--fond-carte-2);
+  color: var(--texte);
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.alerte--succes {
+  border-color: color-mix(in srgb, var(--vert) 50%, transparent);
+  background: color-mix(in srgb, var(--vert) 12%, transparent);
+  color: color-mix(in srgb, var(--vert) 80%, var(--texte));
+}
+
+.carreaux { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.85rem; }
+.carreau { display: grid; gap: 0.15rem; padding: 0.9rem 1rem; border-radius: var(--r); background: var(--fond-carte-2); }
+.carreau__valeur { font-family: var(--police-titre); font-weight: 800; font-size: 1.7rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.carreau__libelle { font-size: 0.82rem; color: var(--texte-doux); }
+.carreau__precision { font-size: 0.72rem; color: color-mix(in srgb, var(--texte-doux) 80%, transparent); }
+
+.tableau-defilant { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tableau { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.tableau th,
+.tableau td { padding: 0.5rem 0.65rem; text-align: left; border-bottom: 1px solid var(--bordure); white-space: nowrap; }
+.tableau th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texte-doux); }
+.tableau .nombre { text-align: right; font-variant-numeric: tabular-nums; }
+
+.liste-etat { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.35rem; color: var(--texte-doux); font-size: 0.9rem; }
+
+.comptes { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.85rem; }
+.compte { display: grid; gap: 0.3rem; padding: 0.9rem 1rem; border-radius: var(--r); background: var(--fond-carte-2); }
+.compte--inactif { opacity: 0.6; }
+.compte__tete { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+.compte__nom { font-family: var(--police-titre); font-weight: 700; font-size: 1.1rem; }
+.compte__role {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+}
+.compte__meta { display: flex; gap: 0.4rem; flex-wrap: wrap; font-size: 0.82rem; color: var(--texte-doux); }
+.compte__actions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.4rem; }
+
+/* ------------------------------------------------------------------ */
+/*  QR Code                                                            */
+/* ------------------------------------------------------------------ */
+
+.qr { display: grid; justify-items: center; gap: 0.75rem; text-align: center; }
+.qr__image {
+  width: min(100%, 20rem);
+  height: auto;
+  background: #ffffff;
+  border-radius: var(--r);
+  padding: 0.75rem;
+}
+.qr__legende { font-family: var(--police-titre); font-weight: 700; }
+.qr__adresse { font-size: 0.85rem; color: var(--texte-doux); word-break: break-all; }
+.qr__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; margin-top: 0.5rem; }
+
+/* ------------------------------------------------------------------ */
+/*  Grand écran : la file à côté du client actuel                      */
+/* ------------------------------------------------------------------ */
+
+@media (min-width: 62rem) {
+  /*
+   * Deux colonnes : le client actuel a gauche, la file a droite.
+   *
+   * Chaque bloc de gauche occupe SA rangee, et `align-items: start` le colle en
+   * haut. Faire chevaucher « actuel » sur plusieurs rangees etirait la rangee
+   * de la liste — tres haute — et repoussait le comptoir et l'historique tout
+   * en bas d'une colonne gauche presque vide.
+   *
+   * La liste, elle, s'etire sur les deux dernieres rangees pour demarrer juste
+   * sous les chiffres. Le titre « File d'attente » disparait : les chiffres
+   * au-dessus disent deja « 5 clients en attente », et le repeter creusait un
+   * vide entre le titre et la premiere carte.
+   */
+  .file {
+    grid-template-columns: minmax(0, 0.52fr) minmax(0, 0.52fr) minmax(0, 1fr);
+    grid-template-areas:
+      'actuel   actuel     chiffres'
+      'comptoir historique liste';
+    align-items: start;
+    align-content: start;
+    column-gap: 1.75rem;
+  }
+
+  .file > .file__titre { display: none; }
+  /* Le bandeau « journée close » et l'interrupteur des prises de tour n'ont pas
+     de zone : ils barrent les deux colonnes plutot que de se faire placer au
+     hasard par la grille. */
+  .file > .alerte,
+  .file > .prise { grid-column: 1 / -1; }
+  .file > .comptoir,
+  .file > .historique { align-self: start; }
+  .file > .actuel { grid-area: actuel; position: sticky; top: 5rem; }
+  .file > .file__chiffres { grid-area: chiffres; }
+  .file > .file__titre { grid-area: titre; }
+  .file > .file__liste,
+  .file > .file__vide { grid-area: liste; }
+  .file > .comptoir { grid-area: comptoir; }
+  .file > .historique { grid-area: historique; }
+}

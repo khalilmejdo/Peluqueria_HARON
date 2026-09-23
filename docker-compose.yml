@@ -1,0 +1,69 @@
+# Deploiement (Docker Compose ou Coolify) : application + PostgreSQL.
+# Les secrets se posent dans l'interface de l'hebergeur ou dans un fichier .env
+# a cote de ce fichier, JAMAIS ici.
+#
+#   1. npm run keygen           puis coller les trois secrets dans .env
+#   2. docker compose up -d --build
+#   3. la premiere connexion se fait avec BOOTSTRAP_ADMIN_*
+services:
+  app:
+    build:
+      context: .
+      args:
+        SOURCE_COMMIT: ${SOURCE_COMMIT:-}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Fuseau du salon : c'est lui qui definit ce qu'est « aujourd'hui ».
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Madrid}
+      TELEPHONE_INDICATIF_DEFAUT: ${TELEPHONE_INDICATIF_DEFAUT:-34}
+
+      DATABASE_URL: postgresql://haron:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}@base:5432/haron
+      DATABASE_SSL: "off"
+
+      APP_SECRET: ${APP_SECRET:?APP_SECRET requis}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?APP_ENCRYPTION_KEY requis}
+      APP_PASSWORD_PEPPER: ${APP_PASSWORD_PEPPER:?APP_PASSWORD_PEPPER requis}
+
+      # Adresse publique : c'est elle qu'encode le QR Code de la vitrine.
+      # Elle ne doit plus changer une fois l'affiche imprimee.
+      PUBLIC_URL: ${PUBLIC_URL:?PUBLIC_URL requis}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      TRUST_PROXY: "true"
+      TRUST_PROXY_HOPS: "1"
+      SECURE_COOKIES: "true"
+      ENABLE_HSTS: "true"
+
+      BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-haron}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+
+      # WhatsApp Business : facultatif. Sans lui, l'application marche
+      # entierement ; le coiffeur dispose d'un lien wa.me d'un seul geste.
+      WHATSAPP_ACTIF: ${WHATSAPP_ACTIF:-false}
+      WHATSAPP_NUMERO_ID: ${WHATSAPP_NUMERO_ID:-}
+      WHATSAPP_JETON: ${WHATSAPP_JETON:-}
+      WHATSAPP_LANGUE: ${WHATSAPP_LANGUE:-fr}
+    depends_on:
+      base:
+        condition: service_healthy
+    expose:
+      - "3000"
+
+  base:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: haron
+      POSTGRES_USER: haron
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}
+    volumes:
+      - base:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U haron -d haron"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  base:
