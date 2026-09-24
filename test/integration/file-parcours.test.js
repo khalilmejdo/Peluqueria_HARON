@@ -86,7 +86,7 @@ test('la file du salon, du premier ticket au dernier client servi', { skip: IGNO
 
     // Sans « nouveau », le bloc est toujours la, simplement moins insistant.
     const ordinaire = await banc.client().get('/ticket/' + mehdi.jeton);
-    assert.match(ordinaire.body, /Votre lien de suivi/);
+    assert.match(ordinaire.body, /Tu enlace de seguimiento/);
     assert.ok(!ordinaire.body.includes('Guarda este enlace'));
   });
 

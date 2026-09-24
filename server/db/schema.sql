@@ -172,10 +172,26 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 -- Deux periodes de conges ne peuvent pas se chevaucher : sinon, supprimer
 -- l'une laisserait le salon fermé sans que personne comprenne pourquoi.
 CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+-- ATTENTION : ce bloc ne ressemble pas aux autres, et ce n'est pas un oubli.
+--
+-- Une contrainte EXCLUDE cree un INDEX qui porte son nom. La rejouer echoue
+-- donc sur « relation ... already exists » (42P07, duplicate_table), et NON
+-- sur 42710 (duplicate_object) comme une simple contrainte CHECK. Un
+-- « EXCEPTION WHEN duplicate_object » ne la rattrape pas : le schema semble
+-- idempotent, passe sur une base neuve, et fait echouer tout REDEMARRAGE.
+--
+-- On interroge donc le catalogue plutot que de deviner un code d'erreur.
 DO $$ BEGIN
-  ALTER TABLE fermetures ADD CONSTRAINT fermetures_sans_chevauchement
-    EXCLUDE USING gist (daterange(du, au, '[]') WITH &&);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+     WHERE conname = 'fermetures_sans_chevauchement'
+       AND conrelid = 'fermetures'::regclass
+  ) THEN
+    ALTER TABLE fermetures ADD CONSTRAINT fermetures_sans_chevauchement
+      EXCLUDE USING gist (daterange(du, au, '[]') WITH &&);
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS fermetures_periode ON fermetures (du, au);
 
