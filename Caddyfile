@@ -6,7 +6,18 @@
 #  les ports 80 et 443 sont ouverts DANS LES DEUX pare-feux d'OCI (la liste
 #  de sécurité du réseau ET iptables sur la machine).
 #
-#  DOMAINE et COURRIEL_TLS viennent de l'environnement (docker-compose.oci.yml).
+#  DOMAINES et COURRIEL_TLS viennent de l'environnement (docker-compose.oci.yml).
+#
+#  PLUSIEURS NOMS POUR LE MÊME SALON. `DOMAINES` accepte une liste séparée par
+#  des virgules, et Caddy demande un certificat pour chacun. C'est ce qui permet
+#  de changer d'adresse SANS RIEN CASSER : le nouveau nom sert, l'ancien continue
+#  de répondre, et le QR Code déjà collé en vitrine reste valable le temps qu'on
+#  le remplace. Le cas n'est pas théorique — certains opérateurs mobiles filtrent
+#  les domaines dynamiques, et il faut alors pouvoir en changer sans laisser un
+#  client devant une adresse morte.
+#
+#  L'adresse CANONIQUE reste `DOMAINE` : c'est elle qu'encode le QR Code et
+#  qu'utilisent les liens de suivi. Les autres ne font que répondre aussi.
 #
 #  POURQUOI SI COURT. Le suivi d'un client et l'écran du coiffeur tiennent une
 #  connexion ouverte pendant des heures (Server-Sent Events). Avec nginx il
@@ -25,7 +36,7 @@
 	}
 }
 
-{$DOMAINE} {
+{$DOMAINES} {
 	encode zstd gzip
 
 	reverse_proxy app:3000

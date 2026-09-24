@@ -44,7 +44,10 @@ services:
       - "443:443"
       - "443:443/udp"
     environment:
-      DOMAINE: ${DOMAINE:?DOMAINE requis (ex. file.peluqueria-haron.com)}
+      # Le ou les noms que Caddy sert. Par defaut, le seul DOMAINE.
+      # Pour en servir deux le temps d une bascule, poser dans .env :
+      #   DOMAINES=ancien.duckdns.org, nouveau.dedyn.io
+      DOMAINES: ${DOMAINES:-${DOMAINE:?DOMAINE requis (ex. file.peluqueria-haron.com)}}
       COURRIEL_TLS: ${COURRIEL_TLS:?COURRIEL_TLS requis (avis d expiration Let s Encrypt)}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
@@ -79,7 +82,10 @@ services:
       # L'adresse qu'encode le QR Code de la vitrine. Elle ne doit plus
       # changer une fois l'affiche imprimée.
       PUBLIC_URL: https://${DOMAINE}
-      ALLOWED_ORIGINS: https://${DOMAINE}
+      # Toutes les origines admises pour la protection CSRF. Avec plusieurs
+      # noms, les lister ici aussi, separees par des virgules -- sinon le
+      # second nom affiche les pages mais refuse le moindre formulaire.
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://${DOMAINE}}
       # Un seul relais devant l'application : Caddy.
       TRUST_PROXY: "true"
       TRUST_PROXY_HOPS: "1"
