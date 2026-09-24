@@ -252,8 +252,32 @@ Dans l'ordre de fréquence :
    ```bash
    docker compose -f docker-compose.oci.yml up -d
    ```
-3. Réglages → nom du salon, adresse, téléphone, durée d'une coupe, fauteuils.
-4. Onglet **Tarifas** → vos vrais prix. Les lignes créées au premier démarrage
+3. **Ajustes → El salón** : nom, adresse, téléphone, WhatsApp, coordonnées,
+   durée d'une coupe, fauteuils.
+
+   L'adresse, le téléphone et le WhatsApp font apparaître les sections
+   **Contacto** et **Cómo llegar** de la vitrine — laissés vides, ces blocs
+   n'existent tout simplement pas, pour qu'un salon qui débute n'affiche jamais
+   un cadre vide.
+
+   Les **coordonnées** mènent le client *à la porte* ; une adresse en toutes
+   lettres atterrit souvent au milieu de la rue. Dans Google Maps : appui long
+   sur la porte du salon, ça copie `37.722876, -1.175190`. Collez tel quel — le
+   point décimal, pas la virgule espagnole, sinon c'est refusé (`40,41 , -3,70`
+   est indéchiffrable sans parier sur la position du salon).
+
+4. **Ajustes → Horario de apertura** : une ouverture et une fermeture par jour,
+   et, si le salon coupe à midi, les deux heures du **descanso**.
+
+   Pendant la coupure, la prise de tour est refusée avec la bonne phrase — « on
+   rouvre à 17:00 », et non « on ouvre à 10:00 », qui ferait croire au client
+   qu'il a manqué l'ouverture. Le horaire s'affiche alors en deux tranches :
+   `10:00 – 14:00 · 17:00 – 20:30`.
+
+   Le descanso veut ses **deux** heures ou aucune : à moitié saisi, il fermerait
+   le salon à l'heure du déjeuner ou pas du tout selon le champ oublié — c'est
+   refusé à l'enregistrement.
+5. Onglet **Tarifas** → vos vrais prix. Les lignes créées au premier démarrage
    sont des ordres de grandeur, pas une vérité.
 
    Sur une base **déjà en service**, l'amorçage ne touche plus à la table — il
@@ -269,7 +293,7 @@ Dans l'ordre de fréquence :
    `--remplacer` **vide la table** avant d'écrire : c'est voulu, une fusion sur
    les noms laisserait des doublons proches (« Corte » / « Corte normal »)
    qu'on ne verrait qu'en vitrine. Aucun ticket ne référence un tarif.
-5. Onglet **QR Code** → vérifiez l'adresse, **scannez-la avec un téléphone**,
+6. Onglet **QR Code** → vérifiez l'adresse, **scannez-la avec un téléphone**,
    puis imprimez l'affiche.
 
 ---

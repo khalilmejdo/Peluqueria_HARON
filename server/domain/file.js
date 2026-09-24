@@ -220,9 +220,15 @@ export async function etatPriseDeTour({ instant = new Date() } = {}) {
     return {
       ouverte: false,
       code: 'SALON_FERME',
-      message: horaires.ouverture
-        ? 'El salón está cerrado ahora mismo. Podrás pedir tu turno a partir de las ' + horaires.ouverture + '.'
-        : 'El salón está cerrado hoy. Vuelve el próximo día de apertura.',
+      // Trois phrases, parce que trois situations. « Abrimos a las 10:00 » dit
+      // a 15 h, un jour ou le salon rouvre a 17 h, est pire que le silence :
+      // le client comprend qu'il a manque l'ouverture et ne revient pas.
+      message: horaires.enPause
+        ? 'El salón está cerrado a mediodía. Volvemos a abrir a las ' + horaires.ouverture
+          + ', y entonces podrás pedir tu turno.'
+        : horaires.ouverture
+          ? 'El salón está cerrado ahora mismo. Podrás pedir tu turno a partir de las ' + horaires.ouverture + '.'
+          : 'El salón está cerrado hoy. Vuelve el próximo día de apertura.',
       fermeture: null,
       prochaineFermeture: aVenir,
       ouvertureA: horaires.ouverture,

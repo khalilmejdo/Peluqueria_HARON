@@ -139,9 +139,14 @@ function contact(reglages, horaires) {
     ? '<div class="horario">'
       + '<h3 class="horario__titre">Horario</h3>'
       + '<ul class="horario__liste">'
+      // Les plages séparées par un point médian : « 10:00 – 14:00 · 17:00 –
+      // 20:30 ». Écrire l'amplitude « 10:00 – 20:30 » ferait venir un client à
+      // quinze heures devant un rideau baissé.
       + horaires.map((h) => '<li' + (h.ferme ? ' class="horario--cerrado"' : '') + '>'
         + '<span>' + escapeHtml(h.nom) + '</span>'
-        + '<span>' + (h.ferme ? 'Cerrado' : escapeHtml(h.ouverture + ' – ' + h.fermeture)) + '</span>'
+        + '<span>' + (h.ferme
+          ? 'Cerrado'
+          : escapeHtml(h.plages.map((p) => p.ouverture + ' – ' + p.fermeture).join(' · '))) + '</span>'
         + '</li>').join('')
       + '</ul></div>'
     : '';

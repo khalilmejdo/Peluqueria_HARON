@@ -135,6 +135,22 @@ for (let j = 0; j < 7; j += 1) {
     type: 'heure', defaut: j === 0 ? '' : '20:00', maxLongueur: 5,
     libelle: 'Cierre ' + NOMS_JOURS[j], groupe: 'horaires',
   };
+  // La coupure du milieu de journee. Vide, la journee est d'un seul tenant.
+  //
+  // L'explication n'est posee QUE sur le lundi : repetee sept fois, elle
+  // deviendrait du bruit qu'on ne lit plus, et c'est le premier jour du
+  // formulaire.
+  CATALOGUE['horaires.' + j + '.pauseDebut'] = {
+    type: 'heure', defaut: '', maxLongueur: 5,
+    libelle: 'Empieza el descanso ' + NOMS_JOURS[j], groupe: 'horaires',
+    aide: j === 1
+      ? 'Si el salón cierra a mediodía, pon aquí las dos horas. Durante el descanso no se pueden pedir turnos, y el horario se muestra en dos tramos: 10:00 – 14:00 · 17:00 – 20:30. Déjalo vacío si la jornada es seguida.'
+      : undefined,
+  };
+  CATALOGUE['horaires.' + j + '.pauseFin'] = {
+    type: 'heure', defaut: '', maxLongueur: 5,
+    libelle: 'Vuelve a abrir ' + NOMS_JOURS[j], groupe: 'horaires',
+  };
 }
 
 export const CLES = Object.keys(CATALOGUE);
@@ -341,7 +357,7 @@ export async function enregistrer(valeurs, { tx = null, parUtilisateurId = null 
   // ferme toute la journee sans que personne comprenne pourquoi.
   const parJour = new Map();
   for (const [cle, texte] of aEcrire) {
-    const m = /^horaires\.(\d)\.(ouverture|fermeture)$/.exec(cle);
+    const m = /^horaires\.(\d)\.(ouverture|fermeture|pauseDebut|pauseFin)$/.exec(cle);
     if (m) {
       if (!parJour.has(m[1])) parJour.set(m[1], {});
       parJour.get(m[1])[m[2]] = texte;
@@ -349,13 +365,45 @@ export async function enregistrer(valeurs, { tx = null, parUtilisateurId = null 
   }
   if (parJour.size) {
     const actuels = await lireTous({ frais: true });
-    for (const [jour, paire] of parJour) {
-      const ouverture = paire.ouverture ?? actuels['horaires.' + jour + '.ouverture'];
-      const fermeture = paire.fermeture ?? actuels['horaires.' + jour + '.fermeture'];
+    for (const [jour, saisi] of parJour) {
+      const nom = NOMS_JOURS[Number(jour)];
+      const valeur = (champ) => saisi[champ] ?? actuels['horaires.' + jour + '.' + champ];
+      const ouverture = valeur('ouverture');
+      const fermeture = valeur('fermeture');
+      const pauseDebut = valeur('pauseDebut');
+      const pauseFin = valeur('pauseFin');
+
       if (ouverture && fermeture && heureEnMinutes(fermeture) <= heureEnMinutes(ouverture)) {
         throw new ValidationError({
-          ['horaires.' + jour + '.fermeture']: 'El cierre debe ser posterior a la apertura (' + NOMS_JOURS[Number(jour)] + ').',
+          ['horaires.' + jour + '.fermeture']: 'El cierre debe ser posterior a la apertura (' + nom + ').',
         });
+      }
+
+      // Une coupure a moitie saisie fermerait le salon a l'heure du dejeuner ou
+      // pas du tout, selon le champ oublie. On refuse les deux cas.
+      if (Boolean(pauseDebut) !== Boolean(pauseFin)) {
+        throw new ValidationError({
+          ['horaires.' + jour + (pauseDebut ? '.pauseFin' : '.pauseDebut')]:
+            'El descanso necesita las dos horas: cuándo empieza y cuándo se vuelve a abrir (' + nom + ').',
+        });
+      }
+
+      if (pauseDebut && pauseFin) {
+        if (heureEnMinutes(pauseFin) <= heureEnMinutes(pauseDebut)) {
+          throw new ValidationError({
+            ['horaires.' + jour + '.pauseFin']: 'La reapertura debe ser posterior al inicio del descanso (' + nom + ').',
+          });
+        }
+        // Une coupure qui deborde de la journee n'a pas de sens, et la
+        // silencieuse ignorer laisserait le gerant croire qu'elle s'applique.
+        if (ouverture && fermeture
+          && (heureEnMinutes(pauseDebut) <= heureEnMinutes(ouverture)
+            || heureEnMinutes(pauseFin) >= heureEnMinutes(fermeture))) {
+          throw new ValidationError({
+            ['horaires.' + jour + '.pauseDebut']:
+              'El descanso tiene que caer dentro del horario del día, entre ' + ouverture + ' y ' + fermeture + ' (' + nom + ').',
+          });
+        }
       }
     }
   }
@@ -385,25 +433,101 @@ export function adressePublique(reglages, secours = '') {
   return (reglages['public.url'] || config.http.publicUrl || secours || '').replace(/\/+$/, '');
 }
 
-/** Le salon est-il ouvert a cet instant ? Rend toujours ouvert si le controle est desactive. */
-export function estOuvert(reglages, jourSemaine, minutes) {
-  if (!reglages['horaires.actifs']) return { ouvert: true, ouverture: null, fermeture: null };
+/**
+ * Les plages d'ouverture d'un jour, dans l'ordre.
+ *
+ * Une seule plage si la journee est d'un seul tenant, deux si le salon coupe au
+ * milieu. C'est la SEULE fonction qui sait lire une coupure : tout le reste —
+ * la prise de tour, la vitrine, le pied de page, l'affiche — part de sa sortie.
+ * Une seconde lecture des memes reglages ailleurs finirait par diverger, et
+ * personne ne verrait laquelle des deux a raison.
+ *
+ * Une coupure incoherente (hors de la journee, ou a l'envers) est IGNOREE
+ * plutot que de fermer le salon : la saisie la refuse deja, et si une valeur
+ * douteuse arrivait malgre tout en base, mieux vaut un salon ouvert trop
+ * longtemps qu'un salon injoignable toute la journee sans explication.
+ */
+export function plagesDuJour(reglages, jourSemaine) {
   const ouverture = reglages['horaires.' + jourSemaine + '.ouverture'];
   const fermeture = reglages['horaires.' + jourSemaine + '.fermeture'];
-  if (!ouverture || !fermeture) return { ouvert: false, ouverture: null, fermeture: null };
+  if (!ouverture || !fermeture) return [];
+
   const debut = heureEnMinutes(ouverture);
   const fin = heureEnMinutes(fermeture);
-  return { ouvert: minutes >= debut && minutes < fin, ouverture, fermeture };
+  if (fin <= debut) return [];
+
+  const pauseDebut = reglages['horaires.' + jourSemaine + '.pauseDebut'];
+  const pauseFin = reglages['horaires.' + jourSemaine + '.pauseFin'];
+  if (!pauseDebut || !pauseFin) return [{ ouverture, fermeture }];
+
+  const coupure = heureEnMinutes(pauseDebut);
+  const reprise = heureEnMinutes(pauseFin);
+  if (!(debut < coupure && coupure < reprise && reprise < fin)) return [{ ouverture, fermeture }];
+
+  return [
+    { ouverture, fermeture: pauseDebut },
+    { ouverture: pauseFin, fermeture },
+  ];
 }
 
-/** Les horaires, mis en forme pour l'affichage. */
+/**
+ * Le salon est-il ouvert a cet instant ? Rend toujours ouvert si le controle
+ * est desactive.
+ *
+ * `ouverture` porte l'heure a annoncer au client qui arrive trop tot : le
+ * debut de la prochaine plage du jour, donc l'heure de REPRISE pendant la
+ * coupure. Dire « a partir de 10:00 » a quelqu'un qui regarde son telephone a
+ * 15 h, un jour ou le salon rouvre a 17 h, est pire que de ne rien dire.
+ */
+export function estOuvert(reglages, jourSemaine, minutes) {
+  if (!reglages['horaires.actifs']) {
+    return { ouvert: true, ouverture: null, fermeture: null, enPause: false };
+  }
+
+  const plages = plagesDuJour(reglages, jourSemaine);
+  if (!plages.length) return { ouvert: false, ouverture: null, fermeture: null, enPause: false };
+
+  for (const plage of plages) {
+    const debut = heureEnMinutes(plage.ouverture);
+    const fin = heureEnMinutes(plage.fermeture);
+    if (minutes >= debut && minutes < fin) {
+      return { ouvert: true, ouverture: plage.ouverture, fermeture: plage.fermeture, enPause: false };
+    }
+  }
+
+  const suivante = plages.find((p) => minutes < heureEnMinutes(p.ouverture));
+  return {
+    ouvert: false,
+    // Rien apres : la journee est finie, on n'annonce aucune heure plutot que
+    // celle de ce matin.
+    ouverture: suivante ? suivante.ouverture : null,
+    fermeture: suivante ? suivante.fermeture : null,
+    // Entre deux plages, et non avant la premiere : c'est ce qui permet de
+    // dire « on rouvre a » plutot que « on ouvre a ».
+    enPause: Boolean(suivante) && minutes >= heureEnMinutes(plages[0].ouverture),
+  };
+}
+
+/**
+ * Les horaires, mis en forme pour l'affichage.
+ *
+ * `plages` porte la verite ; `ouverture` et `fermeture` restent la pour ce qui
+ * ne sait afficher qu'une amplitude, et donnent alors le premier et le dernier
+ * horaire du jour.
+ */
 export function horairesLisibles(reglages) {
   const lignes = [];
   for (let j = 1; j <= 7; j += 1) {
     const jour = j % 7; // la semaine commence le lundi a l'affichage
-    const o = reglages['horaires.' + jour + '.ouverture'];
-    const f = reglages['horaires.' + jour + '.fermeture'];
-    lignes.push({ jour, nom: NOMS_JOURS[jour], ouverture: o || null, fermeture: f || null, ferme: !o || !f });
+    const plages = plagesDuJour(reglages, jour);
+    lignes.push({
+      jour,
+      nom: NOMS_JOURS[jour],
+      plages,
+      ouverture: plages.length ? plages[0].ouverture : null,
+      fermeture: plages.length ? plages[plages.length - 1].fermeture : null,
+      ferme: plages.length === 0,
+    });
   }
   return lignes;
 }

@@ -10,7 +10,9 @@ import './amorce.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { normaliserCoordonnees, versTexte, CATALOGUE } from '../../server/core/reglages.js';
+import {
+  normaliserCoordonnees, versTexte, CATALOGUE, plagesDuJour, estOuvert, horairesLisibles,
+} from '../../server/core/reglages.js';
 import { ValidationError } from '../../server/core/errors.js';
 
 test('ce que Google Maps met dans le presse-papier est accepte tel quel', () => {
@@ -71,4 +73,105 @@ test('le texte « comment venir » tient plusieurs phrases', () => {
   assert.ok(regle.maxLongueur > 200, 'une seule ligne ne suffit pas pour un itineraire');
   const long = 'x'.repeat(regle.maxLongueur + 1);
   assert.throws(() => versTexte('salon.comoLlegar', long), ValidationError);
+});
+
+/* ------------------------------------------------------------------ */
+/*  La journee coupee                                                  */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Beaucoup de salons ferment au milieu de la journee. Sans coupure, il fallait
+ * choisir entre deux mensonges : annoncer « 10:00 – 20:30 » et faire venir un
+ * client a quinze heures devant un rideau baisse, ou n'annoncer que l'apres-midi
+ * et perdre toutes les prises de tour du matin.
+ */
+const JOURNEE_COUPEE = {
+  'horaires.actifs': true,
+  'horaires.3.ouverture': '10:00',
+  'horaires.3.fermeture': '20:30',
+  'horaires.3.pauseDebut': '14:00',
+  'horaires.3.pauseFin': '17:00',
+};
+
+const h = (heures, minutes = 0) => heures * 60 + minutes;
+
+test('une journee sans coupure ne fait qu une plage', () => {
+  assert.deepEqual(
+    plagesDuJour({ 'horaires.3.ouverture': '09:30', 'horaires.3.fermeture': '20:00' }, 3),
+    [{ ouverture: '09:30', fermeture: '20:00' }],
+  );
+});
+
+test('une journee coupee en fait deux, dans l ordre', () => {
+  assert.deepEqual(plagesDuJour(JOURNEE_COUPEE, 3), [
+    { ouverture: '10:00', fermeture: '14:00' },
+    { ouverture: '17:00', fermeture: '20:30' },
+  ]);
+});
+
+test('un jour ferme n a aucune plage', () => {
+  assert.deepEqual(plagesDuJour({ 'horaires.0.ouverture': '', 'horaires.0.fermeture': '' }, 0), []);
+});
+
+/*
+ * Une coupure douteuse arrivee en base malgre la validation ne doit PAS fermer
+ * le salon : mieux vaut ouvert trop longtemps qu'injoignable toute la journee
+ * sans que rien ne l'explique.
+ */
+test('une coupure incoherente est ignoree, elle ne ferme pas le salon', () => {
+  const debordante = { ...JOURNEE_COUPEE, 'horaires.3.pauseFin': '23:00' };
+  assert.deepEqual(plagesDuJour(debordante, 3), [{ ouverture: '10:00', fermeture: '20:30' }]);
+
+  const alEnvers = { ...JOURNEE_COUPEE, 'horaires.3.pauseDebut': '18:00', 'horaires.3.pauseFin': '15:00' };
+  assert.deepEqual(plagesDuJour(alEnvers, 3), [{ ouverture: '10:00', fermeture: '20:30' }]);
+
+  const aMoitie = { ...JOURNEE_COUPEE, 'horaires.3.pauseFin': '' };
+  assert.deepEqual(plagesDuJour(aMoitie, 3), [{ ouverture: '10:00', fermeture: '20:30' }]);
+});
+
+test('le salon ferme bien pendant la coupure, et rouvre apres', () => {
+  assert.equal(estOuvert(JOURNEE_COUPEE, 3, h(9, 59)).ouvert, false);
+  assert.equal(estOuvert(JOURNEE_COUPEE, 3, h(10)).ouvert, true);
+  assert.equal(estOuvert(JOURNEE_COUPEE, 3, h(13, 59)).ouvert, true);
+  assert.equal(estOuvert(JOURNEE_COUPEE, 3, h(14)).ouvert, false, 'l heure de coupure est exclue');
+  assert.equal(estOuvert(JOURNEE_COUPEE, 3, h(16, 59)).ouvert, false);
+  assert.equal(estOuvert(JOURNEE_COUPEE, 3, h(17)).ouvert, true);
+  assert.equal(estOuvert(JOURNEE_COUPEE, 3, h(20, 29)).ouvert, true);
+  assert.equal(estOuvert(JOURNEE_COUPEE, 3, h(20, 30)).ouvert, false);
+});
+
+/*
+ * C'est L'HEURE ANNONCEE qui compte. « Abrimos a las 10:00 » dit a quinze
+ * heures ferait croire au client qu'il a manque l'ouverture — et il ne
+ * reviendrait pas.
+ */
+test('a midi on annonce la REPRISE, pas l ouverture du matin', () => {
+  const pendant = estOuvert(JOURNEE_COUPEE, 3, h(15));
+  assert.equal(pendant.ouvert, false);
+  assert.equal(pendant.ouverture, '17:00');
+  assert.equal(pendant.enPause, true);
+
+  const avant = estOuvert(JOURNEE_COUPEE, 3, h(8));
+  assert.equal(avant.ouverture, '10:00');
+  assert.equal(avant.enPause, false, 'avant la premiere ouverture, ce n est pas une pause');
+
+  const apres = estOuvert(JOURNEE_COUPEE, 3, h(21));
+  assert.equal(apres.ouverture, null, 'la journee est finie : on n annonce pas l heure de ce matin');
+  assert.equal(apres.enPause, false);
+});
+
+test('le controle des horaires desactive laisse tout ouvert', () => {
+  const sansControle = { ...JOURNEE_COUPEE, 'horaires.actifs': false };
+  assert.equal(estOuvert(sansControle, 3, h(15)).ouvert, true);
+});
+
+test('l affichage porte les deux plages', () => {
+  const lignes = horairesLisibles(JOURNEE_COUPEE);
+  const mercredi = lignes.find((l) => l.jour === 3);
+  assert.equal(mercredi.ferme, false);
+  assert.equal(mercredi.plages.length, 2);
+  // L'amplitude reste juste pour ce qui ne sait afficher qu'une paire.
+  assert.equal(mercredi.ouverture, '10:00');
+  assert.equal(mercredi.fermeture, '20:30');
+  assert.equal(lignes[0].jour, 1, 'la semaine commence le lundi');
 });

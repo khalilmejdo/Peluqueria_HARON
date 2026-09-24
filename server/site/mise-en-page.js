@@ -112,7 +112,9 @@ export function piedDePage({ horaires = null, adresse = null, telephone = null }
   }
   if (horaires && horaires.length) {
     const items = horaires.map((h) => '<li><span>' + escapeHtml(h.nom) + '</span><span>'
-      + (h.ferme ? 'Cerrado' : escapeHtml(h.ouverture + ' – ' + h.fermeture)) + '</span></li>').join('');
+      + (h.ferme
+        ? 'Cerrado'
+        : escapeHtml(h.plages.map((p) => p.ouverture + ' – ' + p.fermeture).join(' · '))) + '</span></li>').join('');
     lignes.push('<ul class="pied__horaires">' + items + '</ul>');
   }
   return '<footer class="pied">'
