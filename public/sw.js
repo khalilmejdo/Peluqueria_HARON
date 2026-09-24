@@ -58,6 +58,32 @@ const PAGE_HORS_LIGNE = `<!doctype html>
 <a href="" style="display:inline-block;padding:14px 28px;border-radius:999px;background:#c8a24a;color:#14161a;font-weight:700;font-size:15px;text-decoration:none">Reintentar</a>
 </div></body></html>`;
 
+/**
+ * UN RESEAU QUI NE REPOND NI NE REFUSE.
+ *
+ * `fetch` n'a aucun delai d'expiration. Une requete peut donc rester suspendue
+ * indefiniment : ni reponse, ni erreur, donc pas de repli — la page tourne, et
+ * le client regarde un sablier en croyant que le salon est en panne.
+ *
+ * Ce n'est pas un cas d'ecole. Le 24 septembre, un reseau mobile avalait les
+ * paquets UDP de HTTP/3 sans rien renvoyer : le site s'ouvrait en wifi et
+ * tournait sans fin en 5G. La cause a ete corrigee cote serveur, mais elle ne
+ * sera pas la derniere du genre — un portail wifi d'hotel, un metro, un reseau
+ * saturé produisent exactement le meme silence.
+ *
+ * Dix secondes : au-dela, mieux vaut la derniere page connue avec son bandeau
+ * « sans connexion » qu'une attente qui ne finit pas. La page est de toute
+ * facon rechargee des que le reseau revient.
+ */
+const DELAI_RESEAU_MS = 10000;
+
+function avecDelai(requete, ms = DELAI_RESEAU_MS) {
+  const controleur = new AbortController();
+  const minuteur = setTimeout(() => controleur.abort(), ms);
+  return fetch(requete, { signal: controleur.signal })
+    .finally(() => clearTimeout(minuteur));
+}
+
 /* ------------------------------------------------------------------ */
 
 self.addEventListener('install', (evenement) => {
@@ -90,7 +116,7 @@ self.addEventListener('fetch', (evenement) => {
   if (requete.mode === 'navigate') {
     evenement.respondWith((async () => {
       try {
-        const reponse = await fetch(requete);
+        const reponse = await avecDelai(requete);
         // On ne garde que la derniere page vue, sous une cle fixe : c'est elle
         // qu'on reservira, et elle ne doit pas s'accumuler.
         if (reponse.ok) {

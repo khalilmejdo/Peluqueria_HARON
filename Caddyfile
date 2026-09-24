@@ -34,6 +34,25 @@
 		output stdout
 		format json
 	}
+
+	# PAS DE HTTP/3, ET C EST DELIBERE.
+	#
+	# HTTP/3 passe par UDP sur le port 443. Beaucoup de reseaux mobiles le
+	# bloquent ou le degradent -- sans le REFUSER : la connexion reste
+	# suspendue. Or Caddy annonce « Alt-Svc: h3 » avec une duree de vie de
+	# trente jours : un navigateur qui a vu le site UNE FOIS en wifi essaiera
+	# QUIC en premier sur tous les autres reseaux pendant un mois.
+	#
+	# Resultat observe le 24 septembre : le salon s ouvrait en wifi et
+	# tournait indefiniment en 5G. Le sablier, pas une erreur -- donc rien
+	# dans les journaux, et une heure perdue a soupconner le DNS.
+	#
+	# Le gain de HTTP/3 se compte en dizaines de millisecondes sur une page
+	# deja legere. Le cout, c est un client debout devant la vitrine qui
+	# regarde une page blanche. Le choix est vite fait.
+	servers {
+		protocols h1 h2
+	}
 }
 
 {$DOMAINES} {

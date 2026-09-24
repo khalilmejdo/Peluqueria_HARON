@@ -42,7 +42,10 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "443:443/udp"
+      # Pas d UDP : HTTP/3 est desactive dans le Caddyfile, et laisser le port
+      # ouvert ferait patienter les navigateurs qui ont garde une vieille
+      # annonce « Alt-Svc ». Ferme, la tentative echoue tout de suite et le
+      # navigateur repasse en TCP sans que personne attende.
     environment:
       # Le ou les noms que Caddy sert. Par defaut, le seul DOMAINE.
       # Pour en servir deux le temps d une bascule, poser dans .env :
