@@ -257,5 +257,83 @@ export async function vueReglages(conteneur) {
     erreurGlobale, succes,
     fauteuils,
     formulaire,
-    whatsapp));
+    whatsapp,
+    sectionPurge(dire)));
+}
+
+/**
+ * La zone de danger : effacer l'historique.
+ *
+ * ELLE EST EN BAS, ET ELLE EST LAIDE. C'est voulu. Un bouton irréversible ne se
+ * place pas à côté de ceux qu'on touche tous les jours, et il ne doit pas
+ * ressembler à eux.
+ *
+ * TROIS CHOSES AVANT DE POUVOIR CLIQUER : ouvrir le repli, lire ce qui part et
+ * ce qui reste, et RECOPIER un mot. La recopie n'est pas une formalité — c'est
+ * le temps d'arrêt qu'aucune fenêtre « êtes-vous sûr ? » ne procure, parce
+ * qu'on y répond oui sans lire.
+ *
+ * Les deux colonnes disent exactement ce qui disparaît. Une suppression dont on
+ * ignore la portée ne se fait jamais l'esprit tranquille, et c'est comme ça
+ * qu'on renonce à nettoyer des données d'essai qui restent des mois.
+ */
+function sectionPurge(dire) {
+  const confirmation = el('input', {
+    id: 'purge-confirmation', type: 'text', autocomplete: 'off',
+    autocapitalize: 'characters', spellcheck: 'false', placeholder: 'BORRAR',
+  });
+
+  const bouton = el('button.bouton.bouton--petit.bouton--danger', {
+    type: 'submit', texte: 'Borrar el historial',
+  });
+
+  const liste = (titre, items, classe) => el('div.purge__colonne',
+    el('p.purge__colonne-titre' + classe, { texte: titre }),
+    el('ul.purge__liste', items.map((t) => el('li', { texte: t }))));
+
+  const formulaire = el('form.purge__form', {
+    surSubmit: async (evenement) => {
+      evenement.preventDefault();
+      bouton.disabled = true;
+      try {
+        const reponse = await api.post('/api/service/purger', { confirmation: confirmation.value });
+        dire('Historial borrado: ' + reponse.total + ' líneas. Las cuentas, los ajustes, los sillones y las tarifas siguen ahí.', true);
+        confirmation.value = '';
+      } catch (err) {
+        dire(err instanceof ErreurApi ? err.message : 'No se ha podido borrar.');
+      }
+      bouton.disabled = false;
+    },
+  },
+  el('div.champ',
+    el('label', { for: 'purge-confirmation', texte: 'Escribe BORRAR para confirmar' }),
+    confirmation),
+  bouton);
+
+  return el('section.carte.reglages__groupe.purge',
+    el('h2.reglages__titre.purge__titre', { texte: 'Borrar el historial' }),
+    el('p.texte-doux', {
+      texte: 'Para empezar de cero después de las pruebas: se van todos los turnos y todo lo que cuelga de ellos. No se puede deshacer y no hay papelera.',
+    }),
+    el('details.purge__repli',
+      el('summary', { texte: 'Ver qué se borra exactamente' }),
+      el('div.purge__colonnes',
+        liste('Se borra', [
+          'Todos los turnos, de todos los días',
+          'Su historial (llamadas, retrasos, anulaciones)',
+          'Los mensajes de WhatsApp pendientes',
+          'Las jornadas',
+          'Las vacaciones y cierres declarados',
+        ], '.purge__colonne-titre--part'),
+        liste('Se conserva', [
+          'Las cuentas del personal',
+          'Todos los ajustes del salón',
+          'Los sillones',
+          'Las tarifas',
+          'Los avisos activados en cada aparato',
+        ], '.purge__colonne-titre--reste')),
+      el('p.texte-doux.purge__note', {
+        texte: 'La fila tiene que estar vacía: si queda alguien esperando, cierra la jornada primero. Borrar un turno mientras su cliente mira su enlace le dejaría una página muerta, y nadie en el salón sabría que sigue esperando.',
+      }),
+      formulaire));
 }

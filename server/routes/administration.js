@@ -30,6 +30,7 @@ import {
   eliminar as eliminarTarifa, mover as moverTarifa, reordenar as reordenarTarifas, prixLegible,
 } from '../domain/tarifas.js';
 import { etatBoite } from '../domain/notifications.js';
+import { purgerHistorique, PRESERVE } from '../domain/purge.js';
 import { sentryActif } from '../core/sentry.js';
 import { executerTache, nomsDesTaches } from '../core/taches.js';
 import { jourLocal } from '../core/temps.js';
@@ -565,6 +566,36 @@ serviceRoutes.get('/etat', async (ctx) => {
     taches: nomsDesTaches(),
   });
 }, { role: 'GERANT' });
+
+/**
+ * EFFACER L'HISTORIQUE.
+ *
+ * Le geste le plus destructeur de l'application, et il n'a pas de corbeille.
+ * Trois barrieres, et chacune arrete un accident different :
+ *
+ *   le role de GERANT       un coiffeur ne peut pas le declencher ;
+ *   une phrase a recopier   on ne tape pas « BORRAR » par inadvertance, la ou
+ *                           on clique « oui » sans lire ;
+ *   la file doit etre vide  verifie dans la transaction, pas ici.
+ *
+ * La phrase est comparee TELLE QUELLE, sans tolerance de casse ni d'espaces :
+ * la recopier est justement le temps d'arret qu'on cherche a provoquer.
+ */
+serviceRoutes.post('/purger', async (ctx) => {
+  const data = validate(ctx.body, {
+    confirmation: { type: 'string', required: true, max: 20, trim: false },
+  });
+  if (data.confirmation !== 'BORRAR') {
+    throw badRequest('Escribe BORRAR en mayúsculas para confirmar.', {
+      fields: { confirmation: 'Escribe exactamente BORRAR.' },
+    });
+  }
+
+  const bilan = await purgerHistorique({ user: ctx.user });
+  const total = Object.values(bilan).reduce((n, v) => n + v, 0);
+  log.warn('Purge demandee', { par: ctx.user.identifiant, total });
+  ctx.ok({ bilan, total, preserve: PRESERVE });
+}, { role: 'GERANT', rateLimit: PROFILES.administration });
 
 /**
  * Relance une tache de fond a la main. Utile le jour ou l'API WhatsApp a ete

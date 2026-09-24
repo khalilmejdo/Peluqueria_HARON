@@ -130,12 +130,51 @@ function ecranMotDePasse() {
 /*  Coquille                                                           */
 /* ------------------------------------------------------------------ */
 
+/**
+ * LE MENU LATERAL, SUR TELEPHONE.
+ *
+ * En haut, les onglets formaient une rangee qui defile horizontalement : sur un
+ * ecran de telephone, les deux derniers vivaient hors du cadre et personne ne
+ * les trouvait. Un tiroir lateral montre TOUTE la liste d'un coup, avec des
+ * cibles hautes qu'on atteint au pouce, et il rend au passage les trois
+ * centimetres de haut que la barre volait a la file.
+ *
+ * Aux grandes largeurs, rien ne change : les onglets restent en haut, ou ils
+ * tiennent tous et ou un tiroir serait un clic de trop. C'est la feuille de
+ * style qui bascule, pas le JavaScript — il n'y a donc qu'une seule liste
+ * d'onglets dans la page, et jamais deux etats a garder d'accord.
+ *
+ * Le tiroir se ferme de quatre facons : en choisissant un onglet, par le voile,
+ * par la croix, et par Echap. Un panneau qu'on ne sait pas fermer est un
+ * panneau qui fait peur.
+ */
+function fermerTiroir() {
+  document.body.classList.remove('tiroir-ouvert');
+  document.querySelector('[data-tiroir]')?.setAttribute('aria-hidden', 'true');
+  document.querySelector('[data-ouvrir-tiroir]')?.setAttribute('aria-expanded', 'false');
+}
+
+function ouvrirTiroir() {
+  document.body.classList.add('tiroir-ouvert');
+  const tiroir = document.querySelector('[data-tiroir]');
+  tiroir?.setAttribute('aria-hidden', 'false');
+  document.querySelector('[data-ouvrir-tiroir]')?.setAttribute('aria-expanded', 'true');
+  // Le premier onglet prend le focus : au clavier comme au lecteur d'ecran, on
+  // arrive DANS le menu, pas derriere lui.
+  tiroir?.querySelector('.onglet')?.focus();
+}
+
+document.addEventListener('keydown', (evenement) => {
+  if (evenement.key === 'Escape' && document.body.classList.contains('tiroir-ouvert')) fermerTiroir();
+});
+
 function barre() {
   const onglets = ongletsVisibles().map((o) => el('button.onglet', {
     type: 'button',
     'aria-current': etat.onglet === o.cle ? 'page' : null,
     texte: o.libelle,
     surClick: () => {
+      fermerTiroir();
       if (etat.onglet === o.cle) return;
       etat.onglet = o.cle;
       window.location.hash = '#' + o.cle;
@@ -143,12 +182,31 @@ function barre() {
     },
   }));
 
+  const ouvrir = el('button.gestion__menu', {
+    type: 'button',
+    'aria-expanded': 'false',
+    'aria-label': 'Secciones',
+    donnees: { ouvrirTiroir: '1' },
+    surClick: ouvrirTiroir,
+  }, el('span.gestion__menu-barres', { 'aria-hidden': 'true' }));
+
   return el('header.gestion__entete',
     el('div.enveloppe.gestion__entete-contenu',
+      ouvrir,
       el('div.gestion__marque',
         el('span.marque__peluqueria', { texte: 'Peluquería' }),
         el('span.marque__haron', { texte: 'HARON' })),
-      el('nav.onglets', { 'aria-label': 'Secciones' }, onglets),
+      el('div.tiroir__voile', { donnees: { voile: '1' }, surClick: fermerTiroir }),
+      el('nav.onglets', {
+        'aria-label': 'Secciones',
+        donnees: { tiroir: '1' },
+      },
+      el('div.tiroir__tete',
+        el('span.tiroir__titre', { texte: 'Secciones' }),
+        el('button.tiroir__fermer', {
+          type: 'button', 'aria-label': 'Cerrar el menú', texte: '×', surClick: fermerTiroir,
+        })),
+      onglets),
       el('div.gestion__compte',
         el('span.gestion__qui', { texte: etat.utilisateur?.nomComplet || etat.utilisateur?.identifiant || '' }),
         el('button.bouton.bouton--discret.bouton--petit', {

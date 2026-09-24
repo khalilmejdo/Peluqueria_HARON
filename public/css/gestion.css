@@ -914,3 +914,194 @@
 
 .avisos__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .avisos__actions:empty { display: none; }
+
+/* ------------------------------------------------------------------ */
+/*  Le tiroir de navigation, sur téléphone                             */
+/* ------------------------------------------------------------------ */
+
+/*
+ * UNE SEULE LISTE D'ONGLETS DANS LA PAGE.
+ *
+ * Aux grandes largeurs elle reste en haut, en rangée. Sous 54 rem elle devient
+ * un tiroir latéral. C'est la feuille de style qui bascule, jamais le
+ * JavaScript : deux listes à garder d'accord finiraient par diverger, et l'une
+ * des deux afficherait un onglet actif qui ne l'est pas.
+ */
+.gestion__menu { display: none; }
+.tiroir__voile { display: none; }
+.tiroir__tete { display: none; }
+
+@media (max-width: 54rem) {
+  /* Le bouton hamburger. Quarante-quatre pixels de côté : la taille d'un
+     pouce, pas celle d'une icône. */
+  .gestion__menu {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 1px solid var(--bordure);
+    border-radius: var(--r-petit);
+    background: transparent;
+    color: var(--texte);
+    cursor: pointer;
+  }
+
+  /* Trois traits dessinés en ombres : aucune image, aucun caractère qui
+     changerait de forme d'une police à l'autre. */
+  .gestion__menu-barres,
+  .gestion__menu-barres::before,
+  .gestion__menu-barres::after {
+    display: block;
+    width: 1.15rem;
+    height: 2px;
+    border-radius: 2px;
+    background: currentColor;
+  }
+  .gestion__menu-barres { position: relative; }
+  .gestion__menu-barres::before,
+  .gestion__menu-barres::after { content: ''; position: absolute; left: 0; }
+  .gestion__menu-barres::before { top: -6px; }
+  .gestion__menu-barres::after { top: 6px; }
+
+  /*
+   * Le tiroir. Il est TOUJOURS dans le document — seulement décalé hors du
+   * cadre — plutôt que masqué et remonté : la transition est alors fluide, et
+   * un lecteur d'écran le retrouve à sa place dans l'ordre de lecture.
+   */
+  .onglets {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    width: min(17rem, 82vw);
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.75rem;
+    overflow-y: auto;
+    background: var(--fond-carte);
+    border-right: 1px solid var(--bordure);
+    box-shadow: 0 0 60px -10px rgb(0 0 0 / 70%);
+    transform: translateX(-102%);
+    transition: transform var(--transition);
+    /* Fermé, il n'intercepte rien : un menu invisible qui avale les appuis est
+       un bogue qu'on met des jours à trouver. */
+    visibility: hidden;
+  }
+
+  .tiroir-ouvert .onglets { transform: translateX(0); visibility: visible; }
+
+  .tiroir__voile {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: rgb(0 0 0 / 55%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition);
+  }
+  .tiroir-ouvert .tiroir__voile { opacity: 1; pointer-events: auto; }
+
+  .tiroir__tete {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.25rem 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--bordure);
+    margin-bottom: 0.5rem;
+  }
+  .tiroir__titre {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--texte-doux);
+  }
+  .tiroir__fermer {
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 0;
+    background: transparent;
+    color: var(--texte-doux);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  /* Dans le tiroir, un onglet est une ligne pleine largeur, haute au pouce. */
+  .onglet {
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+    min-height: 3rem;
+    border-radius: var(--r-petit);
+    padding-inline: 0.9rem;
+    font-size: 1rem;
+  }
+
+  /* La barre du haut se dégarnit : le nom du salon, et sortir. Le reste est
+     dans le tiroir, donc la file gagne la hauteur que les onglets prenaient. */
+  .gestion__entete-contenu { flex-wrap: nowrap; gap: 0.6rem; }
+  .gestion__marque { flex: 1; }
+  .gestion__qui { display: none; }
+}
+
+/* Le mouvement du tiroir disparaît si le système demande moins d'animation. */
+@media (prefers-reduced-motion: reduce) {
+  .onglets, .tiroir__voile { transition: none; }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Effacer l'historique                                               */
+/* ------------------------------------------------------------------ */
+
+/*
+ * EN BAS, ET DÉLIBÉRÉMENT À PART. Un geste irréversible ne se place pas à côté
+ * de ceux qu'on touche tous les jours, et il ne doit pas leur ressembler.
+ */
+.purge { border-color: color-mix(in srgb, var(--rouge) 45%, var(--bordure)); }
+.purge__titre { color: var(--rouge); }
+
+.purge__repli { margin-top: 0.75rem; }
+.purge__repli summary { cursor: pointer; color: var(--texte-doux); font-size: 0.9rem; }
+
+.purge__colonnes {
+  display: grid;
+  gap: 1rem;
+  margin-block: 0.9rem;
+}
+@media (min-width: 40rem) {
+  .purge__colonnes { grid-template-columns: 1fr 1fr; }
+}
+
+.purge__colonne-titre {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+}
+.purge__colonne-titre--part { color: var(--rouge); }
+.purge__colonne-titre--reste { color: var(--vert); }
+
+.purge__liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.88rem;
+  color: var(--texte-doux);
+}
+.purge__liste li::before { content: '— '; opacity: 0.6; }
+
+.purge__note { margin-block: 0.75rem; font-size: 0.85rem; }
+
+.purge__form { display: grid; gap: 0.6rem; max-width: 22rem; }
+
+.bouton--danger {
+  border-color: color-mix(in srgb, var(--rouge) 60%, transparent);
+  color: var(--rouge);
+}
+.bouton--danger:hover:not(:disabled) { background: color-mix(in srgb, var(--rouge) 15%, transparent); }
