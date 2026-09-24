@@ -129,23 +129,34 @@ body::after {
   pointer-events: none;
 }
 
-/* Les halos : trois foyers chauds, très étalés, qui respirent. */
+/*
+ * Les halos : quatre foyers, très étalés, qui respirent.
+ *
+ * Le laiton et le rouge sont les deux couleurs du mât de barbier ; le bleu
+ * froid du bas n'est là que pour que le noir cesse d'être du noir. C'est le
+ * contraste chaud/froid qui donne la profondeur — trois halos chauds sur fond
+ * d'encre restaient une tache, pas un espace.
+ */
 body::before {
   inset: -25%;
   background:
-    radial-gradient(38rem 30rem at 14% 10%,
-      color-mix(in srgb, var(--laiton) 13%, transparent), transparent 62%),
-    radial-gradient(32rem 26rem at 86% 28%,
-      color-mix(in srgb, var(--rouge) 8%, transparent), transparent 64%),
-    radial-gradient(40rem 32rem at 56% 88%,
-      color-mix(in srgb, var(--laiton) 9%, transparent), transparent 66%);
+    radial-gradient(42rem 34rem at 12% 6%,
+      color-mix(in srgb, var(--laiton) 22%, transparent), transparent 64%),
+    radial-gradient(36rem 30rem at 88% 24%,
+      color-mix(in srgb, var(--rouge) 14%, transparent), transparent 66%),
+    radial-gradient(34rem 30rem at 4% 62%,
+      color-mix(in srgb, #3f6f8f 16%, transparent), transparent 66%),
+    radial-gradient(44rem 36rem at 62% 92%,
+      color-mix(in srgb, var(--laiton) 16%, transparent), transparent 68%);
 }
 
 /*
- * Les raies. Une TEXTURE, pas des rayures : à 2,5 % sur un fond d'encre, elles
- * se devinent et ne se comptent pas. Une première version à 4 % sur des bandes
- * larges donnait un papier peint qui passait devant le texte — un fond qu'on
- * remarque a déjà échoué.
+ * Les raies. Une TEXTURE, pas des rayures : elles se devinent, on ne les
+ * compte pas. C'est la LARGEUR qui décide, pas l'opacité — une première
+ * version à 4 % sur des bandes de 10 px pour 34 px de pas (30 % de la surface)
+ * donnait un papier peint qui passait devant le texte. À 7 px pour 40 px, la
+ * même opacité ne couvre plus que 17 % : la texture se voit, le texte reste
+ * devant.
  *
  * Le pas du motif est de 40 px le long de l'axe du dégradé ; à -55°, cet axe
  * avance de 0,819 px pour chaque pixel horizontal. Un décalage de
@@ -157,7 +168,7 @@ body::after {
   inset: -40%;
   background: repeating-linear-gradient(
     -55deg,
-    color-mix(in srgb, var(--laiton) 2.5%, transparent) 0 7px,
+    color-mix(in srgb, var(--laiton) 4.5%, transparent) 0 7px,
     transparent 7px 40px
   );
 }
@@ -169,7 +180,7 @@ body::after {
 
 @keyframes fond-halos {
   from { transform: translate3d(0, 0, 0) scale(1); }
-  to { transform: translate3d(-3%, 2%, 0) scale(1.12); }
+  to { transform: translate3d(-5%, 3%, 0) scale(1.2); }
 }
 
 @keyframes fond-raies {
