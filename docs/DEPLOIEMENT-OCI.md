@@ -464,13 +464,28 @@ Une seule commande, qui **vérifie et sait revenir en arrière** :
 1. refuse de partir si des fichiers suivis par git sont modifiés — c'est
    exactement ce qui a fait échouer un `git pull` en silence le 24 septembre,
    et laissé le serveur deux versions en retard sans que rien ne le dise ;
-2. étiquette l'image en place, puis tire, construit et démarre ;
+2. demande au salon **quelle version il sert** (`/api/version`), étiquette
+   l'image en place, puis tire, construit et démarre ;
 3. attend que `/healthz` réponde — quatre-vingt-dix secondes au plus ;
 4. **si le salon ne répond pas, il remet l'ancienne version, la redémarre, et
    le dit.** Un déploiement raté ne doit jamais laisser le salon à terre.
 
 À la fin, il affiche la version réellement déployée et la commande exacte pour
-revenir en arrière à la main.
+revenir en arrière à la main. Si elle ne correspond pas à ce qui vient d'être
+construit, il le dit et sort en erreur — une image non reconstruite ne doit pas
+passer pour un déploiement réussi.
+
+> **Il compare ce qui tourne, pas ce qui est sur le disque.** La première
+> version comparait le `HEAD` de git avant et après son propre `git pull` :
+> quelqu'un qui avait déjà tiré à la main tombait sur « déjà à jour, rien à
+> faire » alors que le conteneur servait toujours l'ancienne image. Le défaut
+> ne s'est vu qu'au `npm error Missing script` d'une commande ajoutée la veille.
+>
+> Le disque ne dit rien de ce qui est en service : seul le salon le sait.
+> S'il ne répond pas du tout, le script reconstruit sans poser de question.
+>
+> `./scripts/deployer.sh --forcer` reconstruit même quand la version en service
+> est déjà la bonne — utile après une modification du `Dockerfile` ou du `.env`.
 
 Le schéma se réapplique tout seul, et il est idempotent. La file du jour, les
 réglages, les fauteuils, les tarifs et les congés sont en base : **rien n'est
