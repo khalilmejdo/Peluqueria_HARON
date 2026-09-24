@@ -6,7 +6,11 @@
  * flux tombe (tunnel, veille du telephone), une relecture ordinaire prend le
  * relais au retour a l'ecran.
  */
-import { donneesInitiales, poser, envoyer, suivreFlux } from './commun.js';
+import { donneesInitiales, poser, envoyer, suivreFlux, activerHorsLigne, bandeauHorsLigne } from './commun.js';
+
+// La page de suivi est celle qu'un client rafraichit dans le salon, la ou la 4G
+// passe mal : c'est elle qui a le plus besoin de tenir sans reseau.
+activerHorsLigne();
 
 const initial = donneesInitiales();
 if (initial?.jeton) demarrer(initial.jeton, initial.vue);
@@ -25,6 +29,7 @@ function demarrer(jeton, premiereVue) {
   const erreur = document.querySelector('[data-annuler-erreur]');
 
   let derniere = premiereVue || null;
+  const reseau = bandeauHorsLigne();
 
   const TONS = ['attente', 'proche', 'tour', 'fini'];
 
@@ -57,14 +62,17 @@ function demarrer(jeton, premiereVue) {
   async function relire() {
     try {
       afficher(await envoyer('/api/public/tickets/' + encodeURIComponent(jeton), { methode: 'GET' }));
+      reseau.reussite();
     } catch {
-      // Hors ligne : la page garde le dernier etat connu, ce qui est honnete.
+      // La page garde le dernier etat connu — mais elle le DIT, au lieu de
+      // laisser croire que « 3 personnes devant vous » est encore vrai.
+      reseau.echec();
     }
   }
 
   suivreFlux('/api/public/tickets/' + encodeURIComponent(jeton) + '/flux', {
     sur: {
-      ticket: afficher,
+      ticket: (vue) => { reseau.reussite(); afficher(vue); },
       fin: () => {
         if (elements.titre) elements.titre.textContent = 'Este turno ha terminado.';
         if (elements.detail) elements.detail.textContent = 'La jornada del salón está cerrada. ¡Hasta pronto!';

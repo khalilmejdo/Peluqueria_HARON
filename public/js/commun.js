@@ -6,6 +6,72 @@
  * uniquement par textContent : une injection n'a donc aucune prise.
  */
 
+/* ------------------------------------------------------------------ */
+/*  Hors ligne                                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Le travailleur de service, enregistre avec la VERSION DEPLOYEE.
+ *
+ * La version se lit dans l'adresse de ce module : le serveur sert les fichiers
+ * statiques en « ?v=<commit> », donc `import.meta.url` la porte deja. Aucune
+ * donnee a poser dans la page, et le jour ou la version change, l'adresse du
+ * travailleur change aussi — le navigateur prend donc le nouveau, et le nouveau
+ * efface les caches de l'ancien.
+ *
+ * Il n'est pas enregistre dans l'espace de gestion : le coiffeur a besoin de la
+ * verite du serveur, jamais d'une page gardee.
+ */
+export function activerHorsLigne() {
+  if (!('serviceWorker' in navigator)) return;
+  if (location.pathname.startsWith('/gestion')) return;
+  const version = new URL(import.meta.url).searchParams.get('v') || 'dev';
+  // A l'arret du chargement : l'enregistrement ne doit pas disputer la bande
+  // passante a la page elle-meme.
+  addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js?v=' + encodeURIComponent(version)).catch(() => {
+      // Un navigateur qui refuse (navigation privee, reglage) garde une page
+      // parfaitement fonctionnelle : il n'y a rien a signaler.
+    });
+  });
+}
+
+/**
+ * Le bandeau « sin conexión ».
+ *
+ * Sans lui, une page qui ne se met plus a jour a l'air JUSTE : le client lit
+ * « 3 personas » et attend, alors que c'est peut-etre deja son tour. Le dire
+ * vaut mieux que de se taire.
+ *
+ * Rend une fonction a appeler quand une lecture reussit ou echoue, pour que
+ * l'etat reel du service compte autant que `navigator.onLine` — un telephone
+ * peut etre « en ligne » sur un wifi qui ne mene nulle part.
+ */
+export function bandeauHorsLigne() {
+  const bandeau = document.createElement('p');
+  bandeau.className = 'hors-ligne';
+  bandeau.setAttribute('role', 'status');
+  bandeau.hidden = true;
+  bandeau.textContent = 'Sin conexión — mostramos lo último que sabemos.';
+  document.body.prepend(bandeau);
+
+  let echecs = 0;
+  const peindre = () => {
+    // Deux echecs de suite avant de le dire : une lecture ratee arrive, et un
+    // bandeau qui clignote a chaque hoquet inquiete pour rien.
+    bandeau.hidden = navigator.onLine && echecs < 2;
+  };
+
+  addEventListener('online', () => { echecs = 0; peindre(); });
+  addEventListener('offline', peindre);
+  peindre();
+
+  return {
+    reussite() { echecs = 0; peindre(); },
+    echec() { echecs += 1; peindre(); },
+  };
+}
+
 /** Les donnees initiales posees par le serveur (jamais un script en ligne). */
 export function donneesInitiales() {
   const socle = document.getElementById('donnees');

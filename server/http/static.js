@@ -29,6 +29,10 @@ const MIME_TYPES = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
+  // La galerie du salon accepte l'AVIF : sans ce type, la photo partirait en
+  // « application/octet-stream » et le navigateur la telechargerait au lieu de
+  // l'afficher.
+  '.avif': 'image/avif',
   '.ico': 'image/x-icon',
   '.woff2': 'font/woff2',
   '.txt': 'text/plain; charset=utf-8',

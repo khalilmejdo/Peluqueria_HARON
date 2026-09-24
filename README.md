@@ -128,6 +128,7 @@ Mise en place et modèles à faire approuver : [`docs/WHATSAPP.md`](docs/WHATSAP
 | | |
 |---|---|
 | **Fiche de prix** | Une liste simple — service, prix, note — affichée en vitrine sur la page d'accueil. Ajout, renommage, réordonnancement, masquage. Le prix se tape « 14 » ou « 14,90 » ; il est stocké en centimes entiers, jamais en flottant. |
+| **Hors ligne** | La vitrine et la page de suivi restent lisibles sans réseau : un travailleur de service garde la dernière page vue, et un bandeau ambre dit que le chiffre affiché n'est plus frais. L'API n'est jamais mise en cache. |
 | **Photos du salon** | Déposées dans `/opt/haron/photos` (volume monté), pas dans l'image : ni reconstruction ni redémarrage. Le nom du fichier donne l'ordre et la légende. Dossier vide = section absente. |
 | **Fauteuils** | Autant que le salon en a. Nom libre, nom du coiffeur, ouverture et fermeture à la demande. |
 | **Organisation de la file** | **Une seule file** (par défaut) : le client prend un tour, le premier coiffeur libre le sert. **Une file par coiffeur** : le client choisit le sien et attend dans sa file. Se change avec une file vide. |

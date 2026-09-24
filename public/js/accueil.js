@@ -10,7 +10,11 @@
  * Rien ici n'est indispensable : sans JavaScript, la page reste juste, elle ne
  * se met simplement plus a jour d'elle-meme.
  */
-import { envoyer } from './commun.js';
+import { envoyer, activerHorsLigne, bandeauHorsLigne } from './commun.js';
+
+// La vitrine se garde aussi : un passant qui la rouvre sans reseau voit le
+// salon, pas l'ecran d'erreur du navigateur.
+activerHorsLigne();
 
 const INTERVALLE_MS = 20000;
 
@@ -24,6 +28,7 @@ if (bloc) {
   const forte = bloc.querySelector('[data-forte]');
   const detail = bloc.querySelector('[data-detail]');
   const servis = bloc.querySelector('[data-servis]');
+  const reseau = bandeauHorsLigne();
 
   /**
    * Change un texte en le faisant clignoter une fois.
@@ -62,8 +67,11 @@ if (bloc) {
         servis.hidden = !assez;
         if (assez) poser(servis, etat.servis + ' atendidos hoy');
       }
+      reseau.reussite();
     } catch {
-      // Hors ligne : on garde ce qui est affiche plutot que d'inventer un chiffre.
+      // On garde ce qui est affiche plutot que d'inventer un chiffre — mais on
+      // dit que ce n'est plus frais.
+      reseau.echec();
     }
   };
 

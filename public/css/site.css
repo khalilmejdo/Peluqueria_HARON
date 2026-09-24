@@ -490,6 +490,27 @@ main { flex: 1; }
 .affluence__servis[hidden] { display: none; }
 
 /*
+ * Le bandeau « sin conexión ».
+ *
+ * Collé en haut, au-dessus de tout, et en ambre plutôt qu'en rouge : ce n'est
+ * pas une erreur, c'est une précision. Sans lui, une page figée a l'air juste,
+ * et le client attend en lisant un chiffre qui n'est plus vrai.
+ */
+.hors-ligne {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  margin: 0;
+  padding: 0.6rem 1rem;
+  background: var(--ambre);
+  color: #1a1204;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+}
+.hors-ligne[hidden] { display: none; }
+
+/*
  * Un chiffre qui change doit se voir changer.
  *
  * Sans ça, la file passe de 3 à 2 pendant que le client regarde ailleurs, et
