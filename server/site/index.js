@@ -5,6 +5,7 @@
  *   /join              prendre son tour (formulaire)      GET et POST
  *   /ticket/<jeton>    suivi de SON tour, en temps reel
  *   /affiche           l'affiche a imprimer pour la vitrine
+ *   /pantalla          la file en direct, pour l'ecran accroche dans le salon
  *   /qr.svg  /qr.png   le QR Code seul, a telecharger
  *
  * Le formulaire fonctionne SANS JavaScript : il se poste, le serveur repond, et
@@ -24,7 +25,9 @@ import { jetonPlausible } from '../core/crypto.js';
 import { jourLocal, attenteLisible, dateLongueFr } from '../core/temps.js';
 import { encoder, versSvg, versMatrice } from '../core/qrcode.js';
 import { pngNoirEtBlanc } from '../core/png.js';
-import { prendreTour, ticketParJeton, chargerEtat, pourClient, etatPriseDeTour } from '../domain/file.js';
+import {
+  prendreTour, ticketParJeton, chargerEtat, pourClient, pourPantalla, etatPriseDeTour,
+} from '../domain/file.js';
 import { pourVitrine } from '../domain/tarifas.js';
 import { page, marque, entete, piedDePage, pageErreur } from './mise-en-page.js';
 import {
@@ -836,3 +839,125 @@ siteRoutes.get('/affiche', async (ctx) => {
     pied: '',
   }));
 }, { public: true });
+
+/* ------------------------------------------------------------------ */
+/*  L'ecran du salon                                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * LA PAGE A AFFICHER SUR L'ECRAN DU SALON.
+ *
+ * Elle est faite pour un televiseur accroche au mur, lu depuis un fauteuil a
+ * quatre metres, et laissee allumee toute la journee. Tout en decoule.
+ *
+ *   - AUCUN COMPTE. Un televiseur ne se reconnecte pas quand une session
+ *     expire, et une session eternelle sur un appareil que tout le salon
+ *     manipule serait pire que pas de session. L'adresse est donc publique,
+ *     et c'est la projection « pantalla » qui garantit ce qui en sort :
+ *     numero, prenom, fauteuil. Jamais un telephone, jamais un jeton.
+ *   - AUCUN GESTE. Rien a cliquer, rien a faire defiler. Ce qui ne tient pas
+ *     a l'ecran n'est pas affiche, et le compte de ce qui manque est dit.
+ *   - LE QR EN PERMANENCE. C'est la vraie raison d'etre de cet ecran : un
+ *     client debout dans la salle voit la file avancer ET peut prendre son
+ *     tour dans le meme regard.
+ *
+ * Elle est servie sans JavaScript aussi : le premier etat est rendu par le
+ * serveur. Le script ne fait que la tenir a jour. Un ecran qui perd son
+ * script affiche donc l'etat du chargement, pas une page vide.
+ */
+siteRoutes.get('/pantalla', async (ctx) => {
+  const reglages = await lireTous();
+  const jour = jourLocal();
+  const [etat, adresse] = await Promise.all([chargerEtat(jour), adresseDuQr(ctx)]);
+  const vue = pourPantalla(etat);
+  const qr = encoder(adresse, { niveau: 'Q' });
+
+  const corps = '<main class="pantalla" id="principal" data-pantalla>'
+    + '<header class="pantalla__entete">'
+    + marque({ taille: 'petit', lien: false })
+    + '<p class="pantalla__horloge" data-horloge aria-hidden="true"></p>'
+    + '</header>'
+    // Le contenu vivant est remplace en bloc par le script. Le serveur en pose
+    // la premiere version : un ecran sans JavaScript reste juste au chargement.
+    + '<div class="pantalla__corps" data-corps>' + corpsPantalla(vue) + '</div>'
+    + '<footer class="pantalla__pied">'
+    + '<div class="pantalla__qr">' + versSvg(qr, { titre: 'Escanear para pedir turno', marge: 1 }) + '</div>'
+    + '<div class="pantalla__appel">'
+    + '<p class="pantalla__appel-titre">Pide tu turno</p>'
+    + '<p class="pantalla__appel-texte">Escanea el código y sigue tu posición en el móvil.</p>'
+    + '</div>'
+    + '<p class="pantalla__hors-ligne" data-hors-ligne hidden>Sin conexión</p>'
+    + '</footer>'
+    + '</main>';
+
+  ctx.html(200, page({
+    titre: 'Pantalla — ' + reglages['salon.nom'],
+    description: 'La fila del salón, en directo.',
+    corps,
+    base: ctx.base,
+    chemin: '/pantalla',
+    robots: 'noindex, nofollow, noarchive',
+    classe: 'theme-sombre page-pantalla',
+    scripts: ['/js/pantalla.js'],
+    pied: '',
+  }));
+}, { public: true });
+
+/**
+ * Le contenu vivant de l'ecran.
+ *
+ * Ecrit ici ET repris a l'identique dans `public/js/pantalla.js` : le serveur
+ * rend la premiere image, le script rend les suivantes. Les deux doivent
+ * produire la meme chose, et c'est un test qui le verifie — deux mises en page
+ * qui divergent donnent un ecran qui saute a la premiere mise a jour.
+ */
+function corpsPantalla(vue) {
+  const carte = (t, classe) => '<li class="tour ' + classe + '">'
+    + '<span class="tour__numero">' + escapeHtml(t.numero) + '</span>'
+    + (t.prenom ? '<span class="tour__prenom">' + escapeHtml(t.prenom) + '</span>' : '')
+    + (t.poste ? '<span class="tour__poste">' + escapeHtml(t.poste) + '</span>' : '')
+    + '</li>';
+
+  // LES DEUX FAUTEUILS RESTENT VISIBLES. Une premiere version ne montrait que
+  // les appeles, et celui qui etait deja au fauteuil disparaissait de l'ecran
+  // des qu'on appelait quelqu'un d'autre — dans un salon a deux fauteuils,
+  // c'est la moitie de l'information qui s'efface. Les appeles passent devant,
+  // eux seuls clignotent, et le nom du fauteuil dit qui est ou.
+  const enVedette = vue.appeles.map((t) => carte(t, 'tour--appele'))
+    .concat(vue.auFauteuil.map((t) => carte(t, 'tour--service')));
+
+  const vedette = enVedette.length
+    ? '<section class="pantalla__vedette">'
+      + '<p class="pantalla__label">'
+      + (vue.appeles.length
+        ? (vue.appeles.length > 1 ? 'Es vuestro turno' : 'Es tu turno')
+        : 'En el sillón')
+      + '</p>'
+      + '<ul class="tours tours--vedette">' + enVedette.join('') + '</ul>'
+      + '</section>'
+    : '<section class="pantalla__vedette pantalla__vedette--vide">'
+      + '<p class="pantalla__label">' + (vue.ouverte ? 'Sillón libre' : 'Jornada cerrada') + '</p>'
+      + '<p class="pantalla__vide">' + (vue.ouverte ? 'Pasa cuando quieras.' : 'Hasta mañana.') + '</p>'
+      + '</section>';
+
+  const suite = vue.attente.length
+    ? '<section class="pantalla__suite">'
+      + '<p class="pantalla__label">Siguientes</p>'
+      + '<ul class="tours tours--suite">' + vue.attente.map((t) => carte(t, 'tour--attente')).join('') + '</ul>'
+      + (vue.deplus ? '<p class="pantalla__deplus">y ' + vue.deplus + ' más</p>' : '')
+      + '</section>'
+    : '<section class="pantalla__suite pantalla__suite--vide">'
+      + '<p class="pantalla__label">Siguientes</p>'
+      + '<p class="pantalla__vide">Nadie esperando.</p>'
+      + '</section>';
+
+  const chiffres = '<section class="pantalla__chiffres">'
+    + '<p><strong>' + vue.enAttente + '</strong> ' + (vue.enAttente === 1 ? 'esperando' : 'esperando') + '</p>'
+    + (vue.enAttente ? '<p><strong>~' + vue.attenteEstimeeMinutes + '</strong> min</p>' : '')
+    + '<p><strong>' + vue.servis + '</strong> hoy</p>'
+    + '</section>';
+
+  return vedette + suite + chiffres;
+}
+
+export const _corpsPantalla = corpsPantalla;

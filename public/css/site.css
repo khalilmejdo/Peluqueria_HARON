@@ -1933,3 +1933,235 @@ main { flex: 1; }
 @media (prefers-contrast: more) {
   :root { --texte-doux: #cfc8ba; --bordure: #4a515e; }
 }
+
+/* ------------------------------------------------------------------ */
+/*  L'écran du salon                                                   */
+/* ------------------------------------------------------------------ */
+
+/*
+ * UNE PAGE QUI TIENT DANS UN ÉCRAN, SANS DÉFILEMENT.
+ *
+ * Personne ne fait défiler un téléviseur accroché au mur. La grille occupe donc
+ * exactement la hauteur de la fenêtre, et tout ce qui ne tient pas est compté
+ * plutôt qu'affiché (« y 6 más »).
+ *
+ * Les tailles sont en `vmin` et non en `rem` : le même fichier doit être lisible
+ * sur un 24 pouces au comptoir et sur un 55 pouces au mur. Une taille fixe
+ * imposerait de rouvrir la feuille de style à chaque changement d'écran.
+ */
+.page-pantalla { overflow: hidden; }
+.page-pantalla body { min-height: 100svh; }
+
+.pantalla {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: clamp(0.5rem, 1.5vmin, 1.25rem);
+  height: 100svh;
+  padding: clamp(0.75rem, 2.5vmin, 2rem);
+}
+
+.pantalla__entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.pantalla__horloge {
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: clamp(1.1rem, 3.4vmin, 2.4rem);
+  color: var(--texte-doux);
+  font-variant-numeric: tabular-nums;
+}
+
+.pantalla__corps {
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  gap: clamp(0.5rem, 2vmin, 1.5rem);
+  min-height: 0;
+}
+
+.pantalla__label {
+  font-size: clamp(0.7rem, 1.8vmin, 1.1rem);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--laiton);
+  margin-bottom: clamp(0.25rem, 1vmin, 0.75rem);
+}
+
+/* La vedette : ce qui demande que quelqu'un se lève. */
+.pantalla__vedette {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+  padding: clamp(0.75rem, 3vmin, 2.5rem);
+  border-radius: var(--r-grand);
+  border: 1px solid color-mix(in srgb, var(--laiton) 40%, transparent);
+  background: color-mix(in srgb, var(--laiton) 7%, var(--fond-carte));
+  min-height: 0;
+}
+
+.pantalla__vedette--vide {
+  border-color: var(--bordure);
+  background: var(--fond-carte);
+}
+
+.tours { list-style: none; margin: 0; padding: 0; }
+
+.tours--vedette {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(1rem, 4vmin, 3rem);
+}
+
+.tour { display: grid; justify-items: center; }
+
+.tours--vedette .tour__numero {
+  font-family: var(--police-titre);
+  font-weight: 800;
+  /*
+   * ÉNORME, et c'est le point. Le numéro doit se lire depuis le fond de la
+   * salle, par quelqu'un qui lève les yeux une seconde.
+   */
+  font-size: clamp(3rem, 14vmin, 11rem);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.tours--vedette .tour__prenom {
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: clamp(1.25rem, 5vmin, 3.5rem);
+  line-height: 1.1;
+}
+
+.tours--vedette .tour__poste {
+  font-size: clamp(0.75rem, 2vmin, 1.4rem);
+  color: var(--texte-doux);
+  margin-top: 0.3em;
+}
+
+.tour--appele .tour__numero { color: var(--laiton-clair); }
+.tour--service .tour__numero { color: var(--vert); }
+
+/*
+ * CE QUI CLIGNOTE APPELLE. Seul le tour appelé pulse — un écran où plusieurs
+ * choses bougent n'attire l'œil sur aucune. Et le battement s'arrête dès que le
+ * client est au fauteuil : une alerte qui dure n'alerte plus.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .tour--appele .tour__numero { animation: pantalla-appel 1.8s ease-in-out infinite; }
+}
+
+@keyframes pantalla-appel {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.pantalla__vide {
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: clamp(1.1rem, 3.5vmin, 2.4rem);
+  color: var(--texte-doux);
+}
+
+/* Les suivants : une rangée de numéros, plus petits, sans fioriture. */
+.tours--suite {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(0.4rem, 1.5vmin, 1rem);
+}
+
+.tours--suite .tour {
+  justify-items: start;
+  padding: clamp(0.35rem, 1.2vmin, 0.8rem) clamp(0.6rem, 2vmin, 1.25rem);
+  border-radius: var(--r);
+  border: 1px solid var(--bordure);
+  background: var(--fond-carte);
+}
+
+.tours--suite .tour__numero {
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: clamp(1rem, 3.2vmin, 2.2rem);
+  color: var(--laiton);
+  font-variant-numeric: tabular-nums;
+}
+
+.tours--suite .tour__prenom {
+  font-size: clamp(0.75rem, 2vmin, 1.3rem);
+  color: var(--texte);
+}
+
+.tours--suite .tour__poste { display: none; }
+
+.pantalla__deplus {
+  margin-top: clamp(0.3rem, 1vmin, 0.6rem);
+  color: var(--texte-doux);
+  font-size: clamp(0.75rem, 2vmin, 1.3rem);
+}
+
+.pantalla__chiffres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(0.75rem, 3vmin, 2.5rem);
+  color: var(--texte-doux);
+  font-size: clamp(0.8rem, 2vmin, 1.4rem);
+}
+.pantalla__chiffres strong {
+  color: var(--texte);
+  font-family: var(--police-titre);
+  font-size: clamp(1rem, 2.8vmin, 2rem);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Le pied : le QR, en permanence. C'est la raison d'être de l'écran. */
+.pantalla__pied {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.75rem, 2.5vmin, 2rem);
+  padding-top: clamp(0.5rem, 1.5vmin, 1rem);
+  border-top: 1px solid var(--bordure);
+}
+
+.pantalla__qr {
+  flex: none;
+  width: clamp(4.5rem, 14vmin, 11rem);
+  padding: clamp(0.3rem, 1vmin, 0.7rem);
+  border-radius: var(--r-petit);
+  /* Le QR se lit en noir sur blanc. Sur l'encre du thème, un lecteur hésite. */
+  background: #fff;
+}
+.pantalla__qr svg { display: block; width: 100%; height: auto; }
+
+.pantalla__appel-titre {
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: clamp(1rem, 3.2vmin, 2.2rem);
+}
+.pantalla__appel-texte {
+  color: var(--texte-doux);
+  font-size: clamp(0.75rem, 2vmin, 1.3rem);
+}
+
+/*
+ * SANS CONNEXION, ON LE DIT. Un écran figé sur la file d'il y a deux heures a
+ * l'air juste : c'est exactement le piège. Le voile et le bandeau disent que
+ * ce qui est affiché n'est plus garanti.
+ */
+.pantalla__hors-ligne {
+  margin-left: auto;
+  padding: 0.4em 0.9em;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ambre) 22%, transparent);
+  color: var(--ambre);
+  font-weight: 700;
+  font-size: clamp(0.75rem, 2vmin, 1.3rem);
+}
+
+.pantalla--hors-ligne .pantalla__corps { opacity: 0.55; }

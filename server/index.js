@@ -32,7 +32,7 @@ import { consume, PROFILES } from './core/ratelimit.js';
 import { SESSION_COOKIE, loadSession, touchSession, verifyCsrfToken, purgeExpiredSessions } from './core/session.js';
 import { ping, closePool } from './db/index.js';
 import { brancher, demarrerBattement, arreterBattement, fermerTout } from './core/flux.js';
-import { chargerEtat, pourSalon, pourClient } from './domain/file.js';
+import { chargerEtat, pourSalon, pourClient, pourPantalla } from './domain/file.js';
 import { pageErreur } from './site/mise-en-page.js';
 import { buildRouter } from './app.js';
 import { demarrerTaches, arreterTaches } from './core/taches.js';
@@ -42,7 +42,12 @@ const router = buildRouter();
 
 // Le diffuseur temps reel ne connait ni la base ni les regles de la file : le
 // domaine se branche dessus ici, une fois pour toutes.
-brancher({ etat: chargerEtat, projection: pourClient, projectionSalon: pourSalon });
+brancher({
+  etat: chargerEtat,
+  projection: pourClient,
+  projectionSalon: pourSalon,
+  projectionPantalla: pourPantalla,
+});
 
 /** Une adresse dont le dernier segment porte une extension designe un fichier. */
 const ressembleAUnFichier = (chemin) => /\.[A-Za-z0-9]{1,8}$/.test(chemin.split('/').pop() || '');

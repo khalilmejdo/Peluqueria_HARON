@@ -13,6 +13,7 @@ const GROUPES = [
   { titre: 'La fila', prefixes: ['file.'] },
   { titre: 'Horario de apertura', prefixes: ['horaires.'] },
   { titre: 'Tarifas en la vitrina', prefixes: ['tarifas.'] },
+  { titre: 'Pantalla del salón', prefixes: ['pantalla.'] },
   { titre: 'Dirección pública', prefixes: ['public.'] },
 ];
 

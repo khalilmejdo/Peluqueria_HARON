@@ -285,6 +285,9 @@ export async function chargerEtat(jour) {
     seuilPrevenir,
     nomSalon: reglages['salon.nom'],
     adresseSalon: reglages['salon.adresse'] || null,
+    // Porte par l'etat, et non relu dans la projection : celle-ci est pure et
+    // synchrone, et le diffuseur l'appelle une fois pour tous les ecrans.
+    pantallaNombres: reglages['pantalla.nombres'] !== false,
     maj: new Date().toISOString(),
     priseDeTour: prise,
     postes,
@@ -399,6 +402,62 @@ export function pourSalon(etat) {
     attenteEstimeeMinutes: parFauteuil
       ? Math.max(0, ...cartes.filter((c) => c.actif).map((c) => c.attente.length)) * etat.dureeMoyenneMinutes
       : Math.ceil(attente.length / fauteuils) * etat.dureeMoyenneMinutes,
+  };
+}
+
+/**
+ * Ce que voit L'ECRAN DU SALON : qui passe, et qui suit.
+ *
+ * TROISIEME PROJECTION, ET C'EST VOULU. Elle n'est ni celle du salon (qui
+ * porte les numeros de telephone) ni celle d'un client (qui ne parle que de
+ * lui). L'ecran est accroche au mur, face a la salle d'attente, et il est
+ * atteignable par quiconque connait son adresse : ce qui entre ici est PUBLIC
+ * au sens le plus concret.
+ *
+ * N'y entrent donc que le numero du tour, le prenom, et le nom du fauteuil.
+ * Pas de nom de famille, pas de telephone, pas de jeton, pas d'heure d'arrivee
+ * — l'heure d'arrivee dit qui attend depuis longtemps, et ce n'est l'affaire
+ * de personne dans la salle.
+ *
+ * Le prenom lui-meme se coupe : `nommer` a faux, l'ecran ne montre que des
+ * numeros, comme une boulangerie. Un salon dont la vitrine donne sur la rue
+ * peut vouloir cela.
+ *
+ * @param {object} etat
+ * @param {{ nommer?: boolean, combien?: number }} [options]
+ */
+export function pourPantalla(etat, { nommer = etat.pantallaNombres !== false, combien = 8 } = {}) {
+  const nomDuPoste = new Map(etat.postes.map((p) => [p.id, p.coiffeur || p.nom]));
+
+  const ligne = (t) => ({
+    numero: t.numero_affiche,
+    prenom: nommer ? t.prenom : null,
+    poste: t.poste_id ? nomDuPoste.get(t.poste_id) ?? null : (t.poste_choisi_id ? nomDuPoste.get(t.poste_choisi_id) ?? null : null),
+  });
+
+  const actifs = etat.tickets.filter((t) => STATUTS_ACTIFS.includes(t.statut)).sort((a, b) => a.rang - b.rang);
+  const attente = actifs.filter((t) => STATUTS_EN_ATTENTE.includes(t.statut));
+
+  // Ceux qu'on vient d'appeler passent devant tout le reste : c'est la seule
+  // information de l'ecran qui demande une action de quelqu'un dans la piece.
+  const appeles = actifs.filter((t) => t.statut === 'CALLED').map(ligne);
+  const auFauteuil = actifs.filter((t) => t.statut === 'IN_SERVICE').map(ligne);
+
+  const fauteuils = Math.max(1, etat.postesActifs.length);
+
+  return {
+    jour: etat.jour,
+    ouverte: etat.ouverte,
+    maj: etat.maj,
+    appeles,
+    auFauteuil,
+    attente: attente.slice(0, combien).map(ligne),
+    enAttente: attente.length,
+    // Ce qui ne tient pas dans la liste : « et 6 de plus » vaut mieux qu'une
+    // liste coupee sans le dire.
+    deplus: Math.max(0, attente.length - combien),
+    servis: etat.compteurs.servis,
+    attenteEstimeeMinutes: Math.ceil(attente.length / fauteuils) * etat.dureeMoyenneMinutes,
   };
 }
 

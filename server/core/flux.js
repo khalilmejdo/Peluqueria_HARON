@@ -29,7 +29,7 @@ const BATTEMENT_MS = 25000;
 /** Plafond d'abonnes simultanes : un salon, pas un stade. */
 const MAX_ABONNES = 500;
 
-/** @typedef {{ id:number, res:import('node:http').ServerResponse, portee:'SALON'|'CLIENT', ticketId:string|null, jour:string }} Abonne */
+/** @typedef {{ id:number, res:import('node:http').ServerResponse, portee:'SALON'|'CLIENT'|'PANTALLA', ticketId:string|null, jour:string }} Abonne */
 
 /** @type {Set<Abonne>} */
 const abonnes = new Set();
@@ -55,11 +55,20 @@ let projeterClient = null;
  */
 let projeterSalon = null;
 
+/**
+ * Projection vers l'ECRAN du salon. Troisieme projection, volontairement
+ * distincte des deux autres : l'ecran est accroche au mur et son adresse est
+ * publique, il ne doit donc jamais recevoir ce que recoit le personnel.
+ * @type {null | ((etat: object) => object)}
+ */
+let projeterPantalla = null;
+
 /** Branche le domaine sur le diffuseur (appele une fois, au demarrage). */
-export function brancher({ etat, projection, projectionSalon }) {
+export function brancher({ etat, projection, projectionSalon, projectionPantalla }) {
   chargerEtat = etat;
   projeterClient = projection;
   projeterSalon = projectionSalon;
+  projeterPantalla = projectionPantalla;
 }
 
 /* ------------------------------------------------------------------ */
@@ -94,7 +103,7 @@ function fermer(abonne) {
 
 /**
  * Inscrit une connexion.
- * @param {{ res: object, req: object, portee: 'SALON'|'CLIENT', ticketId?: string|null, jour: string }} p
+ * @param {{ res: object, req: object, portee: 'SALON'|'CLIENT'|'PANTALLA', ticketId?: string|null, jour: string }} p
  * @returns {Abonne|null} null si le plafond est atteint (la connexion est fermee)
  */
 export function abonner({ res, req, portee, ticketId = null, jour }) {
@@ -165,11 +174,18 @@ async function diffuser(jour) {
   }
   const etat = await chargerEtat(jour);
 
+  // Les deux vues collectives sont calculees UNE fois pour tous leurs
+  // abonnes : dix ecrans et trois tablettes ne font pas treize projections.
   const vueSalon = concernes.some((a) => a.portee === 'SALON') && projeterSalon ? projeterSalon(etat) : null;
+  const vuePantalla = concernes.some((a) => a.portee === 'PANTALLA') && projeterPantalla ? projeterPantalla(etat) : null;
 
   for (const abonne of concernes) {
     if (abonne.portee === 'SALON') {
       if (vueSalon) ecrire(abonne, 'file', vueSalon);
+      continue;
+    }
+    if (abonne.portee === 'PANTALLA') {
+      if (vuePantalla) ecrire(abonne, 'pantalla', vuePantalla);
       continue;
     }
     const projection = projeterClient ? projeterClient(etat, abonne.ticketId) : null;
@@ -190,6 +206,10 @@ export async function envoyerEtatInitial(abonne) {
   const etat = await chargerEtat(abonne.jour);
   if (abonne.portee === 'SALON') {
     if (projeterSalon) ecrire(abonne, 'file', projeterSalon(etat));
+    return;
+  }
+  if (abonne.portee === 'PANTALLA') {
+    if (projeterPantalla) ecrire(abonne, 'pantalla', projeterPantalla(etat));
     return;
   }
   const projection = projeterClient ? projeterClient(etat, abonne.ticketId) : null;
@@ -214,6 +234,13 @@ export function demarrerBattement() {
         // Un commentaire SSE : le navigateur l'ignore, le proxy voit passer des
         // octets et garde la connexion ouverte.
         abonne.res.write(': battement\n\n');
+        // L'ECRAN DU SALON, LUI, A BESOIN DE L'ENTENDRE. Un commentaire n'est
+        // pas remis au JavaScript : une page qui surveille le silence pour
+        // detecter une connexion morte ne verrait jamais passer le battement,
+        // et se reconnecterait toutes les deux minutes un jour creux. Un
+        // evenement nomme lui donne le signe de vie. Les autres abonnes
+        // n'ecoutent pas « ping » : il ne leur coute qu'une ligne.
+        if (abonne.portee === 'PANTALLA') abonne.res.write('event: ping\ndata: 1\n\n');
       } catch {
         fermer(abonne);
       }

@@ -46,6 +46,23 @@ export async function vueAffiche(conteneur, { etat }) {
             }
           },
         }))),
+    /*
+     * L'ECRAN DU SALON. Il vit ici parce qu'il fait le meme travail que
+     * l'affiche : montrer la file a la piece. Une fois ouvert sur le
+     * televiseur, on n'y revient plus — d'ou l'adresse en clair, a recopier
+     * sur l'appareil qui l'affichera, plutot qu'un simple lien qui n'aiderait
+     * que sur cet ordinateur-ci.
+     */
+    el('section.carte.carte--discrete',
+      el('h2.reglages__titre', { texte: 'Pantalla del salón' }),
+      el('p.texte-doux', { texte: 'Una pantalla o una tablet en la sala de espera: el turno en curso en grande, los siguientes debajo, y el código QR siempre visible. Se actualiza sola.' }),
+      el('p.qr__adresse', { texte: adresse.replace(/\/join.*$/, '/pantalla') }),
+      el('div.qr__actions',
+        el('a.bouton.bouton--principal', {
+          href: '/pantalla', target: '_blank', rel: 'noopener', texte: 'Abrir la pantalla',
+        })),
+      el('p.texte-doux', { texte: 'Abre esa dirección en el navegador de la pantalla y ponlo en pantalla completa (F11). No hace falta iniciar sesión: por eso solo muestra números, nombres de pila y sillones. Los nombres se pueden quitar en Ajustes.' })),
+
     el('section.carte.carte--discrete',
       el('h2.reglages__titre', { texte: 'Antes de imprimir' }),
       el('ul.liste-etat',

@@ -7,6 +7,9 @@
 #                « noindex, nofollow, noarchive », mais un robot qui lit
 #                d'abord ce fichier s'epargne la visite.
 #   /gestion     est l'espace du personnel.
+#   /pantalla    est l'ecran accroche dans le salon. Elle n'a de sens que sur
+#                ce mur-la, et un moteur qui l'indexerait montrerait a tout
+#                internet qui attend chez le coiffeur.
 #   /api/        ne rend que du JSON.
 #   /affiche     est faite pour l'imprimante, pas pour un moteur.
 
@@ -15,6 +18,7 @@ Allow: /$
 Allow: /join
 Disallow: /ticket/
 Disallow: /gestion
+Disallow: /pantalla
 Disallow: /api/
 Disallow: /affiche
 Disallow: /qr.svg

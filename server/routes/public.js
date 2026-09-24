@@ -117,6 +117,35 @@ publicRoutes.post('/tickets/:jeton/annuler', async (ctx) => {
 }, { public: true, skipCsrf: true });
 
 /**
+ * LE FLUX DE L'ECRAN DU SALON.
+ *
+ * Il alimente l'ecran accroche au mur, face a la salle d'attente. Aucun compte :
+ * un televiseur ne se reconnecte pas tout seul quand une session expire, et une
+ * session qui ne finit jamais sur un appareil que tout le salon peut manipuler
+ * serait pire que pas de session du tout.
+ *
+ * CE QUI SORT EST DONC PUBLIC. C'est la projection « pantalla » qui le garantit
+ * — numero, prenom, fauteuil, et rien d'autre. Elle est distincte de celle du
+ * personnel, qui porte les numeros de telephone : la separation est dans le
+ * domaine, pas dans un filtre pose ici qu'on oublierait un jour de mettre a
+ * jour. Le reglage « pantalla.nombres » coupe meme les prenoms.
+ *
+ * Le debit est celui d'un flux ordinaire : un ecran ouvre UNE connexion et la
+ * garde toute la journee.
+ */
+publicRoutes.get('/pantalla/flux', async (ctx) => {
+  const limite = consume('pantalla:' + ctx.ip, PROFILES.flux);
+  if (!limite.allowed) {
+    ctx.res.setHeader('Retry-After', String(limite.retryAfterSeconds));
+    throw new AppError(429, 'Trop de connexions.', { details: { retryAfter: limite.retryAfterSeconds } });
+  }
+  const res = ctx.ouvrirFlux();
+  if (!res) return;
+  const abonne = abonner({ res, req: ctx.req, portee: 'PANTALLA', jour: jourLocal() });
+  if (abonne) await envoyerEtatInitial(abonne);
+}, { public: true, flux: true });
+
+/**
  * L'AFFLUENCE du moment, pour la page d'accueil : combien de personnes
  * attendent et combien de temps, sans un seul nom ni numero.
  */

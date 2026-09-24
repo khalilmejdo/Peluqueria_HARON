@@ -393,6 +393,39 @@ bas : carte « Avisos en este aparato » → **Activar los avisos** → **Probar
 
 ---
 
+## 8 quater. L'écran de la salle d'attente
+
+Une télévision ou une tablette dans la salle, sur `https://<votre domaine>/pantalla` :
+le tour en cours en très grand, les suivants dessous, et le QR Code en
+permanence — un client debout voit la file avancer **et** peut prendre son tour
+dans le même regard.
+
+Ouvrez cette adresse dans le navigateur de l'écran et passez en plein écran
+(`F11`). Il n'y a rien d'autre à faire : la page se met à jour toute seule, se
+reconnecte après une coupure, et se recharge d'elle-même au changement de jour
+— ce qui ramasse au passage la version déployée dans la nuit.
+
+> **Aucun compte, et c'est délibéré.** Un téléviseur ne se reconnecte pas quand
+> une session expire, et une session éternelle sur un appareil que tout le salon
+> manipule serait pire que pas de session. L'adresse est donc **publique** :
+> qui la connaît voit la file.
+>
+> C'est pourquoi cette page a sa **propre projection**, distincte de celle du
+> personnel : il n'en sort qu'un numéro de tour, un prénom et un nom de
+> fauteuil. Jamais un numéro de téléphone, jamais un nom de famille, jamais un
+> jeton de suivi, jamais une heure d'arrivée. Des tests unitaires le vérifient
+> sur la sortie entière.
+>
+> **Ajustes → Pantalla del salón** permet même de couper les prénoms : l'écran
+> n'affiche alors que des numéros, comme une boulangerie. C'est le réglage à
+> mettre si l'écran se voit depuis la rue.
+
+Si la connexion tombe, la page le **dit** : un bandeau ambre et le contenu qui
+pâlit. Un écran figé sur la file d'il y a deux heures a l'air juste — c'est
+exactement le piège qu'on évite.
+
+---
+
 ## 9. Les sauvegardes
 
 ```bash

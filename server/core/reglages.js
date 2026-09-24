@@ -117,6 +117,11 @@ export const CATALOGUE = {
     libelle: 'Cómo llegar',
     aide: 'Referencias, transporte y aparcamiento. Por ejemplo: « Frente a la farmacia, metro Sol a 3 minutos, aparcamiento en la plaza. »',
   },
+  'pantalla.nombres': {
+    type: 'booleen', defaut: true,
+    libelle: 'Mostrar los nombres en la pantalla del salón',
+    aide: 'Desactívelo y la pantalla solo mostrará los números de turno, como en una panadería. Útil si la pantalla se ve desde la calle.',
+  },
   'public.url': {
     type: 'url', defaut: '', maxLongueur: 300,
     libelle: 'Dirección pública del salón',
