@@ -96,6 +96,92 @@ function ficheDePrix(lignes, nota) {
 }
 
 /**
+ * LE BANDEAU DES CONGES.
+ *
+ * Deux situations qui n'ont rien a voir, et qui meritaient deux traitements :
+ *
+ *   PENDANT  le salon est ferme. C'est l'information la plus importante de la
+ *            page, et elle doit etre lue AVANT que le client prenne sa voiture.
+ *            Bandeau pleine largeur, en haut, en rouge, avec la date de
+ *            REOUVERTURE — « fermé » sans « on rouvre le… » laisse le client
+ *            devant une porte close sans savoir quand revenir.
+ *   AVANT    la fermeture approche. Le ton monte a mesure qu'elle se rapproche :
+ *            une note discrete a trois semaines, une alerte ambre a moins d'une
+ *            semaine. Un avertissement toujours criard finit par ne plus rien
+ *            dire, et un avertissement toujours discret n'a jamais rien dit.
+ *
+ * @param {object} prise  l'etat rendu par etatPriseDeTour()
+ * @param {string} aujourdhui  « AAAA-MM-JJ »
+ */
+function bandeauFermeture(prise, aujourdhui) {
+  if (!prise.ouverte && prise.code === 'SALON_EN_CONGES' && prise.fermeture) {
+    const jusqua = prise.fermeture.au;
+    return '<section class="enveloppe">'
+      + '<div class="alerte-conges alerte-conges--maintenant" role="status">'
+      + '<span class="alerte-conges__pastille">Cerrado</span>'
+      + '<p class="alerte-conges__titre">El salón está cerrado'
+      + (prise.fermeture.motif ? ' — ' + escapeHtml(prise.fermeture.motif) : '')
+      + '</p>'
+      + '<p class="alerte-conges__texte">Volvemos a abrir el '
+      + escapeHtml(dateLongueFr(lendemain(jusqua))) + '.</p>'
+      + '</div>'
+      + '</section>';
+  }
+
+  if (!prise.ouverte || !prise.prochaineFermeture) return '';
+
+  const f = prise.prochaineFermeture;
+  const jours = joursEntre(aujourdhui, f.du);
+  const proche = jours !== null && jours <= 7;
+
+  // Loin, le titre ne repete pas la date : elle est juste dessous, en entier.
+  // « Cerramos del jueves 15 » suivi de « Del jueves 15 au… » se lit deux fois
+  // et ne dit rien de plus.
+  const titre = jours === 0 ? 'Cerramos hoy'
+    : jours === 1 ? 'Cerramos mañana'
+      : proche ? 'Cerramos dentro de ' + jours + ' días'
+        : 'Próximo cierre';
+
+  return '<section class="enveloppe">'
+    + '<div class="alerte-conges' + (proche ? ' alerte-conges--proche' : ' alerte-conges--loin') + '" role="status">'
+    + (proche ? '<span class="alerte-conges__pastille">Aviso</span>' : '')
+    + '<p class="alerte-conges__titre">' + escapeHtml(titre)
+    + (f.motif ? ' — ' + escapeHtml(f.motif) : '') + '</p>'
+    + '<p class="alerte-conges__texte">Del ' + escapeHtml(dateLongueFr(f.du))
+    + ' al ' + escapeHtml(dateLongueFr(f.au))
+    + '. Volvemos el ' + escapeHtml(dateLongueFr(lendemain(f.au))) + '.</p>'
+    + '</div>'
+    + '</section>';
+}
+
+/**
+ * Le lendemain d'un jour « AAAA-MM-JJ », en UTC.
+ *
+ * UTC et non l'heure locale : une fermeture est une DATE, pas un instant, et
+ * passer par le fuseau du serveur ferait sauter un jour deux fois par an, au
+ * changement d'heure. C'est le genre de defaut qui n'apparait qu'en octobre.
+ */
+function lendemain(jour) {
+  const [a, m, j] = String(jour).split('-').map(Number);
+  const d = new Date(Date.UTC(a, m - 1, j + 1));
+  return d.toISOString().slice(0, 10);
+}
+
+/** Nombre de jours entiers entre deux dates « AAAA-MM-JJ ». */
+function joursEntre(depuis, jusqua) {
+  const enMs = (s) => {
+    const [a, m, j] = String(s).split('-').map(Number);
+    return Number.isFinite(a) ? Date.UTC(a, m - 1, j) : NaN;
+  };
+  const d = enMs(depuis);
+  const f = enMs(jusqua);
+  if (!Number.isFinite(d) || !Number.isFinite(f)) return null;
+  return Math.round((f - d) / 86400000);
+}
+
+export const _bandeauFermeture = bandeauFermeture;
+
+/**
  * Le contact : ou venir, comment appeler.
  *
  * Chaque ligne n'apparait QUE si le reglage correspondant est rempli. Un salon
@@ -354,13 +440,7 @@ siteRoutes.get('/', async (ctx) => {
         ? '<a class="bouton bouton--discret" href="tel:' + escapeHtml(reglages['salon.telephone'].replace(/[^+0-9]/g, '')) + '">Llamar al salón</a>'
         : '');
 
-  const annonce = prise.ouverte && prise.prochaineFermeture
-    ? '<section class="enveloppe bandeau-annonce">'
-      + '<p class="bandeau-annonce__texte">Próximo cierre: del ' + escapeHtml(dateLongueFr(prise.prochaineFermeture.du))
-      + ' al ' + escapeHtml(dateLongueFr(prise.prochaineFermeture.au))
-      + (prise.prochaineFermeture.motif ? ' — ' + escapeHtml(prise.prochaineFermeture.motif) : '') + '.</p>'
-      + '</section>'
-    : '';
+  const annonce = bandeauFermeture(prise, jourLocal());
 
   const corps = '<main id="principal">'
     + '<section class="hero">'

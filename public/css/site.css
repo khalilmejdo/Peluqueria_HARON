@@ -141,13 +141,13 @@ body::before {
   inset: -25%;
   background:
     radial-gradient(42rem 34rem at 12% 6%,
-      color-mix(in srgb, var(--laiton) 22%, transparent), transparent 64%),
+      color-mix(in srgb, var(--laiton) 34%, transparent), transparent 66%),
     radial-gradient(36rem 30rem at 88% 24%,
-      color-mix(in srgb, var(--rouge) 14%, transparent), transparent 66%),
+      color-mix(in srgb, var(--rouge) 22%, transparent), transparent 68%),
     radial-gradient(34rem 30rem at 4% 62%,
-      color-mix(in srgb, #3f6f8f 16%, transparent), transparent 66%),
+      color-mix(in srgb, #3f6f8f 26%, transparent), transparent 68%),
     radial-gradient(44rem 36rem at 62% 92%,
-      color-mix(in srgb, var(--laiton) 16%, transparent), transparent 68%);
+      color-mix(in srgb, var(--laiton) 26%, transparent), transparent 70%);
 }
 
 /*
@@ -168,7 +168,7 @@ body::after {
   inset: -40%;
   background: repeating-linear-gradient(
     -55deg,
-    color-mix(in srgb, var(--laiton) 4.5%, transparent) 0 7px,
+    color-mix(in srgb, var(--laiton) 6%, transparent) 0 7px,
     transparent 7px 40px
   );
 }
@@ -191,6 +191,23 @@ body::after {
 /* La classe de thème est portée par <html>, pas par <body>. */
 .theme-clair body::before,
 .theme-clair body::after { display: none; }
+
+/*
+ * L'ÉCRAN DE TRAVAIL GARDE LA PROFONDEUR, PAS LE MOUVEMENT.
+ *
+ * `/gestion` chargeait la même feuille mais restait un aplat noir : rien n'y
+ * posait l'ambiance, et c'est pourtant l'écran que le coiffeur regarde toute la
+ * journée. Il reçoit donc les halos — mais fixes, et les raies disparaissent.
+ * Un fond qui bouge derrière une file qu'on lit en travaillant n'est plus un
+ * fond, c'est une distraction ; et sur l'écran du salon, la seule chose qui a
+ * le droit de bouger est le tour qu'on appelle.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .theme-gestion body::before,
+  .theme-gestion body::after,
+  .page-pantalla body::before,
+  .page-pantalla body::after { animation: none; }
+}
 
 @media print {
   body::before,
@@ -2165,3 +2182,68 @@ main { flex: 1; }
 }
 
 .pantalla--hors-ligne .pantalla__corps { opacity: 0.55; }
+
+/* ------------------------------------------------------------------ */
+/*  L'alerte des congés                                               */
+/* ------------------------------------------------------------------ */
+
+/*
+ * TROIS TONS POUR TROIS URGENCES. Un avertissement toujours criard finit par
+ * ne plus rien dire, et un avertissement toujours discret n'a jamais rien dit :
+ *
+ *   --loin       note posée, gris, à trois semaines de la fermeture ;
+ *   --proche     ambre, à moins d'une semaine ;
+ *   --maintenant rouge, pleine largeur : le salon EST fermé aujourd'hui.
+ */
+.alerte-conges {
+  display: grid;
+  gap: 0.2rem;
+  margin-block: 1rem;
+  padding: clamp(0.85rem, 3vw, 1.25rem) clamp(1rem, 4vw, 1.5rem);
+  border-radius: var(--r);
+  border: 1px solid var(--bordure);
+  background: var(--fond-carte);
+  text-wrap: balance;
+}
+
+.alerte-conges__pastille {
+  justify-self: start;
+  padding: 0.2em 0.7em;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+}
+
+.alerte-conges__titre {
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: clamp(1rem, 3.5vw, 1.35rem);
+}
+
+.alerte-conges__texte { color: var(--texte-doux); font-size: 0.92rem; }
+
+.alerte-conges--loin { border-style: dashed; }
+.alerte-conges--loin .alerte-conges__titre { font-size: 1rem; color: var(--texte-doux); }
+
+.alerte-conges--proche {
+  border-color: color-mix(in srgb, var(--ambre) 55%, transparent);
+  background: color-mix(in srgb, var(--ambre) 12%, var(--fond-carte));
+}
+.alerte-conges--proche .alerte-conges__pastille { background: var(--ambre); color: #14161a; }
+
+/*
+ * Le salon est fermé AUJOURD'HUI. C'est l'information la plus importante de la
+ * page : elle doit être lue avant que le client prenne sa voiture, donc elle
+ * passe avant tout le reste et elle ne ressemble à rien d'autre.
+ */
+.alerte-conges--maintenant {
+  border-color: color-mix(in srgb, var(--rouge) 60%, transparent);
+  background: color-mix(in srgb, var(--rouge) 16%, var(--fond-carte));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--rouge) 20%, transparent);
+}
+.alerte-conges--maintenant .alerte-conges__pastille { background: var(--rouge); color: #fff; }
+.alerte-conges--maintenant .alerte-conges__titre { color: var(--creme); }
+.alerte-conges--maintenant .alerte-conges__texte { color: var(--creme-doux); }
