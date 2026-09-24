@@ -386,16 +386,32 @@ restaurée n'est pas une sauvegarde.
 ## 10. Mettre à jour
 
 ```bash
-cd /opt/haron
-git pull
-export SOURCE_COMMIT=$(git rev-parse --short HEAD)
-docker compose -f docker-compose.oci.yml up -d --build
+cd /opt/haron && ./scripts/deployer.sh
 ```
 
+Une seule commande, qui **vérifie et sait revenir en arrière** :
+
+1. refuse de partir si des fichiers suivis par git sont modifiés — c'est
+   exactement ce qui a fait échouer un `git pull` en silence le 24 septembre,
+   et laissé le serveur deux versions en retard sans que rien ne le dise ;
+2. étiquette l'image en place, puis tire, construit et démarre ;
+3. attend que `/healthz` réponde — quatre-vingt-dix secondes au plus ;
+4. **si le salon ne répond pas, il remet l'ancienne version, la redémarre, et
+   le dit.** Un déploiement raté ne doit jamais laisser le salon à terre.
+
+À la fin, il affiche la version réellement déployée et la commande exacte pour
+revenir en arrière à la main.
+
 Le schéma se réapplique tout seul, et il est idempotent. La file du jour, les
-réglages, les fauteuils et les congés sont en base : **rien n'est perdu**, même
-en pleine journée. L'interruption dure le temps du redémarrage, quelques
-secondes.
+réglages, les fauteuils, les tarifs et les congés sont en base : **rien n'est
+perdu**, même en pleine journée. Le `.env`, les photos et les sauvegardes sont
+hors de git et hors de l'image — le script n'y touche pas.
+
+La première fois :
+
+```bash
+chmod +x /opt/haron/scripts/deployer.sh
+```
 
 ---
 
