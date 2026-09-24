@@ -312,6 +312,44 @@ crontab -e
 Le script écrit un dump dans `/opt/haron/sauvegardes/`, vérifie qu'il n'est pas
 vide, et efface ceux de plus de quatorze jours.
 
+### Savoir que le salon est tombé
+
+Sans alerte, une panne à trois heures du matin s'apprend par un client devant
+la porte. Cinq minutes à poser :
+
+```bash
+chmod +x /opt/haron/scripts/surveillance.sh
+```
+
+Choisissez un **sujet difficile à deviner** sur [ntfy.sh](https://ntfy.sh) —
+chez eux, qui connaît le sujet lit les messages — puis installez l'application
+ntfy sur votre téléphone et abonnez-vous à ce sujet.
+
+```bash
+crontab -e
+```
+
+```cron
+*/5 * * * * cd /opt/haron && ALERTE_URL=https://ntfy.sh/haron-VOTRE-MOT-SECRET REPARER=1 ./scripts/surveillance.sh >> /var/log/haron-surveillance.log 2>&1
+```
+
+Le script :
+
+- interroge `/healthz` toutes les cinq minutes ;
+- exige **deux échecs de suite** avant d'alerter — un réseau qui hoquette une
+  fois n'est pas une panne, et une alerte qui crie pour rien finit par être
+  ignorée, ce qui est pire que pas d'alerte ;
+- alerte **une seule fois** par panne, puis une fois au retour ;
+- avec `REPARER=1`, tente un `docker compose up -d` avant d'alerter — ce qui
+  aurait suffi à plusieurs pannes ordinaires.
+
+Vérifiez-le tout de suite, en le pointant sur une adresse morte :
+
+```bash
+ADRESSE_SANTE=https://peluqueria-haron.duckdns.org/inexistant ./scripts/surveillance.sh
+./scripts/surveillance.sh    # deuxième échec : l'alerte part
+```
+
 ### Les sortir de la machine
 
 Une sauvegarde qui dort à côté de la base disparaît avec elle. Object Storage

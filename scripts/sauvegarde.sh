@@ -31,7 +31,7 @@ mkdir -p "$DOSSIER"
 # et on ne s'en apercevrait qu'au moment de restaurer.
 $COMPOSE exec -T base pg_dump -U haron -d haron -Fc -f "/sauvegardes/${fichier}"
 
-# La taille est le seul controle immediat : un dump de quelques centaines
+# La taille ecarte le cas le plus grossier : un dump de quelques centaines
 # d'octets signale une base vide ou une erreur avalee.
 taille=$(wc -c < "${DOSSIER}/${fichier}")
 if [ "$taille" -lt 4096 ]; then
@@ -39,7 +39,21 @@ if [ "$taille" -lt 4096 ]; then
   exit 1
 fi
 
-echo "$(date '+%Y-%m-%d %H:%M')  sauvegarde ${fichier} — $((taille / 1024)) ko"
+# Mais un fichier de bonne taille peut etre illisible : archive tronquee,
+# ecriture interrompue, disque plein juste avant la fin. « pg_restore --list »
+# ouvre l'archive et en lit le sommaire SANS rien restaurer. C'est le seul
+# controle qui distingue une sauvegarde d'un tas d'octets de la bonne taille.
+#
+# On compte les objets : une archive valide mais vide passerait autrement.
+objets=$($COMPOSE exec -T base pg_restore --list "/sauvegardes/${fichier}" 2>/dev/null \
+  | grep -c '^[0-9]' || true)
+if [ "${objets:-0}" -lt 10 ]; then
+  echo "ECHEC : l'archive ${fichier} n'est pas relisible (${objets:-0} objet(s) au sommaire)." >&2
+  echo "        Le fichier est garde pour examen, mais NE COMPTEZ PAS DESSUS." >&2
+  exit 1
+fi
+
+echo "$(date '+%Y-%m-%d %H:%M')  sauvegarde ${fichier} — $((taille / 1024)) ko, ${objets} objets relus"
 
 # Rotation.
 find "$DOSSIER" -name 'haron-*.dump' -type f -mtime "+${JOURS_CONSERVES}" -print -delete

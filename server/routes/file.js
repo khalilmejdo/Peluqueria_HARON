@@ -188,6 +188,58 @@ fileRoutes.get('/:id', async (ctx) => {
 });
 
 /**
+ * Les liens WhatsApp des N PROCHAINS clients, d'un seul appel.
+ *
+ * Sans l'API Business, prevenir trois personnes demande trois allers-retours
+ * dans la file, trois ouvertures de fiche, trois retours. Un samedi matin, le
+ * coiffeur ne le fait pas — et les clients arrivent en retard.
+ *
+ * Cette route ne fait qu'ASSEMBLER les liens : rien n'est envoye ici. Le
+ * coiffeur ouvre les conversations une par une, depuis son telephone, et
+ * chaque envoi reste son geste. C'est aussi pour cela qu'elle est en GET :
+ * elle ne change rien.
+ *
+ * Les numeros sortent en clair — c'est le but, on va ecrire a ces gens — mais
+ * uniquement vers une session du personnel, et jamais dans le journal.
+ */
+fileRoutes.get('/prochains/whatsapp', async (ctx) => {
+  const combien = ctx.queryInt('combien', 3, { min: 1, max: 10 });
+  const reglages = await lireTous();
+  const base = adressePublique(reglages, ctx.base);
+  const etat = await chargerEtat(jourLocal());
+
+  // L'ordre de la file, pas celui de la base : c'est celui que le coiffeur voit.
+  const attente = etat.tickets
+    .filter((t) => ['WAITING', 'LATE'].includes(t.statut))
+    .sort((a, b) => a.rang - b.rang)
+    .slice(0, combien);
+
+  const items = attente.map((t) => {
+    const position = etat.positions.get(t.id);
+    const jeton = t.jeton_enc ? decrypt(t.jeton_enc) : null;
+    const lien = jeton ? base + '/ticket/' + jeton : '';
+    const telephone = decrypt(t.telephone_enc);
+    return {
+      id: t.id,
+      numero: t.numero_affiche,
+      prenom: t.prenom,
+      devant: position?.devant ?? 0,
+      lienWhatsapp: lienWhatsappCoiffeur({
+        telephone,
+        prenom: t.prenom,
+        numero: t.numero_affiche,
+        devant: position?.devant ?? 0,
+        lien,
+        type: 'APPROCHE',
+        nomSalon: reglages['salon.nom'],
+      }),
+    };
+  });
+
+  ctx.ok({ items, total: attente.length });
+});
+
+/**
  * Le lien WhatsApp d'un client, avec le message deja ecrit.
  *
  * C'est le filet de securite du premier jour : sans API WhatsApp Business
@@ -234,6 +286,7 @@ fileRoutes.get('/:id/whatsapp', async (ctx) => {
     lienSuivi: lien,
   });
 });
+
 
 /* ---------------- cloture ---------------- */
 

@@ -342,6 +342,20 @@
 .fauteuil__occupe { color: var(--vert); font-weight: 600; }
 .fauteuil__actions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.4rem; }
 
+/*
+ * Un titre de section avec une action à sa droite. Sur téléphone l'action
+ * passe dessous plutôt que de comprimer le titre.
+ */
+.entete-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+}
+.entete-section .reglages__titre { margin: 0; }
+
 /* ------------------------------------------------------------------ */
 /*  Fiche de prix                                                      */
 /* ------------------------------------------------------------------ */
@@ -481,6 +495,19 @@
 /* ------------------------------------------------------------------ */
 /*  La file                                                            */
 /* ------------------------------------------------------------------ */
+
+/*
+ * Le titre de la file et son action, cote a cote. Aux grandes largeurs la
+ * grille masque le TITRE (la colonne se suffit a elle-meme) mais garde
+ * l'enveloppe : le bouton, lui, reste indispensable.
+ */
+.file__entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
 
 .file__titre {
   font-size: 0.8rem;
@@ -760,7 +787,7 @@
     column-gap: 1.75rem;
   }
 
-  .file > .file__titre { display: none; }
+  .file > .file__entete > .file__titre { display: none; }
 
   /*
    * PLUSIEURS FAUTEUILS : ils passent en bandeau sur toute la largeur, et la
@@ -795,7 +822,7 @@
   .file > .actuel,
   .file > .fauteuils { grid-area: actuel; position: sticky; top: 5rem; }
   .file > .file__chiffres { grid-area: chiffres; }
-  .file > .file__titre { grid-area: titre; }
+  .file > .file__entete { grid-area: titre; }
   .file > .file__liste,
   .file > .file__vide,
   .file > .files-par-coiffeur { grid-area: liste; }

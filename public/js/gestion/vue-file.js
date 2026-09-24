@@ -252,6 +252,48 @@ async function ouvrirWhatsapp(ticket) {
   }
 }
 
+/**
+ * Prevenir les N prochains, d'un seul geste.
+ *
+ * Un samedi matin, prevenir trois personnes une par une demande trois
+ * allers-retours dans la file : le coiffeur ne le fait pas, et les clients
+ * arrivent en retard.
+ *
+ * Les conversations s'ouvrent UNE PAR UNE, a chaque appui : un navigateur
+ * bloque plusieurs fenetres ouvertes d'un coup, et le coiffeur veut de toute
+ * facon relire chaque message avant de l'envoyer. Rien n'est envoye par
+ * l'application — chaque envoi reste son geste, depuis son telephone.
+ */
+async function prevenirLesProchains(combien = 3) {
+  let items;
+  try {
+    const reponse = await api.get('/api/file/prochains/whatsapp?combien=' + combien);
+    items = reponse.items || [];
+  } catch (err) {
+    signaler(err instanceof ErreurApi ? err.message : 'No se ha podido preparar los mensajes.');
+    return;
+  }
+  if (!items.length) {
+    annoncer('Nadie está esperando.');
+    return;
+  }
+
+  const restants = items.slice();
+  const suivant = () => {
+    const client = restants.shift();
+    if (!client) return;
+    window.open(client.lienWhatsapp, '_blank', 'noopener');
+    if (restants.length) {
+      // On redemande : ouvrir six onglets sans rien dire serait une surprise.
+      if (window.confirm('Mensaje preparado para ' + client.prenom + ' (' + client.numero + ').\n\n'
+        + '¿Preparar el siguiente? Quedan ' + restants.length + '.')) suivant();
+    } else {
+      annoncer(items.length + ' mensaje(s) preparado(s).');
+    }
+  };
+  suivant();
+}
+
 async function annulerTicket(ticket) {
   const motif = window.prompt('¿Anular el turno de ' + ticket.prenom + ' (' + ticket.numero + ')?\nMotivo (opcional):', '');
   if (motif === null) return;
@@ -368,7 +410,20 @@ function peindre(file) {
     blocPriseDeTour(file.priseDeTour),
     blocFauteuils(file),
     enTete,
-    el('h2.file__titre', { texte: 'Fila de espera' }),
+    // Le titre disparait aux grandes largeurs (la grille le rend inutile), mais
+    // pas le bouton : ils vivent donc dans une enveloppe commune, et c'est le
+    // TITRE SEUL que la feuille de style masque.
+    el('div.file__entete',
+      el('h2.file__titre', { texte: 'Fila de espera' }),
+      // Le bouton n'a de sens qu'a partir de deux personnes : pour une seule,
+      // le bouton « WhatsApp » de sa carte fait deja le travail.
+      attente.length >= 2
+        ? el('button.bouton.bouton--discret.bouton--petit', {
+          type: 'button',
+          texte: 'Avisar a los ' + Math.min(3, attente.length) + ' siguientes',
+          surClick: () => prevenirLesProchains(Math.min(3, attente.length)),
+        })
+        : null),
     liste,
     blocComptoir(),
     historique);

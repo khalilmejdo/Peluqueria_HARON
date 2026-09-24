@@ -475,6 +475,47 @@ statistiquesRoutes.get('/historique', async (ctx) => {
   ctx.ok({ items: await historique({ du, au, limite }) });
 }, { role: 'GERANT' });
 
+/**
+ * Le meme historique, en CSV, pour le comptable ou un tableur.
+ *
+ * DEUX PRECAUTIONS sur un CSV qu'un tableur va ouvrir :
+ *
+ *   - la virgule decimale et le point-virgule. Un Excel en espagnol lit
+ *     « 12,5 » comme un nombre et « 12.5 » comme du texte, et il attend des
+ *     point-virgules entre les colonnes. On ecrit donc les deux a l'espagnole,
+ *     sinon le comptable recoit une colonne unique remplie de texte.
+ *   - le BOM UTF-8. Sans lui, Excel lit « Atendidos » correctement mais
+ *     « Duración » en mojibake. Trois octets evitent le probleme.
+ *
+ * Aucune donnee personnelle : ce sont des totaux par journee, jamais un nom
+ * ni un numero.
+ */
+statistiquesRoutes.get('/historique.csv', async (ctx) => {
+  const du = ctx.queryDate('du') || null;
+  const au = ctx.queryDate('au') || null;
+  if (du && au && du > au) throw badRequest('La fecha de inicio debe ser anterior a la de fin.');
+  const lignes = await historique({ du, au, limite: ctx.queryInt('limite', 366, { min: 1, max: 366 }) });
+
+  const nombre = (v) => (v === null || v === undefined ? '' : String(v).replace('.', ','));
+  const colonnes = [
+    'Fecha', 'Total', 'Atendidos', 'Anulados', 'Con ausencia',
+    'Por internet', 'Por QR', 'En mostrador',
+    'Espera media (min)', 'Duración media del corte (min)',
+  ];
+
+  const corps = lignes.map((l) => [
+    l.jour, l.total, l.servis, l.annules, l.clientsEnRetard,
+    l.enLigne, l.parQr, l.auComptoir,
+    nombre(l.attenteMoyenneMinutes), nombre(l.serviceMoyenMinutes),
+  ].join(';'));
+
+  const csv = '﻿' + [colonnes.join(';'), ...corps].join('\r\n') + '\r\n';
+  const nom = 'haron-' + (du || 'inicio') + '_' + (au || jourLocal()) + '.csv';
+
+  log.info('Export CSV des chiffres', { lignes: lignes.length, par: ctx.user.identifiant });
+  ctx.file(Buffer.from(csv, 'utf8'), { filename: nom, mimeType: 'text/csv; charset=utf-8', download: true });
+}, { role: 'GERANT', rateLimit: PROFILES.administration });
+
 /* ================================================================== */
 /*  Sante detaillee et taches                                          */
 /* ================================================================== */

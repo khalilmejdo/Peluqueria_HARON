@@ -68,7 +68,16 @@ export async function vueStatistiques(conteneur, { etat }) {
       el('td.nombre', { texte: l.enLigne + ' / ' + l.parQr })));
 
     contenu.push(el('section.carte',
-      el('h2.reglages__titre', { texte: 'Los últimos treinta días' }),
+      el('div.entete-section',
+        el('h2.reglages__titre', { texte: 'Los últimos treinta días' }),
+        // Un vrai lien, pas un bouton avec du script : le navigateur telecharge
+        // lui-meme, la session voyage dans le cookie, et « enregistrer sous »
+        // du clic droit fonctionne.
+        el('a.bouton.bouton--discret.bouton--petit', {
+          href: '/api/statistiques/historique.csv',
+          download: true,
+          texte: 'Descargar CSV',
+        })),
       historique.items.length
         ? el('div.tableau-defilant',
           el('table.tableau',
