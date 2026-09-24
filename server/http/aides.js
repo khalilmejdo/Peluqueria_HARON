@@ -36,6 +36,6 @@ export function page(items, total, { page: numero, limit }) {
 
 /** Refuse un corps vide pour une mise a jour. */
 export function exigerChamps(data) {
-  if (!data || !Object.keys(data).length) throw badRequest('Aucune modification transmise.');
+  if (!data || !Object.keys(data).length) throw badRequest('No se ha enviado ningún cambio.');
   return data;
 }

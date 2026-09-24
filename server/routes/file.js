@@ -163,7 +163,7 @@ fileRoutes.post('/comptoir', async (ctx) => {
 /** L'historique complet d'un ticket : qui a fait quoi, et quand. */
 fileRoutes.get('/:id', async (ctx) => {
   const detail = await detailTicket(idDe(ctx));
-  if (!detail) throw notFound('Ticket introuvable.');
+  if (!detail) throw notFound('Turno no encontrado.');
   ctx.ok({
     ticket: {
       id: detail.ticket.id,
@@ -201,7 +201,7 @@ fileRoutes.get('/:id/whatsapp', async (ctx) => {
     'SELECT id, prenom, numero_affiche, telephone_enc, jeton_enc, statut, retards FROM tickets WHERE id = $1',
     [id],
   );
-  if (!ticket) throw notFound('Ticket introuvable.');
+  if (!ticket) throw notFound('Turno no encontrado.');
 
   const reglages = await lireTous();
   const base = adressePublique(reglages, ctx.base);

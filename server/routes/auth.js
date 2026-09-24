@@ -24,7 +24,7 @@ import { ROLES } from '../core/roles.js';
 
 export const authRoutes = new Router();
 
-const REFUS = 'Identifiant ou mot de passe incorrect.';
+const REFUS = 'Usuario o contraseña incorrectos.';
 
 function profil(user, csrfToken) {
   return {

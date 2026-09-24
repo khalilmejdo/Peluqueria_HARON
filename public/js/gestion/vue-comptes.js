@@ -47,6 +47,20 @@ export async function vueComptes(conteneur, { etat }) {
         verrouille ? el('span', { texte: '· bloqueada' }) : null,
         compte.doitChangerMotDePasse ? el('span', { texte: '· contraseña provisional' }) : null),
       el('div.compte__actions',
+        // Le nom complet est ce qui s'affiche en haut de l'ecran toute la
+        // journee. L'API l'acceptait deja ; il manquait juste de quoi le dire.
+        el('button.bouton.bouton--discret.bouton--petit', {
+          type: 'button',
+          texte: 'Renombrar',
+          surClick: () => {
+            const nomComplet = window.prompt('Nombre completo:', compte.nomComplet);
+            if (nomComplet === null || nomComplet.trim() === compte.nomComplet) return;
+            agir(
+              () => api.patch('/api/comptes/' + compte.id, { nomComplet: nomComplet.trim() }),
+              'Nombre cambiado.',
+            );
+          },
+        }),
         el('button.bouton.bouton--discret.bouton--petit', {
           type: 'button',
           texte: compte.actif ? 'Desactivar' : 'Reactivar',

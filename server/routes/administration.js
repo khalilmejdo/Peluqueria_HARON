@@ -191,9 +191,9 @@ comptesRoutes.patch('/:id', async (ctx) => {
     role: { type: 'enum', values: CODES_ROLES, upper: true },
     actif: { type: 'bool' },
   });
-  if (!Object.keys(data).length) throw badRequest('Aucune modification transmise.');
+  if (!Object.keys(data).length) throw badRequest('No se ha enviado ningún cambio.');
 
-  const ligne = exigerTrouve(await one('SELECT * FROM utilisateurs WHERE id = $1', [id]), 'Compte introuvable.');
+  const ligne = exigerTrouve(await one('SELECT * FROM utilisateurs WHERE id = $1', [id]), 'Cuenta no encontrada.');
 
   // Un gerant ne peut ni se retirer son propre role ni se desactiver : le salon
   // se retrouverait sans personne pour changer les reglages.
@@ -231,7 +231,7 @@ comptesRoutes.post('/:id/mot-de-passe', async (ctx) => {
     throw badRequest('La contraseña debe tener al menos ' + config.security.passwordMinLength + ' caracteres.',
       { fields: { motDePasse: 'Al menos ' + config.security.passwordMinLength + ' caracteres.' } });
   }
-  const ligne = exigerTrouve(await one('SELECT identifiant FROM utilisateurs WHERE id = $1', [id]), 'Compte introuvable.');
+  const ligne = exigerTrouve(await one('SELECT identifiant FROM utilisateurs WHERE id = $1', [id]), 'Cuenta no encontrada.');
   await execute(
     `UPDATE utilisateurs SET mot_de_passe_hash = $2, doit_changer_mot_de_passe = TRUE,
             tentatives_echouees = 0, verrouille_jusqu_a = NULL WHERE id = $1`,
@@ -245,7 +245,7 @@ comptesRoutes.post('/:id/mot-de-passe', async (ctx) => {
 /** Deblocage apres plusieurs essais infructueux. */
 comptesRoutes.post('/:id/debloquer', async (ctx) => {
   const id = idDe(ctx);
-  exigerTrouve(await one('SELECT id FROM utilisateurs WHERE id = $1', [id]), 'Compte introuvable.');
+  exigerTrouve(await one('SELECT id FROM utilisateurs WHERE id = $1', [id]), 'Cuenta no encontrada.');
   await execute('UPDATE utilisateurs SET tentatives_echouees = 0, verrouille_jusqu_a = NULL WHERE id = $1', [id]);
   ctx.ok({ ok: true });
 }, { role: 'GERANT', rateLimit: PROFILES.administration });
