@@ -30,6 +30,7 @@ import {
   STATUTS_ACTIFS, STATUTS_EN_ATTENTE, STATUTS_EN_COURS,
 } from './journee.js';
 import { enfilerEnvoi } from './notifications.js';
+import { prevenirLePersonnel } from './push.js';
 import { fermetureDuJour, prochaine as prochaineFermeture, messageDeFermeture } from './fermetures.js';
 import {
   lister as listerPostes, posteLibre, parId as posteParId, versClient as posteVersClient,
@@ -630,6 +631,18 @@ export async function prendreTour({ prenom, nom, telephone, source = 'ONLINE', p
 
   const etat = await chargerEtat(jour);
   log.info('Tour pris', { jour, numero: resultat.numero_affiche, source });
+
+  // Prevenir le personnel, SANS ATTENDRE. Le client a pris son tour : sa page
+  // ne doit pas dependre du temps de reponse de Google ou de Mozilla. On ne
+  // passe pas non plus par « apresValidation », dont les suites SONT attendues.
+  //
+  // Le COMPTOIR est exclu : c'est le coiffeur lui-meme qui vient de saisir le
+  // tour, le client devant lui. Lui faire vibrer le telephone pour le lui
+  // apprendre est le plus sur moyen qu'il coupe les notifications.
+  if (source !== 'COMPTOIR') {
+    prevenirLePersonnel('PRIS', resultat, { sauf: user?.id ?? null }).catch(() => {});
+  }
+
   return { ticket: resultat, jeton, position: pourClient(etat, resultat.id) };
 }
 
@@ -915,6 +928,11 @@ export async function annulerParClient(jeton) {
     tx.apresValidation(() => annoncerChangement(jour));
     return maj;
   });
+
+  // C'est LA notification qui rapporte le plus : une place se libere et
+  // personne dans le salon ne le voit passer. Sans attendre, comme l'autre.
+  prevenirLePersonnel('ANNULE', resultat).catch(() => {});
+
   return resultat;
 }
 

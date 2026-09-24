@@ -11,6 +11,7 @@ import { siteRoutes } from './site/index.js';
 import { publicRoutes } from './routes/public.js';
 import { authRoutes } from './routes/auth.js';
 import { fileRoutes } from './routes/file.js';
+import { avisosRoutes } from './routes/avisos.js';
 import {
   metaRoutes, reglagesRoutes, comptesRoutes, statistiquesRoutes, serviceRoutes,
   fermeturesRoutes, postesRoutes, tarifasRoutes,
@@ -37,6 +38,8 @@ export function buildRouter() {
   // par le gerant seul : les exigences sont posees route par route.
   router.mount('/api/postes', postesRoutes);
   router.mount('/api/statistiques', statistiquesRoutes);
+  // Avis pousses : tout le personnel s'abonne, chacun pour SES appareils.
+  router.mount('/api/avisos', avisosRoutes);
   // Fiche de prix : lisible par tout le personnel (on la demande au comptoir),
   // modifiable par le gerant seul.
   router.mount('/api/tarifas', tarifasRoutes);

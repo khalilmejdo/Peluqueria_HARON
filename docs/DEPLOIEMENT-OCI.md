@@ -218,7 +218,7 @@ journaux, vous devez voir :
 
 ```
 Base joignable
-Schema applique : 10 tables.
+Schema applique : 12 tables.
 Compte gerant « haron » cree.
 Serveur demarre
 ```
@@ -319,6 +319,56 @@ maximum.
 
 ---
 
+## 8 ter. Les avis sur le téléphone du personnel
+
+Le coiffeur a les mains dans les cheveux d'un client. Quelqu'un prend son tour
+depuis la rue, ou **annule** le sien depuis son lien de suivi. Sans avis, il ne
+l'apprend qu'en s'arrêtant pour regarder l'écran — et une place libérée qu'on
+ne voit pas passer, c'est un nom appelé dans le vide et trois minutes perdues
+devant un salon plein.
+
+Deux étapes, une seule fois.
+
+**1. Les clés, sur le serveur :**
+
+```bash
+cd /opt/haron
+docker compose -f docker-compose.oci.yml exec app npm run avisos:cles
+```
+
+Collez les trois lignes dans `/opt/haron/.env` (en remplaçant l'adresse de
+courriel par la vôtre), puis redéployez :
+
+```bash
+cd /opt/haron && ./scripts/deployer.sh --forcer
+```
+
+**2. Sur chaque téléphone**, ouvrez `/gestion`, onglet **La fila**, et tout en
+bas : carte « Avisos en este aparato » → **Activar los avisos** → **Probar**.
+
+> **L'abonnement appartient à l'APPAREIL, pas au compte.** Le même coiffeur doit
+> l'activer sur son téléphone *et* sur la tablette du comptoir s'il veut les
+> deux. C'est voulu : il ne porte pas la tablette dans sa poche.
+>
+> **Sur iPhone**, il faut d'abord *Ajouter à l'écran d'accueil* : Safari
+> n'autorise les avis que depuis une page installée.
+>
+> **Un tour saisi au comptoir ne déclenche aucun avis** — c'est le coiffeur
+> lui-même qui vient de le taper, le client devant lui.
+
+> **Ne regénérez jamais les clés** une fois le salon en service. Chaque
+> navigateur scelle la clé publique dans son abonnement : en changer rend
+> muets, d'un coup et sans un mot, tous les appareils déjà abonnés.
+>
+> **Aucun paquet n'est installé** : le protocole (RFC 8291) est écrit à la main,
+> avec `node:crypto`. Le contenu du message est chiffré de bout en bout entre
+> le serveur et le navigateur du coiffeur — Google, Apple et Mozilla ne relaient
+> qu'un paquet opaque, dont ils voient l'heure et la taille, jamais le nom d'un
+> client. Le numéro de téléphone et le jeton de suivi n'y entrent jamais ; un
+> test unitaire le vérifie.
+
+---
+
 ## 9. Les sauvegardes
 
 ```bash
@@ -344,11 +394,17 @@ processus est mort, il n'envoie plus rien. Les deux sections se complètent.
 
 ```bash
 echo 'SENTRY_DSN=https://xxxx@oNNNN.ingest.de.sentry.io/NNNNN' >> /opt/haron/.env
-cd /opt/haron && ./scripts/deployer.sh
+cd /opt/haron && ./scripts/deployer.sh --forcer
 ```
 
 3. Dans Sentry : **Settings → Alerts**. La règle par défaut envoie déjà un
    courriel à la première occurrence de chaque nouvelle erreur.
+
+> **Le `.env` n'entre pas tout seul dans le conteneur.** Posé à côté du fichier
+> `docker-compose.oci.yml`, il sert à remplacer les `${...}` qui s'y trouvent —
+> il n'est pas injecté dans l'application. Toute variable ajoutée au `.env` doit
+> donc aussi figurer dans le bloc `environment:` du service `app`. `SENTRY_DSN`
+> y manquait : les erreurs partaient dans le vide, et rien ne le disait.
 
 Vérifiez dans **Cifras → Estado del servicio** : *Informe de errores* doit dire
 **activo**.

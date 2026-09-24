@@ -93,6 +93,24 @@ services:
       WHATSAPP_NUMERO_ID: ${WHATSAPP_NUMERO_ID:-}
       WHATSAPP_JETON: ${WHATSAPP_JETON:-}
       WHATSAPP_LANGUE: ${WHATSAPP_LANGUE:-fr}
+      WHATSAPP_MODELE_CONFIRMATION: ${WHATSAPP_MODELE_CONFIRMATION:-}
+      WHATSAPP_MODELE_APPROCHE: ${WHATSAPP_MODELE_APPROCHE:-}
+      WHATSAPP_MODELE_TOUR: ${WHATSAPP_MODELE_TOUR:-}
+
+      # Rapport d'erreurs. Vide, rien n'est envoyé nulle part.
+      #
+      # ATTENTION, PIÈGE DÉJÀ PAYÉ : un `.env` posé à côté de ce fichier sert à
+      # REMPLACER les ${...} ci-dessous, il n'entre PAS tout seul dans le
+      # conteneur. Une variable qu'on ajoute au `.env` sans la répéter ici
+      # n'atteint jamais l'application — et, s'agissant de Sentry, rien ne le
+      # dit : les erreurs partent simplement dans le vide.
+      SENTRY_DSN: ${SENTRY_DSN:-}
+
+      # Avis poussés vers les téléphones du personnel (npm run avisos:cles).
+      # Vides, les avis sont éteints et rien d'autre ne change.
+      WEBPUSH_CLE_PUBLIQUE: ${WEBPUSH_CLE_PUBLIQUE:-}
+      WEBPUSH_CLE_PRIVEE: ${WEBPUSH_CLE_PRIVEE:-}
+      WEBPUSH_SUJET: ${WEBPUSH_SUJET:-}
     depends_on:
       base:
         condition: service_healthy

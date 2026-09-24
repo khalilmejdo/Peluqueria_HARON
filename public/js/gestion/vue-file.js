@@ -9,6 +9,7 @@
  */
 import { api, ErreurApi } from './api.js';
 import { el, remplacer, annoncer, heure, depuis, minutesLisibles, LIBELLE_SOURCE, LIBELLE_STATUT } from './dom.js';
+import { carteAvisos } from './avisos.js';
 
 let flux = null;
 let conteneurCourant = null;
@@ -501,7 +502,10 @@ export async function vueFile(conteneur, { etat }) {
   const zone = el('div.enveloppe.file#file', { donnees: { file: '1' } });
   const alerte = el('p.alerte.alerte--refus.file__alerte', { role: 'alert', hidden: true, donnees: { alerte: '1' } });
 
-  remplacer(conteneur, alerte, zone,
+  // La carte des avis vit HORS de `zone` : `peindre` remplace le contenu de
+  // `zone` a chaque battement du temps reel, et la carte y perdrait son etat
+  // (et son enregistrement) plusieurs fois par minute.
+  remplacer(conteneur, alerte, zone, el('div.enveloppe.avisos__enveloppe', carteAvisos()),
     etat.utilisateur?.role === 'GERANT'
       ? el('div.enveloppe.file__cloture',
         el('button.bouton.bouton--discret.bouton--petit', {

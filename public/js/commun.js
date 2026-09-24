@@ -19,8 +19,11 @@
  * travailleur change aussi — le navigateur prend donc le nouveau, et le nouveau
  * efface les caches de l'ancien.
  *
- * Il n'est pas enregistre dans l'espace de gestion : le coiffeur a besoin de la
- * verite du serveur, jamais d'une page gardee.
+ * Il n'est pas enregistre ICI pour l'espace de gestion : le coiffeur a besoin
+ * de la verite du serveur, jamais d'une page gardee. La gestion l'enregistre
+ * elle-meme, et seulement si l'on veut des avis pousses — voir
+ * `js/gestion/avisos.js`. Le travailleur ne met de toute facon en cache ni
+ * « /gestion » ni « /api » : c'est ecrit dans `sw.js`.
  */
 export function activerHorsLigne() {
   if (!('serviceWorker' in navigator)) return;

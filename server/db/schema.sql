@@ -461,6 +461,46 @@ CREATE TRIGGER tickets_journee_close
 -- met les tickets a jour AVANT de passer la journee a « close », donc le
 -- declencheur ne la gene pas. Voir server/domain/journee.js (cloturer).
 
+
+-- ---------------------------------------------------------------------
+--  Abonnements aux notifications du personnel
+--
+--  Une ligne = UN NAVIGATEUR sur UN appareil. Le meme coiffeur qui ouvre le
+--  salon sur son telephone et sur la tablette du comptoir a deux lignes, et
+--  c'est voulu : il veut etre prevenu sur les deux.
+--
+--  L'adresse d'abonnement (`endpoint`) est la cle reelle. Le navigateur la
+--  renouvelle de lui-meme quand il le decide ; on remplace alors la ligne
+--  plutot que d'en accumuler une de plus, sinon on envoie chaque tour pris a
+--  une dizaine d'adresses mortes.
+--
+--  CE QU'IL Y A DEDANS. `p256dh` et `auth` sont les cles PUBLIQUES du
+--  navigateur : elles ne servent qu'a chiffrer VERS lui. Elles ne donnent
+--  acces a rien, et elles ne valent rien sans l'adresse d'abonnement. Aucun
+--  numero de telephone, aucun jeton de suivi n'entre ici.
+--
+--  Effacer un compte efface ses abonnements : ON DELETE CASCADE. Un coiffeur
+--  parti ne doit plus recevoir les tours du salon.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS abonnements_push (
+  id               uuid PRIMARY KEY,
+  utilisateur_id   uuid NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  endpoint         text NOT NULL,
+  p256dh           text NOT NULL,
+  auth             text NOT NULL,
+  appareil         text,
+  echecs           integer NOT NULL DEFAULT 0,
+  derniere_erreur  text,
+  dernier_envoi_at timestamptz,
+  created_at       timestamptz NOT NULL DEFAULT now()
+);
+
+-- Une adresse d'abonnement n'appartient qu'a un seul appareil : la reprendre
+-- signifie que le navigateur l'a renouvelee, ou que l'appareil a change de
+-- mains. Dans les deux cas on remplace, on n'ajoute pas.
+CREATE UNIQUE INDEX IF NOT EXISTS abonnements_push_endpoint ON abonnements_push (endpoint);
+CREATE INDEX IF NOT EXISTS abonnements_push_utilisateur ON abonnements_push (utilisateur_id);
+
 -- ---------------------------------------------------------------------
 --  Horodatage automatique
 -- ---------------------------------------------------------------------

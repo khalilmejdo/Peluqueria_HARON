@@ -886,3 +886,31 @@
   .file > .comptoir { grid-area: comptoir; }
   .file > .historique { grid-area: historique; }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Avis poussés                                                       */
+/* ------------------------------------------------------------------ */
+
+/*
+ * La carte est volontairement DISCRÈTE et placée sous la file. C'est un réglage
+ * qu'on touche une fois par appareil ; au-dessus de la file, elle volerait tous
+ * les jours la place du seul écran que le coiffeur regarde vraiment.
+ */
+.avisos__enveloppe { padding-block: 0 1rem; }
+
+.avisos { display: grid; gap: 0.5rem; }
+
+.avisos__titre {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--texte-doux);
+  margin: 0;
+}
+
+.avisos__etat { font-weight: 600; margin: 0; }
+.avisos__detail { font-size: 0.85rem; margin: 0; max-width: 60ch; }
+
+.avisos__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.avisos__actions:empty { display: none; }

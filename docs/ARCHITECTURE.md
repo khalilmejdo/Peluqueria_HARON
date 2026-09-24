@@ -36,9 +36,9 @@ Le prix payé est explicite : un encodeur QR Code de 500 lignes plutôt qu'un
 | Couche | Emplacement | Rôle |
 |---|---|---|
 | Socle HTTP | `server/http/` + `server/index.js` | routeur, contexte, CSP, CSRF, débit |
-| Noyau | `server/core/` | config, sessions, validation, temps, SSE, WhatsApp, QR |
+| Noyau | `server/core/` | config, sessions, validation, temps, SSE, WhatsApp, QR, Web Push |
 | Base | `server/db/` | `schema.sql` idempotent, pool, transactions |
-| Métier | `server/domain/` | **file.js**, journee.js, fermetures.js, notifications.js, statistiques.js |
+| Métier | `server/domain/` | **file.js**, journee.js, fermetures.js, notifications.js (WhatsApp au client), push.js (avis au personnel), statistiques.js |
 | API | `server/routes/` | public (sans compte) / salon (session) |
 | Site | `server/site/` | pages du client, rendues par le serveur |
 | Interface | `public/` | CSS + JS vanille, temps réel par SSE |

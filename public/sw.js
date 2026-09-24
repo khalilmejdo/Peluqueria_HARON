@@ -132,3 +132,86 @@ self.addEventListener('fetch', (evenement) => {
     })());
   }
 });
+
+/* ------------------------------------------------------------------ */
+/*  Les notifications du personnel                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Un message pousse arrive.
+ *
+ * LE NAVIGATEUR EXIGE QU'ON MONTRE QUELQUE CHOSE. Recevoir un message pousse et
+ * n'afficher aucune notification est une faute que Chrome et Firefox
+ * sanctionnent : quelques recidives et l'abonnement est revoque, sans un mot.
+ * Meme un contenu illisible doit donc aboutir a une notification — d'ou le
+ * repli plutot qu'un `return`.
+ *
+ * `renotify` avec un `tag` : deux tours pris coup sur coup REMPLACENT la meme
+ * notification au lieu d'en empiler deux, mais l'appareil vibre quand meme la
+ * seconde fois. Sans `renotify`, le remplacement est silencieux et le coiffeur
+ * rate le second.
+ */
+self.addEventListener('push', (evenement) => {
+  let contenu = {};
+  try {
+    contenu = evenement.data ? evenement.data.json() : {};
+  } catch {
+    contenu = {};
+  }
+
+  const titre = contenu.titre || 'Peluquería HARON';
+  const options = {
+    body: contenu.corps || 'Hay novedades en la fila.',
+    icon: '/img/app-192.png',
+    badge: '/img/app-192.png',
+    tag: contenu.tag || 'haron',
+    renotify: contenu.renotifier !== false,
+    // Le coiffeur a les mains prises : la notification attend qu'on la lise,
+    // elle ne disparait pas d'elle-meme au bout de cinq secondes.
+    requireInteraction: false,
+    data: { url: typeof contenu.url === 'string' ? contenu.url : '/gestion' },
+  };
+
+  evenement.waitUntil(self.registration.showNotification(titre, options));
+});
+
+/**
+ * On appuie sur la notification.
+ *
+ * On REPREND l'onglet du salon s'il est deja ouvert, au lieu d'en ouvrir un
+ * douzieme. Un coiffeur qui recoit vingt notifications dans la journee se
+ * retrouverait sinon avec vingt onglets, et ce sont eux qui finissent par faire
+ * ramer la tablette du comptoir.
+ */
+self.addEventListener('notificationclick', (evenement) => {
+  evenement.notification.close();
+  const cible = (evenement.notification.data && evenement.notification.data.url) || '/gestion';
+
+  evenement.waitUntil((async () => {
+    const fenetres = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const fenetre of fenetres) {
+      if (new URL(fenetre.url).pathname.startsWith('/gestion') && 'focus' in fenetre) {
+        await fenetre.focus();
+        // Une fenetre deja ouverte sur la gestion n'a pas besoin d'etre
+        // rechargee : elle suit la file en temps reel.
+        return;
+      }
+    }
+    if (self.clients.openWindow) await self.clients.openWindow(cible);
+  })());
+});
+
+/**
+ * Le navigateur renouvelle l'abonnement de lui-meme.
+ *
+ * Il arrive rarement, et toujours au mauvais moment. On ne peut pas appeler
+ * l'API depuis ici sans session, mais on peut prevenir les onglets ouverts, qui
+ * referont l'abonnement. Si aucun n'est ouvert, le prochain chargement de la
+ * page de gestion s'en chargera : elle verifie son abonnement a chaque fois.
+ */
+self.addEventListener('pushsubscriptionchange', (evenement) => {
+  evenement.waitUntil((async () => {
+    const fenetres = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const fenetre of fenetres) fenetre.postMessage({ type: 'haron:reabonner' });
+  })());
+});
