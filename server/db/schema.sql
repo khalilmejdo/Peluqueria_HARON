@@ -423,7 +423,7 @@ DECLARE
 BEGIN
   SELECT ouverte INTO v_ouverte FROM journees WHERE jour = COALESCE(NEW.jour, OLD.jour);
   IF v_ouverte IS NOT NULL AND v_ouverte = FALSE THEN
-    RAISE EXCEPTION 'La journée du % est close : ce ticket appartient à l''historique et ne peut plus être modifié.',
+    RAISE EXCEPTION 'La jornada del % está cerrada: este turno pertenece al historial y ya no se puede modificar.',
       to_char(COALESCE(NEW.jour, OLD.jour), 'DD/MM/YYYY')
       USING ERRCODE = 'HR001';
   END IF;

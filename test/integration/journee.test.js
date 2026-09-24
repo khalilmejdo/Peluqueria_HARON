@@ -65,7 +65,7 @@ test('une nouvelle journee part d une file vide et d une numerotation neuve', { 
     const journeeHier = await banc.db.one('SELECT ouverte, close_at, close_par FROM journees WHERE jour = $1', [hier]);
     assert.equal(journeeHier.ouverte, false);
     assert.ok(journeeHier.close_at);
-    assert.equal(journeeHier.close_par, 'nouvelle journée');
+    assert.equal(journeeHier.close_par, 'nueva jornada');
   });
 
   await t.test('les tours non servis de la veille sont annules, jamais effaces', async () => {
@@ -73,7 +73,7 @@ test('une nouvelle journee part d une file vide et d une numerotation neuve', { 
     assert.equal(lignes.length, 3, 'les tickets de la veille doivent rester en base');
     for (const ligne of lignes) {
       assert.equal(ligne.statut, 'CANCELLED');
-      assert.match(ligne.motif, /Journée terminée/);
+      assert.match(ligne.motif, /Jornada terminada/);
     }
     // L'historique de chacun porte la trace de la cloture.
     const evenements = await banc.db.value(

@@ -173,7 +173,7 @@ test('le salon peut donner une file a chaque coiffeur', { skip: IGNORE }, async 
     const detail = await coiffeur.get('/api/file/' + aDeplacer.id);
     const dernier = detail.body.evenements.at(-1);
     assert.equal(dernier.statut, 'CALLED');
-    assert.match(dernier.detail, /déplacé/);
+    assert.match(dernier.detail, /movido/);
   });
 
   /* ---------------- retards ---------------- */
@@ -357,7 +357,7 @@ test('le salon peut donner une file a chaque coiffeur', { skip: IGNORE }, async 
     assert.match(parCoiffeur.body, /name="posteId"/);
     assert.match(parCoiffeur.body, /Youssef/);
     assert.match(parCoiffeur.body, /Haron/);
-    assert.match(parCoiffeur.body, /Votre coiffeur/);
+    assert.match(parCoiffeur.body, /Tu peluquero/);
   });
 
   await t.test('le formulaire refuse un envoi sans coiffeur et le redit a l ecran', async () => {
@@ -366,7 +366,7 @@ test('le salon peut donner une file a chaque coiffeur', { skip: IGNORE }, async 
       { prenom: 'Rachid', nom: 'Amrani', telephone: '612390020', source: 'ONLINE' },
       { formulaire: true });
     assert.equal(r.status, 422);
-    assert.match(r.body, /Choisissez votre coiffeur/);
+    assert.match(r.body, /Elige tu peluquero/);
     // Et le formulaire est toujours la, avec les champs remplis.
     assert.match(r.body, /value="Rachid"/);
   });

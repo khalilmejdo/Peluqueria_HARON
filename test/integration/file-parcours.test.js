@@ -78,7 +78,7 @@ test('la file du salon, du premier ticket au dernier client servi', { skip: IGNO
     // apres la prise de tour — et tout cela sans rien coûter au salon.
     const page = await banc.client().get('/ticket/' + mehdi.jeton + '?nouveau=1');
     assert.equal(page.status, 200);
-    assert.match(page.body, /Gardez ce lien/);
+    assert.match(page.body, /Guarda este enlace/);
     assert.match(page.body, /data-copier/);
     assert.match(page.body, /data-partager/);
     // L'adresse complete est affichee, pour pouvoir la recopier a la main.
@@ -87,7 +87,7 @@ test('la file du salon, du premier ticket au dernier client servi', { skip: IGNO
     // Sans « nouveau », le bloc est toujours la, simplement moins insistant.
     const ordinaire = await banc.client().get('/ticket/' + mehdi.jeton);
     assert.match(ordinaire.body, /Votre lien de suivi/);
-    assert.ok(!ordinaire.body.includes('Gardez ce lien'));
+    assert.ok(!ordinaire.body.includes('Guarda este enlace'));
   });
 
   await t.test('appeler le suivant prend le premier de la file', async () => {
@@ -277,6 +277,6 @@ test('la file du salon, du premier ticket au dernier client servi', { skip: IGNO
 
     const suivi = await banc.client().get(r.headers.get('location'));
     assert.equal(suivi.status, 200);
-    assert.match(suivi.body, /Gardez ce lien/);
+    assert.match(suivi.body, /Guarda este enlace/);
   });
 });

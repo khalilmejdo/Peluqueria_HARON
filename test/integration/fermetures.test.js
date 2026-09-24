@@ -93,12 +93,12 @@ test('le salon peut fermer son entree sans jamais interrompre la file', { skip: 
   await t.test('l accueil et le formulaire disent la meme chose', async () => {
     const accueil = await banc.client().get('/');
     assert.equal(accueil.status, 200);
-    assert.match(accueil.body, /Prise de tour arrêtée/);
+    assert.match(accueil.body, /No damos más turnos/);
     assert.ok(!accueil.body.includes('href="/join"'), 'le bouton ne doit plus etre propose');
 
     const join = await banc.client().get('/join');
     assert.equal(join.status, 409);
-    assert.match(join.body, /Prise de tour arrêtée/);
+    assert.match(join.body, /No damos más turnos/);
     assert.ok(!join.body.includes('name="telephone"'), 'le formulaire ne doit pas etre affiche');
 
     const api = await banc.client().get('/api/public/file');
@@ -149,7 +149,7 @@ test('le salon peut fermer son entree sans jamais interrompre la file', { skip: 
 
   await t.test('l accueil annonce la fermeture et la date de reouverture', async () => {
     const r = await banc.client().get('/');
-    assert.match(r.body, /Salon fermé/);
+    assert.match(r.body, /Salón cerrado/);
     assert.match(r.body, /rouvrons/);
   });
 
@@ -207,7 +207,7 @@ test('le salon peut fermer son entree sans jamais interrompre la file', { skip: 
     });
 
     const accueil = await banc.client().get('/');
-    assert.match(accueil.body, /Fermeture à venir/);
+    assert.match(accueil.body, /Próximo cierre/);
     assert.match(accueil.body, /Fermeture annuelle/);
     // Mais la prise de tour, elle, est bien ouverte aujourd'hui.
     await banc.reinitialiserDebit();
@@ -265,6 +265,6 @@ test('le salon peut fermer son entree sans jamais interrompre la file', { skip: 
     assert.match(r.body, /name="telephone" type="tel" inputmode="tel"/);
     assert.match(r.body, /pattern="\[0-9\+\(\)\.\/ -\]\{8,25\}"/);
     // Et l'aide dit la regle espagnole.
-    assert.match(r.body, /inutile d’écrire \+34/);
+    assert.match(r.body, /no hace falta escribir \+34/);
   });
 });

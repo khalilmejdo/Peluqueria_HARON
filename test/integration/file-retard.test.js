@@ -70,7 +70,7 @@ test('un client absent repart en fin de file, sans jamais perdre son tour', { sk
     const detail = await salon.get('/api/file/' + (await idDe('A001')));
     const statuts = detail.body.evenements.map((e) => e.statut);
     assert.deepEqual(statuts, ['WAITING', 'CALLED', 'LATE']);
-    assert.match(detail.body.evenements[2].detail, /fin de file/);
+    assert.match(detail.body.evenements[2].detail, /final de la fila/);
   });
 
   await t.test('Ahmed reste dans la file : son statut d attente le dit', async () => {
