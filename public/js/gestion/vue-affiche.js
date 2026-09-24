@@ -18,38 +18,38 @@ export async function vueAffiche(conteneur, { etat }) {
 
   const image = el('img.qr__image', {
     src: '/qr.svg',
-    alt: 'QR Code menant à la page de prise de tour du salon',
+    alt: 'Código QR que lleva a la página para pedir turno en el salón',
     width: '320',
     height: '320',
   });
 
   remplacer(conteneur, el('div.enveloppe.page-gestion',
-    el('h1.titre-page', { texte: 'QR Code du salon' }),
-    el('p.texte-doux', { texte: 'Collez-le en vitrine ou sur le miroir. Le client scanne, remplit trois champs, et entre dans la même file que ceux qui réservent en ligne.' }),
+    el('h1.titre-page', { texte: 'Código QR del salón' }),
+    el('p.texte-doux', { texte: 'Pégalo en el escaparate o en el espejo. El cliente lo escanea, rellena tres campos y entra en la misma fila que quien pide turno por internet.' }),
     el('section.carte.qr',
       image,
-      el('p.qr__legende', { texte: 'Scannez pour prendre votre tour' }),
+      el('p.qr__legende', { texte: 'Escanea para pedir tu turno' }),
       el('p.qr__adresse', { texte: adresse }),
       el('div.qr__actions',
-        el('a.bouton.bouton--principal', { href: '/affiche', target: '_blank', rel: 'noopener', texte: 'Ouvrir l’affiche à imprimer' }),
-        el('a.bouton.bouton--discret', { href: '/qr.svg?telecharger=1', download: true, texte: 'Télécharger (SVG)' }),
-        el('a.bouton.bouton--discret', { href: '/qr.png?telecharger=1', download: true, texte: 'Télécharger (PNG)' }),
+        el('a.bouton.bouton--principal', { href: '/affiche', target: '_blank', rel: 'noopener', texte: 'Abrir el cartel para imprimir' }),
+        el('a.bouton.bouton--discret', { href: '/qr.svg?telecharger=1', download: true, texte: 'Descargar (SVG)' }),
+        el('a.bouton.bouton--discret', { href: '/qr.png?telecharger=1', download: true, texte: 'Descargar (PNG)' }),
         el('button.bouton.bouton--discret', {
           type: 'button',
-          texte: 'Copier l’adresse',
+          texte: 'Copiar la dirección',
           surClick: async () => {
             try {
               await navigator.clipboard.writeText(adresse);
-              annoncer('Adresse copiée.');
+              annoncer('Dirección copiada.');
             } catch {
-              window.prompt('Copiez cette adresse :', adresse);
+              window.prompt('Copia esta dirección:', adresse);
             }
           },
         }))),
     el('section.carte.carte--discrete',
-      el('h2.reglages__titre', { texte: 'Avant d’imprimer' }),
+      el('h2.reglages__titre', { texte: 'Antes de imprimir' }),
       el('ul.liste-etat',
-        el('li', { texte: 'Vérifiez que l’adresse ci-dessus est bien l’adresse publique définitive du salon : un QR Code imprimé ne se corrige pas.' }),
-        el('li', { texte: 'Scannez-le vous-même avec un téléphone avant de partir chez l’imprimeur.' }),
-        el('li', { texte: 'Le SVG est le format à donner à un imprimeur ; le PNG suffit pour une impression de bureau.' })))));
+        el('li', { texte: 'Comprueba que la dirección de arriba es la dirección pública definitiva del salón: un código QR impreso no se corrige.' }),
+        el('li', { texte: 'Escanéalo tú mismo con un móvil antes de llevarlo a la imprenta.' }),
+        el('li', { texte: 'El SVG es el formato para la imprenta; el PNG basta para imprimir en la oficina.' })))));
 }

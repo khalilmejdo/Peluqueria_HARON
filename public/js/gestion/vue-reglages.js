@@ -9,10 +9,11 @@ import { api, ErreurApi } from './api.js';
 import { el, remplacer, annoncer } from './dom.js';
 
 const GROUPES = [
-  { titre: 'Le salon', prefixes: ['salon.'] },
-  { titre: 'La file', prefixes: ['file.'] },
-  { titre: 'Horaires d’ouverture', prefixes: ['horaires.'] },
-  { titre: 'Adresse publique', prefixes: ['public.'] },
+  { titre: 'El salón', prefixes: ['salon.'] },
+  { titre: 'La fila', prefixes: ['file.'] },
+  { titre: 'Horario de apertura', prefixes: ['horaires.'] },
+  { titre: 'Tarifas en la vitrina', prefixes: ['tarifas.'] },
+  { titre: 'Dirección pública', prefixes: ['public.'] },
 ];
 
 /**
@@ -29,31 +30,31 @@ async function sectionFauteuils(recharger, dire) {
     el('div.fauteuil__tete',
       el('span.fauteuil__nom', { texte: p.nom }),
       p.coiffeur ? el('span.fauteuil__coiffeur', { texte: p.coiffeur }) : null,
-      p.actif ? null : el('span.fauteuil__badge', { texte: 'fermé' })),
+      p.actif ? null : el('span.fauteuil__badge', { texte: 'cerrado' })),
     el('p.fauteuil__meta',
-      p.occupePar ? el('span.fauteuil__occupe', { texte: 'occupé — ' + p.occupePar }) : el('span', { texte: p.actif ? 'libre' : 'hors service' }),
+      p.occupePar ? el('span.fauteuil__occupe', { texte: 'ocupado — ' + p.occupePar }) : el('span', { texte: p.actif ? 'libre' : 'fuera de servicio' }),
       el('span', { texte: '·' }),
-      el('span', { texte: p.servisAujourdhui + ' servi' + (p.servisAujourdhui > 1 ? 's' : '') + ' aujourd’hui' })),
+      el('span', { texte: p.servisAujourdhui + ' atendido' + (p.servisAujourdhui > 1 ? 's' : '') + ' hoy' })),
     el('div.fauteuil__actions',
       el('button.bouton.bouton--discret.bouton--petit', {
         type: 'button',
-        texte: 'Renommer',
+        texte: 'Renombrar',
         surClick: async () => {
-          const nom = window.prompt('Nom du fauteuil :', p.nom);
+          const nom = window.prompt('Nombre del sillón:', p.nom);
           if (nom === null || nom.trim() === p.nom) return;
           try {
             await api.patch('/api/postes/' + p.id, { nom: nom.trim() });
             await recharger();
           } catch (err) {
-            dire(err instanceof ErreurApi ? err.message : 'Renommage impossible.');
+            dire(err instanceof ErreurApi ? err.message : 'No se ha podido renombrar.');
           }
         },
       }),
       el('button.bouton.bouton--discret.bouton--petit', {
         type: 'button',
-        texte: p.coiffeur ? 'Changer le coiffeur' : 'Nommer le coiffeur',
+        texte: p.coiffeur ? 'Cambiar el peluquero' : 'Poner el peluquero',
         surClick: async () => {
-          const coiffeur = window.prompt('Coiffeur à ce fauteuil (laissez vide pour retirer) :', p.coiffeur || '');
+          const coiffeur = window.prompt('Peluquero de este sillón (déjalo vacío para quitarlo):', p.coiffeur || '');
           if (coiffeur === null) return;
           try {
             await api.patch('/api/postes/' + p.id, { coiffeur: coiffeur.trim() });
@@ -65,11 +66,11 @@ async function sectionFauteuils(recharger, dire) {
       }),
       el('button.bouton.bouton--discret.bouton--petit', {
         type: 'button',
-        texte: p.actif ? 'Fermer' : 'Rouvrir',
+        texte: p.actif ? 'Cerrar' : 'Reabrir',
         surClick: async () => {
           try {
             await api.patch('/api/postes/' + p.id, { actif: !p.actif });
-            dire(p.actif ? 'Fauteuil fermé.' : 'Fauteuil rouvert.', true);
+            dire(p.actif ? 'Sillón cerrado.' : 'Sillón reabierto.', true);
             await recharger();
           } catch (err) {
             dire(err instanceof ErreurApi ? err.message : 'Modification impossible.');
@@ -79,51 +80,51 @@ async function sectionFauteuils(recharger, dire) {
       p.servisAujourdhui === 0
         ? el('button.bouton.bouton--discret.bouton--petit.bouton--danger', {
           type: 'button',
-          texte: 'Supprimer',
+          texte: 'Borrar',
           surClick: async () => {
-            if (!window.confirm('Supprimer le fauteuil « ' + p.nom + ' » ?')) return;
+            if (!window.confirm('¿Borrar el sillón « ' + p.nom + ' »?')) return;
             try {
               await api.supprimer('/api/postes/' + p.id);
-              dire('Fauteuil supprimé.', true);
+              dire('Sillón borrado.', true);
               await recharger();
             } catch (err) {
-              dire(err instanceof ErreurApi ? err.message : 'Suppression impossible.');
+              dire(err instanceof ErreurApi ? err.message : 'No se ha podido borrar.');
             }
           },
         })
         : null)));
 
-  const nom = el('input', { id: 'p-nom', type: 'text', maxlength: '40', required: true, placeholder: 'Fauteuil 2' });
-  const coiffeur = el('input', { id: 'p-coiffeur', type: 'text', maxlength: '60', placeholder: 'Nom du coiffeur (facultatif)' });
+  const nom = el('input', { id: 'p-nom', type: 'text', maxlength: '40', required: true, placeholder: 'Sillón 2' });
+  const coiffeur = el('input', { id: 'p-coiffeur', type: 'text', maxlength: '60', placeholder: 'Nombre del peluquero (opcional)' });
 
   const ajout = el('form.formulaire', {
     surSubmit: async (evenement) => {
       evenement.preventDefault();
       try {
         await api.post('/api/postes', { nom: nom.value.trim(), coiffeur: coiffeur.value.trim() || undefined });
-        dire('Fauteuil ajouté.', true);
+        dire('Sillón añadido.', true);
         await recharger();
       } catch (err) {
-        dire(err instanceof ErreurApi ? err.message : 'Création impossible.');
+        dire(err instanceof ErreurApi ? err.message : 'No se ha podido crear.');
       }
     },
   },
   el('div.reglages__grille',
-    el('div.champ', el('label', { for: 'p-nom', texte: 'Nom du fauteuil' }), nom),
-    el('div.champ', el('label', { for: 'p-coiffeur', texte: 'Coiffeur' }), coiffeur,
-      el('p.champ__aide', { texte: 'Affiché sur la carte du fauteuil. Facultatif.' }))),
-  el('button.bouton.bouton--principal', { type: 'submit', texte: 'Ajouter le fauteuil' }));
+    el('div.champ', el('label', { for: 'p-nom', texte: 'Nombre del sillón' }), nom),
+    el('div.champ', el('label', { for: 'p-coiffeur', texte: 'Peluquero' }), coiffeur,
+      el('p.champ__aide', { texte: 'Se muestra en la tarjeta del sillón. Opcional.' }))),
+  el('button.bouton.bouton--principal', { type: 'submit', texte: 'Añadir el sillón' }));
 
   return el('section.carte.reglages__groupe',
-    el('h2.reglages__titre', { texte: 'Fauteuils' }),
+    el('h2.reglages__titre', { texte: 'Sillones' }),
     el('p.texte-doux', {
       texte: donnees.actifs > 1
-        ? donnees.actifs + ' fauteuils ouverts : la file reste unique, mais elle avance ' + donnees.actifs + ' fois plus vite, et l’attente annoncée aux clients en tient compte.'
-        : 'Un seul fauteuil ouvert. Ajoutez-en un second et l’écran de la file affichera une carte par fauteuil.',
+        ? donnees.actifs + ' sillones abiertos: la fila sigue siendo una sola, pero avanza ' + donnees.actifs + ' veces más rápido, y la espera que se anuncia a los clientes lo tiene en cuenta.'
+        : 'Solo un sillón abierto. Añade un segundo y la pantalla de la fila mostrará una tarjeta por sillón.',
     }),
     el('ul.fauteuils-liste', lignes),
     el('details.creation',
-      el('summary', { texte: 'Ajouter un fauteuil' }),
+      el('summary', { texte: 'Añadir un sillón' }),
       ajout));
 }
 
@@ -182,7 +183,7 @@ export async function vueReglages(conteneur) {
       el('div.reglages__grille', regles.map(champ)));
   });
 
-  const bouton = el('button.bouton.bouton--principal', { type: 'submit', texte: 'Enregistrer les réglages' });
+  const bouton = el('button.bouton.bouton--principal', { type: 'submit', texte: 'Guardar los ajustes' });
 
   const formulaire = el('form.reglages', {
     surSubmit: async (evenement) => {
@@ -198,9 +199,9 @@ export async function vueReglages(conteneur) {
       }
       try {
         await api.put('/api/reglages', { valeurs });
-        succes.textContent = 'Réglages enregistrés.';
+        succes.textContent = 'Ajustes guardados.';
         succes.hidden = false;
-        annoncer('Réglages enregistrés.');
+        annoncer('Ajustes guardados.');
       } catch (err) {
         if (err instanceof ErreurApi && err.champs) {
           for (const [cle, message] of Object.entries(err.champs)) {
@@ -226,11 +227,11 @@ export async function vueReglages(conteneur) {
     el('h2.reglages__titre', { texte: 'WhatsApp' }),
     el('p.texte-doux', {
       texte: donnees.whatsapp.actif
-        ? 'Les messages partent automatiquement. Modèles : ' + Object.values(donnees.whatsapp.modeles).join(', ') + '.'
-        : 'L’envoi automatique n’est pas activé. Chaque client voit son lien à l’écran, et le bouton « WhatsApp » de la file ouvre la conversation avec le message déjà écrit.',
+        ? 'Los mensajes salen automáticamente. Plantillas: ' + Object.values(donnees.whatsapp.modeles).join(', ') + '.'
+        : 'El envío automático no está activado. Cada cliente ve su enlace en pantalla, y el botón « WhatsApp » de la fila abre la conversación con el mensaje ya escrito.',
     }),
     el('p.texte-doux.reglages__note', {
-      texte: 'Le jeton d’accès et l’identifiant du numéro se posent dans les variables d’environnement (WHATSAPP_ACTIF, WHATSAPP_NUMERO_ID, WHATSAPP_JETON), jamais ici : un secret n’a rien à faire en base.',
+      texte: 'El token de acceso y el identificador del número se ponen en las variables de entorno (WHATSAPP_ACTIF, WHATSAPP_NUMERO_ID, WHATSAPP_JETON), nunca aquí: un secreto no tiene nada que hacer en la base de datos.',
     }));
 
   const dire = (message, bon = false) => {
@@ -245,8 +246,8 @@ export async function vueReglages(conteneur) {
   const fauteuils = await sectionFauteuils(() => vueReglages(conteneur), dire);
 
   remplacer(conteneur, el('div.enveloppe.page-gestion',
-    el('h1.titre-page', { texte: 'Réglages' }),
-    el('p.texte-doux', { texte: 'Adresse publique du QR Code : ' + donnees.adressePublique }),
+    el('h1.titre-page', { texte: 'Ajustes' }),
+    el('p.texte-doux', { texte: 'Dirección pública del código QR: ' + donnees.adressePublique }),
     erreurGlobale, succes,
     fauteuils,
     formulaire,

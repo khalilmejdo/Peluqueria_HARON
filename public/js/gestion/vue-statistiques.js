@@ -8,7 +8,7 @@
 import { api } from './api.js';
 import { el, remplacer, minutesLisibles } from './dom.js';
 
-const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+const JOURS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
 function dateCourte(iso) {
   const [a, m, j] = String(iso).split('-').map(Number);
@@ -28,31 +28,31 @@ export async function vueStatistiques(conteneur, { etat }) {
   const gerant = etat.utilisateur?.role === 'GERANT';
 
   const grille = el('div.carreaux',
-    carreau(jour.total, 'clients du jour'),
-    carreau(jour.servis, 'servis'),
-    carreau(jour.annules, 'annulés'),
-    carreau(jour.clientsEnRetard, 'arrivés en retard', jour.absencesTotales ? jour.absencesTotales + ' absence(s) au total' : null),
-    carreau(jour.attenteMoyenneMinutes === null ? '—' : minutesLisibles(jour.attenteMoyenneMinutes), 'attente moyenne'),
-    carreau(jour.serviceMoyenMinutes === null ? '—' : minutesLisibles(jour.serviceMoyenMinutes), 'durée moyenne d’une coupe',
-      'réglage actuel : ' + (jour.dureeMoyenneReglee ?? '—') + ' min'),
-    carreau(jour.enLigne, 'venus en ligne'),
-    carreau(jour.parQr, 'venus par QR Code'),
-    carreau(jour.auComptoir, 'ajoutés au comptoir'));
+    carreau(jour.total, 'clientes de hoy'),
+    carreau(jour.servis, 'atendidos'),
+    carreau(jour.annules, 'anulados'),
+    carreau(jour.clientsEnRetard, 'llegaron tarde', jour.absencesTotales ? jour.absencesTotales + ' ausencia(s) en total' : null),
+    carreau(jour.attenteMoyenneMinutes === null ? '—' : minutesLisibles(jour.attenteMoyenneMinutes), 'espera media'),
+    carreau(jour.serviceMoyenMinutes === null ? '—' : minutesLisibles(jour.serviceMoyenMinutes), 'duración media de un corte',
+      'ajuste actual: ' + (jour.dureeMoyenneReglee ?? '—') + ' min'),
+    carreau(jour.enLigne, 'por internet'),
+    carreau(jour.parQr, 'por código QR'),
+    carreau(jour.auComptoir, 'añadidos en mostrador'));
 
   const contenu = [
-    el('h1.titre-page', { texte: 'Chiffres' }),
-    el('p.texte-doux', { texte: 'Journée du ' + jour.jour + (jour.ouverte === false ? ' — close' : '') }),
+    el('h1.titre-page', { texte: 'Cifras' }),
+    el('p.texte-doux', { texte: 'Jornada del ' + jour.jour + (jour.ouverte === false ? ' — cerrada' : '') }),
     el('section.carte', grille),
   ];
 
   // Le détail par fauteuil n'a de sens qu'à partir de deux.
   if ((jour.fauteuils || []).length > 1) {
     contenu.push(el('section.carte',
-      el('h2.reglages__titre', { texte: 'Par fauteuil' }),
+      el('h2.reglages__titre', { texte: 'Por sillón' }),
       el('ul.liste-etat', jour.fauteuils.map((f) => el('li', {
-        texte: f.nom + (f.coiffeur ? ' (' + f.coiffeur + ')' : '') + ' : '
-          + f.servis + ' client' + (f.servis > 1 ? 's' : '') + ' servi' + (f.servis > 1 ? 's' : '')
-          + (f.coupeMoyenneMinutes === null ? '' : ', coupe moyenne ' + minutesLisibles(f.coupeMoyenneMinutes)),
+        texte: f.nom + (f.coiffeur ? ' (' + f.coiffeur + ')' : '') + ': '
+          + f.servis + ' cliente' + (f.servis > 1 ? 's' : '') + ' atendido' + (f.servis > 1 ? 's' : '')
+          + (f.coupeMoyenneMinutes === null ? '' : ', corte medio ' + minutesLisibles(f.coupeMoyenneMinutes)),
       })))));
   }
 
@@ -68,30 +68,30 @@ export async function vueStatistiques(conteneur, { etat }) {
       el('td.nombre', { texte: l.enLigne + ' / ' + l.parQr })));
 
     contenu.push(el('section.carte',
-      el('h2.reglages__titre', { texte: 'Les trente derniers jours' }),
+      el('h2.reglages__titre', { texte: 'Los últimos treinta días' }),
       historique.items.length
         ? el('div.tableau-defilant',
           el('table.tableau',
             el('thead', el('tr',
-              el('th', { texte: 'Jour' }),
+              el('th', { texte: 'Día' }),
               el('th.nombre', { texte: 'Total' }),
-              el('th.nombre', { texte: 'Servis' }),
-              el('th.nombre', { texte: 'Annulés' }),
-              el('th.nombre', { texte: 'Retards' }),
-              el('th.nombre', { texte: 'Attente moy.' }),
-              el('th.nombre', { texte: 'En ligne / QR' }))),
+              el('th.nombre', { texte: 'Atendidos' }),
+              el('th.nombre', { texte: 'Anulados' }),
+              el('th.nombre', { texte: 'Ausencias' }),
+              el('th.nombre', { texte: 'Espera med.' }),
+              el('th.nombre', { texte: 'Internet / QR' }))),
             el('tbody', lignes)))
-        : el('p.texte-doux', { texte: 'Aucune journée enregistrée pour le moment.' })));
+        : el('p.texte-doux', { texte: 'Todavía no hay ninguna jornada registrada.' })));
 
     const service = await api.get('/api/service/etat').catch(() => null);
     if (service) {
       contenu.push(el('section.carte',
-        el('h2.reglages__titre', { texte: 'État du service' }),
+        el('h2.reglages__titre', { texte: 'Estado del servicio' }),
         el('ul.liste-etat',
-          el('li', { texte: 'Base de données : ' + (service.base.ok ? (service.base.ecriture ? 'en ligne' : 'lecture seule — ' + service.base.motif) : 'injoignable — ' + service.base.motif) }),
-          el('li', { texte: 'WhatsApp : ' + (service.whatsapp.actif ? 'actif' : 'non configuré') + ' — ' + service.whatsapp.enAttente + ' en attente, ' + service.whatsapp.enEchec + ' en échec' }),
-          el('li', { texte: 'Écrans connectés en direct : ' + service.tempsReel.abonnes }),
-          el('li', { texte: 'Version déployée : ' + (service.version || 'inconnue') + ' — fuseau ' + service.fuseau }))));
+          el('li', { texte: 'Base de datos: ' + (service.base.ok ? (service.base.ecriture ? 'en línea' : 'solo lectura — ' + service.base.motif) : 'no responde — ' + service.base.motif) }),
+          el('li', { texte: 'WhatsApp: ' + (service.whatsapp.actif ? 'activo' : 'sin configurar') + ' — ' + service.whatsapp.enAttente + ' en espera, ' + service.whatsapp.enEchec + ' con error' }),
+          el('li', { texte: 'Pantallas conectadas en directo: ' + service.tempsReel.abonnes }),
+          el('li', { texte: 'Versión desplegada: ' + (service.version || 'desconocida') + ' — zona horaria ' + service.fuseau }))));
     }
   }
 

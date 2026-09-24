@@ -36,7 +36,7 @@ test('le salon peut donner une file a chaque coiffeur', { skip: IGNORE }, async 
 
   await t.test('on prepare deux coiffeurs nommes', async () => {
     const un = await gerant.patch('/api/postes/' + (await gerant.get('/api/postes')).body.items[0].id, {
-      nom: 'Fauteuil 1', coiffeur: 'Youssef',
+      nom: 'Sillón 1', coiffeur: 'Youssef',
     });
     assert.equal(un.status, 200);
     youssef = un.body;
@@ -78,7 +78,7 @@ test('le salon peut donner une file a chaque coiffeur', { skip: IGNORE }, async 
     });
     assert.equal(r.status, 422);
     assert.ok(r.body.error.details.fields.posteId);
-    assert.match(r.body.error.message, /choisissez/i);
+    assert.match(r.body.error.message, /elige/i);
   });
 
   await t.test('un coiffeur inconnu ou ferme est refuse', async () => {
@@ -88,7 +88,7 @@ test('le salon peut donner une file a chaque coiffeur', { skip: IGNORE }, async 
       posteId: '00000000-0000-4000-8000-000000000000',
     });
     assert.equal(inconnu.status, 422);
-    assert.match(inconnu.body.error.message, /plus disponible/);
+    assert.match(inconnu.body.error.message, /ya no está disponible/);
   });
 
   let ahmed;
@@ -155,7 +155,7 @@ test('le salon peut donner une file a chaque coiffeur', { skip: IGNORE }, async 
 
     const r = await coiffeur.post('/api/file/suivant', { posteId: haron.id });
     assert.equal(r.status, 400);
-    assert.match(r.body.error.message, /ce coiffeur/i);
+    assert.match(r.body.error.message, /este peluquero/i);
     // Alors que deux personnes attendent bien dans le salon.
     const apres = await coiffeur.get('/api/file');
     assert.equal(apres.body.file.attente.length, 2);
@@ -209,8 +209,8 @@ test('le salon peut donner une file a chaque coiffeur', { skip: IGNORE }, async 
   await t.test('on ne ferme pas un coiffeur qui a une file', async () => {
     const r = await gerant.patch('/api/postes/' + youssef.id, { actif: false });
     assert.equal(r.status, 409);
-    assert.match(r.body.error.message, /attend/);
-    assert.match(r.body.error.message, /avant de fermer/);
+    assert.match(r.body.error.message, /espera/);
+    assert.match(r.body.error.message, /antes de cerrar/);
   });
 
   /* ---------------- changer de coiffeur ---------------- */
@@ -259,7 +259,7 @@ test('le salon peut donner une file a chaque coiffeur', { skip: IGNORE }, async 
     const chezHaron = file.body.file.postes.find((p) => p.id === haron.id).attente[0];
     const r = await coiffeur.post('/api/file/' + chezHaron.id + '/transferer', { posteId: haron.id });
     assert.equal(r.status, 409);
-    assert.match(r.body.error.message, /attend déjà/);
+    assert.match(r.body.error.message, /ya está esperando/);
   });
 
   await t.test('on ne change pas le coiffeur de quelqu un qui est au fauteuil', async () => {
@@ -269,7 +269,7 @@ test('le salon peut donner une file a chaque coiffeur', { skip: IGNORE }, async 
     assert.ok(assis);
     const r = await coiffeur.post('/api/file/' + assis.id + '/transferer', { posteId: youssef.id });
     assert.equal(r.status, 409);
-    assert.match(r.body.error.message, /au fauteuil/);
+    assert.match(r.body.error.message, /en el sillón/);
     await coiffeur.post('/api/file/' + assis.id + '/servi');
   });
 
@@ -306,7 +306,7 @@ test('le salon peut donner une file a chaque coiffeur', { skip: IGNORE }, async 
   await t.test('on ne change pas d organisation avec des clients dans la file', async () => {
     const r = await gerant.put('/api/reglages', { valeurs: { 'file.mode': 'UNIQUE' } });
     assert.equal(r.status, 409);
-    assert.match(r.body.error.message, /encore dans la file/);
+    assert.match(r.body.error.message, /en la fila de hoy/);
     // Le reglage n'a pas bouge.
     const apres = await gerant.get('/api/reglages');
     assert.equal(apres.body.valeurs['file.mode'], 'PAR_FAUTEUIL');

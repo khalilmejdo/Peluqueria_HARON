@@ -29,7 +29,7 @@ test('plusieurs fauteuils servent la meme file, en parallele', { skip: IGNORE },
     assert.equal(r.status, 200);
     assert.equal(r.body.items.length, 1);
     assert.equal(r.body.actifs, 1);
-    assert.equal(r.body.items[0].nom, 'Fauteuil 1');
+    assert.equal(r.body.items[0].nom, 'Sillón 1');
     assert.equal(r.body.items[0].actif, true);
     fauteuil1 = r.body.items[0];
   });
@@ -53,7 +53,7 @@ test('plusieurs fauteuils servent la meme file, en parallele', { skip: IGNORE },
   await t.test('deux fauteuils du meme nom sont refuses', async () => {
     const r = await gerant.post('/api/postes', { nom: 'fauteuil 2' });
     assert.equal(r.status, 409);
-    assert.match(r.body.error.message, /porte déjà ce nom/);
+    assert.match(r.body.error.message, /ese nombre/);
   });
 
   await t.test('la creation et la modification sont reservees au gerant', async () => {
@@ -98,7 +98,7 @@ test('plusieurs fauteuils servent la meme file, en parallele', { skip: IGNORE },
     const premier = await coiffeur.post('/api/file/suivant', { posteId: fauteuil1.id });
     assert.equal(premier.status, 200);
     assert.equal(premier.body.appele, 'A001');
-    assert.equal(premier.body.fauteuil, 'Fauteuil 1');
+    assert.equal(premier.body.fauteuil, 'Sillón 1');
 
     const second = await coiffeur.post('/api/file/suivant', { posteId: fauteuil2.id });
     assert.equal(second.status, 200);
@@ -120,7 +120,7 @@ test('plusieurs fauteuils servent la meme file, en parallele', { skip: IGNORE },
     const r = await coiffeur.post('/api/file/' + cible.id + '/appeler', { posteId: fauteuil1.id });
     assert.equal(r.status, 409);
     assert.equal(r.body.error.code, 'FAUTEUIL_OCCUPE');
-    assert.match(r.body.error.message, /Fauteuil 1/);
+    assert.match(r.body.error.message, /Sillón 1/);
     assert.match(r.body.error.message, /A001/);
   });
 
@@ -178,7 +178,7 @@ test('plusieurs fauteuils servent la meme file, en parallele', { skip: IGNORE },
         WHERE t.statut = 'COMPLETED' LIMIT 1`,
     );
     assert.equal(servi.numero_affiche, 'A001');
-    assert.equal(servi.nom, 'Fauteuil 1');
+    assert.equal(servi.nom, 'Sillón 1');
   });
 
   await t.test('un absent libere son fauteuil et repart en fin de file', async () => {
@@ -199,7 +199,7 @@ test('plusieurs fauteuils servent la meme file, en parallele', { skip: IGNORE },
   await t.test('sans fauteuil precise, le premier libre est pris', async () => {
     const r = await coiffeur.post('/api/file/suivant');
     assert.equal(r.status, 200);
-    assert.equal(r.body.fauteuil, 'Fauteuil 1');
+    assert.equal(r.body.fauteuil, 'Sillón 1');
   });
 
   /* ---------------- ouvrir, fermer, supprimer ---------------- */
@@ -207,7 +207,7 @@ test('plusieurs fauteuils servent la meme file, en parallele', { skip: IGNORE },
   await t.test('fermer un fauteuil occupe est refuse', async () => {
     const r = await gerant.patch('/api/postes/' + fauteuil1.id, { actif: false });
     assert.equal(r.status, 409);
-    assert.match(r.body.error.message, /assis à ce fauteuil/);
+    assert.match(r.body.error.message, /sentado en este sillón/);
   });
 
   await t.test('un fauteuil libre se ferme, et disparait des appels', async () => {
@@ -232,13 +232,13 @@ test('plusieurs fauteuils servent la meme file, en parallele', { skip: IGNORE },
 
     const r = await gerant.patch('/api/postes/' + fauteuil1.id, { actif: false });
     assert.equal(r.status, 409);
-    assert.match(r.body.error.message, /dernier fauteuil/);
+    assert.match(r.body.error.message, /último sillón/);
   });
 
   await t.test('un fauteuil qui a servi ne se supprime pas, il se ferme', async () => {
     const r = await gerant.delete('/api/postes/' + fauteuil1.id);
     assert.equal(r.status, 409);
-    assert.match(r.body.error.message, /effacerait cet historique/);
+    assert.match(r.body.error.message, /ese historial/);
   });
 
   await t.test('un fauteuil qui n a jamais servi se supprime', async () => {

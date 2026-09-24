@@ -1,8 +1,8 @@
 {
   "name": "Peluquería HARON",
   "short_name": "HARON",
-  "description": "Prenez votre tour au salon, suivez votre position en direct.",
-  "lang": "fr",
+  "description": "Pide tu turno en el salón y sigue tu posición en directo.",
+  "lang": "es",
   "dir": "ltr",
   "start_url": "/",
   "scope": "/",
@@ -17,6 +17,6 @@
     { "src": "/img/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
   ],
   "shortcuts": [
-    { "name": "Prendre mon tour", "url": "/join" }
+    { "name": "Pedir mi turno", "url": "/join" }
   ]
 }

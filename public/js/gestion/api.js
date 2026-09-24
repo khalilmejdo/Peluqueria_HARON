@@ -43,7 +43,7 @@ async function requete(methode, chemin, corps) {
       credentials: 'same-origin',
     });
   } catch {
-    throw new ErreurApi('Le salon n’est pas joignable. Vérifiez la connexion internet.', { statut: 0 });
+    throw new ErreurApi('No se puede contactar con el salón. Comprueba la conexión a internet.', { statut: 0 });
   }
 
   if (reponse.status === 204) return null;
@@ -62,7 +62,7 @@ async function requete(methode, chemin, corps) {
 
   if (!reponse.ok) {
     throw new ErreurApi(
-      donnees?.error?.message || 'Une erreur est survenue (' + reponse.status + ').',
+      donnees?.error?.message || 'Ha ocurrido un error (' + reponse.status + ').',
       { statut: reponse.status, code: donnees?.error?.code ?? null, champs: donnees?.error?.details?.fields ?? null },
     );
   }

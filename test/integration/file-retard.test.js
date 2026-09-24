@@ -133,7 +133,7 @@ test('un client absent repart en fin de file, sans jamais perdre son tour', { sk
     const termine = r.body.file.termines[0];
     const refus = await salon.post('/api/file/' + termine.id + '/absent');
     assert.equal(refus.status, 409);
-    assert.match(refus.body.error.message, /plus dans la file/);
+    assert.match(refus.body.error.message, /ya no está en la fila/);
   });
 
   await t.test('les rangs ne se reutilisent jamais : deux clients ne partagent pas une place', async () => {

@@ -104,7 +104,7 @@ test('la file du salon, du premier ticket au dernier client servi', { skip: IGNO
     const r = await banc.client().get('/api/public/tickets/' + youssef.jeton);
     assert.equal(r.body.phase, 'VOTRE_TOUR');
     assert.equal(r.body.devant, 0);
-    assert.match(r.body.titre, /votre tour/i);
+    assert.match(r.body.titre, /tu turno/i);
   });
 
   await t.test('un seul client au fauteuil a la fois', async () => {

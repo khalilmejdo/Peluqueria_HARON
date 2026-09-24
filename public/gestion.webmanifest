@@ -1,8 +1,8 @@
 {
-  "name": "Salon HARON — la file",
-  "short_name": "Salon HARON",
-  "description": "L’écran du coiffeur : la file du jour, le client actuel, un bouton.",
-  "lang": "fr",
+  "name": "Salón HARON — la fila",
+  "short_name": "Salón HARON",
+  "description": "La pantalla del peluquero: la fila del día, el cliente actual, un botón.",
+  "lang": "es",
   "dir": "ltr",
   "start_url": "/gestion",
   "scope": "/gestion",

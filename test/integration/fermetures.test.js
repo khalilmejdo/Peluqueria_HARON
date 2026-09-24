@@ -144,7 +144,7 @@ test('le salon peut fermer son entree sans jamais interrompre la file', { skip: 
     assert.equal(r.body.error.code, 'SALON_EN_CONGES');
     // Le message dit la date de reouverture : c'est ce que le client veut savoir.
     assert.match(r.body.error.message, /Congés d’été/);
-    assert.match(r.body.error.message, /rouvrons/);
+    assert.match(r.body.error.message, /Reabrimos/);
   });
 
   await t.test('l accueil annonce la fermeture et la date de reouverture', async () => {
@@ -176,7 +176,7 @@ test('le salon peut fermer son entree sans jamais interrompre la file', { skip: 
       au: jourPlus(aujourdhui, 10),
     });
     assert.equal(r.status, 409);
-    assert.match(r.body.error.message, /couvre déjà/);
+    assert.match(r.body.error.message, /cubre estas fechas/);
   });
 
   await t.test('une periode dans le passe est refusee', async () => {
@@ -185,7 +185,7 @@ test('le salon peut fermer son entree sans jamais interrompre la file', { skip: 
       au: jourPlus(aujourdhui, -20),
     });
     assert.equal(r.status, 400);
-    assert.match(r.body.error.message, /passé/);
+    assert.match(r.body.error.message, /en el pasado/);
   });
 
   await t.test('une fin avant le debut est refusee', async () => {

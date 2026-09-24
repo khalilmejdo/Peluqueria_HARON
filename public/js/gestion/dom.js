@@ -75,28 +75,28 @@ export function heure(instant) {
 export function depuis(instant) {
   if (!instant) return '';
   const minutes = Math.max(0, Math.round((Date.now() - new Date(instant).getTime()) / 60000));
-  if (minutes < 1) return 'à l’instant';
-  if (minutes < 60) return 'depuis ' + minutes + ' min';
+  if (minutes < 1) return 'ahora mismo';
+  if (minutes < 60) return 'desde hace ' + minutes + ' min';
   const h = Math.floor(minutes / 60);
   const reste = minutes % 60;
-  return 'depuis ' + h + ' h' + (reste ? ' ' + String(reste).padStart(2, '0') : '');
+  return 'desde hace ' + h + ' h' + (reste ? ' ' + String(reste).padStart(2, '0') : '');
 }
 
 export function minutesLisibles(minutes) {
   const m = Math.max(0, Math.round(Number(minutes) || 0));
-  if (m <= 0) return 'quelques instants';
+  if (m <= 0) return 'unos minutos';
   if (m < 60) return m + ' min';
   const h = Math.floor(m / 60);
   const reste = m % 60;
   return h + ' h' + (reste ? ' ' + String(reste).padStart(2, '0') : '');
 }
 
-export const LIBELLE_SOURCE = { ONLINE: 'En ligne', QR: 'QR Code', COMPTOIR: 'Comptoir' };
+export const LIBELLE_SOURCE = { ONLINE: 'Por internet', QR: 'Código QR', COMPTOIR: 'Mostrador' };
 export const LIBELLE_STATUT = {
-  WAITING: 'En attente',
-  LATE: 'En attente · déjà absent',
-  CALLED: 'Appelé',
-  IN_SERVICE: 'En cours',
-  COMPLETED: 'Terminé',
-  CANCELLED: 'Annulé',
+  WAITING: 'Esperando',
+  LATE: 'Esperando · ya estuvo ausente',
+  CALLED: 'Llamado',
+  IN_SERVICE: 'En curso',
+  COMPLETED: 'Atendido',
+  CANCELLED: 'Anulado',
 };

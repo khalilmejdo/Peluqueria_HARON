@@ -2,6 +2,11 @@
 
 **Un salon. Une file. Un ticket. Un lien WhatsApp. Zéro complication.**
 
+> **Le site est en espagnol** — pages du client comme espace de gestion : le
+> salon est en Espagne. Le code, lui, reste commenté en français, et les
+> messages de démarrage du serveur aussi : ils ne s'affichent que dans les
+> journaux du conteneur.
+
 Le client prend son tour depuis son téléphone — en ligne ou en scannant le QR
 Code de la vitrine — et suit sa position en direct. Le coiffeur voit le client
 actuel en très gros et appuie sur un seul bouton.
@@ -122,6 +127,7 @@ Mise en place et modèles à faire approuver : [`docs/WHATSAPP.md`](docs/WHATSAP
 
 | | |
 |---|---|
+| **Fiche de prix** | Une liste simple — service, prix, note — affichée en vitrine sur la page d'accueil. Ajout, renommage, réordonnancement, masquage. Le prix se tape « 14 » ou « 14,90 » ; il est stocké en centimes entiers, jamais en flottant. |
 | **Fauteuils** | Autant que le salon en a. Nom libre, nom du coiffeur, ouverture et fermeture à la demande. |
 | **Organisation de la file** | **Une seule file** (par défaut) : le client prend un tour, le premier coiffeur libre le sert. **Une file par coiffeur** : le client choisit le sien et attend dans sa file. Se change avec une file vide. |
 | **Arrêter les prises de tour** | Un appui. La file en cours continue, personne de nouveau n'entre. |
@@ -147,6 +153,8 @@ vérifiées par des tests qui font agir deux personnes au même instant.
 | Un client appelé est toujours rattaché à un fauteuil | contrainte `CHECK` |
 | Un ticket d'une journée close ne bouge plus | déclencheur PostgreSQL, erreur `HR001` |
 | Un client ne reçoit jamais deux fois le même message | unique `(ticket, type, passage)` |
+| La fiche de prix ne porte pas deux fois la même prestation | index unique sur le nom normalisé |
+| Un prix ne dérive jamais d'un centime | entier de centimes de bout en bout, aucun flottant |
 | Personne n'atteint le ticket d'un autre | jeton de 192 bits, stocké en condensat seul |
 | Aucun numéro WhatsApp ne sort côté public | chiffré AES-256-GCM, jamais dans une réponse publique ni dans les journaux |
 
@@ -163,7 +171,7 @@ server/
   http/             routeur, contexte, corps, fichiers statiques, en-têtes
   db/               schema.sql (idempotent), accès, données de référence
   domain/           file.js  ← LE CŒUR
-                    journee.js, postes.js, fermetures.js,
+                    journee.js, postes.js, fermetures.js, tarifas.js,
                     notifications.js, statistiques.js
   routes/           public (sans compte) / salon (session)
   site/             pages du client, rendues par le serveur

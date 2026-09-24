@@ -343,6 +343,73 @@
 .fauteuil__actions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.4rem; }
 
 /* ------------------------------------------------------------------ */
+/*  Fiche de prix                                                      */
+/* ------------------------------------------------------------------ */
+
+/*
+ * L'ordre affiché ici est exactement celui de la vitrine : la liste se lit
+ * donc de haut en bas comme le client la lira, et les flèches déplacent la
+ * ligne réellement, pas seulement à l'écran.
+ */
+.tarifas-admin { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+
+.tarifa-admin {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 1rem;
+  align-items: center;
+  padding: 0.8rem 1rem;
+  border-radius: var(--r);
+  background: var(--fond-carte-2);
+}
+
+/* Une ligne masquée reste lisible mais visiblement en retrait : le gérant doit
+   voir d'un coup d'œil ce qui ne sort pas en vitrine. */
+.tarifa-admin--oculta { opacity: 0.55; }
+
+.tarifa-admin__texte { display: grid; gap: 0.15rem; min-width: 0; }
+
+.tarifa-admin__nombre {
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: 1.02rem;
+}
+.tarifa-admin__nota { font-size: 0.8rem; color: var(--texte-doux); }
+.tarifa-admin__badge {
+  justify-self: start;
+  color: var(--texte-doux);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.68rem;
+}
+
+.tarifa-admin__precio {
+  font-family: var(--police-titre);
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Les actions passent sous les deux colonnes : sur un téléphone, elles
+   tiendraient sinon sur la même ligne que le prix et le pousseraient dehors. */
+.tarifa-admin__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+@media (min-width: 40rem) {
+  .tarifa-admin { grid-template-columns: 1fr auto auto; }
+  .tarifa-admin__actions { grid-column: auto; flex-wrap: nowrap; }
+}
+
+.tarifas-admin__ajout { margin-top: 0.75rem; }
+
+/* ------------------------------------------------------------------ */
 /*  Congés                                                             */
 /* ------------------------------------------------------------------ */
 

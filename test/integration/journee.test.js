@@ -99,7 +99,7 @@ test('une nouvelle journee part d une file vide et d une numerotation neuve', { 
       () => banc.db.query("UPDATE tickets SET statut = 'WAITING' WHERE jour = $1", [hier]),
       (err) => {
         assert.equal(err.code, 'HR001');
-        assert.match(err.message, /close/);
+        assert.match(err.message, /cerrada/);
         return true;
       },
     );
@@ -134,7 +134,7 @@ test('une nouvelle journee part d une file vide et d une numerotation neuve', { 
     });
     assert.equal(r.status, 409);
     assert.equal(r.body.error.code, 'JOURNEE_CLOSE');
-    assert.match(r.body.error.message, /clôturé sa journée/);
+    assert.match(r.body.error.message, /cerrado la jornada/);
 
     const suivant = await salon.post('/api/file/suivant');
     assert.ok(suivant.status === 400 || suivant.status === 409, 'statut inattendu : ' + suivant.status);
@@ -150,6 +150,6 @@ test('une nouvelle journee part d une file vide et d une numerotation neuve', { 
   await t.test('la cloture est reservee au gerant', async () => {
     const r = await salon.post('/api/file/cloturer');
     assert.equal(r.status, 403);
-    assert.match(r.body.error.message, /gérant/);
+    assert.match(r.body.error.message, /gerente/);
   });
 });

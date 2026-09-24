@@ -17,7 +17,7 @@ if (formulaire) {
   const REGLES = {
     prenom: (v) => (v.length < 2 ? 'Tu nombre es obligatorio.'
       : (!NOM_RE.test(v) ? 'Solo se aceptan letras, espacio, apóstrofo y guion.' : null)),
-    nom: (v) => (v.length < 2 ? 'Votre nom est obligatoire.'
+    nom: (v) => (v.length < 2 ? 'Tu apellido es obligatorio.'
       : (!NOM_RE.test(v) ? 'Solo se aceptan letras, espacio, apóstrofo y guion.' : null)),
     telephone: (v) => {
       if (!v) return 'Tu número de WhatsApp es obligatorio.';

@@ -178,7 +178,7 @@ test('les tickets, les numeros et la file sont fermes a qui n y a pas droit', { 
     for (const chemin of ['/api/reglages', '/api/comptes', '/api/statistiques/historique', '/api/service/etat']) {
       const r = await coiffeur.get(chemin);
       assert.equal(r.status, 403, chemin + ' devrait etre reserve au gerant');
-      assert.match(r.body.error.message, /gérant/);
+      assert.match(r.body.error.message, /gerente/);
     }
     const ecriture = await coiffeur.put('/api/reglages', { valeurs: { 'file.dureeMoyenneMinutes': 5 } });
     assert.equal(ecriture.status, 403);
@@ -266,7 +266,7 @@ test('les tickets, les numeros et la file sont fermes a qui n y a pas droit', { 
     assert.ok(refuse, 'le meme numero aurait du finir par etre arrete');
     assert.equal(refuse.body.error.code, 'TROP_DE_DEMANDES');
     // Le message dit la vraie attente, pas « patientez un instant ».
-    assert.match(refuse.body.error.message, /minute|heure|seconde/);
+    assert.match(refuse.body.error.message, /minuto|hora|segundo/);
   });
 
   /* ---------------- referencement ---------------- */
@@ -306,7 +306,7 @@ test('les tickets, les numeros et la file sont fermes a qui n y a pas droit', { 
     const moi = await gerant.get('/api/auth/session');
     const r = await gerant.patch('/api/comptes/' + moi.body.utilisateur.id, { role: 'COIFFEUR' });
     assert.equal(r.status, 403);
-    assert.match(r.body.error.message, /vos propres droits/i);
+    assert.match(r.body.error.message, /tus propios permisos/i);
   });
 
   await t.test('le salon garde toujours au moins un gerant actif', async () => {
