@@ -93,22 +93,22 @@ export function ciseauxEtPeigne() {
 /* ------------------------------------------------------------------ */
 
 /** Un telephone, pour « pide tu turno ». */
-const iconeTelephone = '<rect x="7" y="2" width="18" height="28" rx="4"/>'
+const pasTelephone = '<rect x="7" y="2" width="18" height="28" rx="4"/>'
   + '<path d="M13 6 H19"/>'
   + '<path d="M11 14 H21 M11 19 H18"/>';
 
 /** Une file de personnes vue de dessus, pour « sigue tu posición ». */
-const iconeFile = '<circle cx="9" cy="9" r="4"/>'
+const pasFile = '<circle cx="9" cy="9" r="4"/>'
   + '<path d="M3 22 a6 6 0 0 1 12 0"/>'
   + '<circle cx="23" cy="11" r="3.2"/>'
   + '<path d="M18 22 a5 5 0 0 1 10 0"/>';
 
 /** Une porte qui s'ouvre, pour « llega a tiempo ». */
-const iconePorte = '<path d="M7 29 V6 l14-3 v27 Z"/>'
+const pasPorte = '<path d="M7 29 V6 l14-3 v27 Z"/>'
   + '<path d="M21 29 H27 V3"/>'
   + '<circle cx="11.5" cy="17" r="1.4" class="illu__point"/>';
 
-const ICONES_ETAPES = [iconeTelephone, iconeFile, iconePorte];
+const ICONES_ETAPES = [pasTelephone, pasFile, pasPorte];
 
 /**
  * L'icone d'une etape. Un seul trait, la meme epaisseur partout : trois
@@ -116,10 +116,80 @@ const ICONES_ETAPES = [iconeTelephone, iconeFile, iconePorte];
  * assemblage.
  */
 export function iconeEtape(index) {
-  const formes = ICONES_ETAPES[index] || iconeTelephone;
+  const formes = ICONES_ETAPES[index] || pasTelephone;
   return '<svg class="illu illu--etape" viewBox="0 0 32 32" fill="none" aria-hidden="true" focusable="false">'
     + '<g class="illu__trait">' + formes + '</g>'
     + '</svg>';
+}
+
+/**
+ * L'embleme rond de la fiche de prix — le medaillon du tableau du salon.
+ *
+ * Le texte suit le cercle : un `textPath` sur un arc, comme un cachet. C'est
+ * ce qui le distingue d'un logo pose dans un rond, et c'est exactement ce que
+ * font les enseignes de barbier depuis un siecle.
+ *
+ * L'identifiant de l'arc porte un suffixe fixe : un seul embleme par page, et
+ * deux identifiants identiques dans un document feraient pointer les deux
+ * textes sur le meme arc.
+ */
+export function emblemeRond() {
+  return '<svg class="illu illu--medaillon" viewBox="0 0 120 120" fill="none" aria-hidden="true" focusable="false">'
+    + '<defs>'
+    // L'arc du haut va de GAUCHE a DROITE en passant par le dessus : le texte
+    // s'y pose a l'endroit.
+    + '<path id="haron-arc-haut" d="M16 60 A44 44 0 0 1 104 60" />'
+    // Celui du bas doit aussi aller de GAUCHE a DROITE, mais en passant par le
+    // dessous — d'ou le drapeau de balayage a 0. Avec 1, l'arc revient par le
+    // haut et le texte s'affiche LA TETE EN BAS ; c'est le piege classique du
+    // texte circulaire, et il ne se voit qu'a l'ecran.
+    + '<path id="haron-arc-bas" d="M20 60 A40 40 0 0 0 100 60" />'
+    + '</defs>'
+    + '<circle cx="60" cy="60" r="56" class="medaillon__bord"/>'
+    + '<circle cx="60" cy="60" r="50" class="medaillon__bord medaillon__bord--fin"/>'
+    + '<circle cx="60" cy="60" r="34" class="medaillon__bord medaillon__bord--fin"/>'
+    + '<text class="medaillon__texte"><textPath href="#haron-arc-haut" startOffset="50%" text-anchor="middle">'
+    + 'PELUQUERÍA HARON</textPath></text>'
+    + '<text class="medaillon__texte medaillon__texte--petit">'
+    + '<textPath href="#haron-arc-bas" startOffset="50%" text-anchor="middle">SERVICIO Y ESTILO</textPath></text>'
+    + '<g class="illu__trait medaillon__dessin">'
+    + '<circle cx="52" cy="72" r="4"/><circle cx="68" cy="72" r="4"/>'
+    + '<path d="M54.8 69.2 72 48M65.2 69.2 48 48"/>'
+    + '<path d="M44 58h32"/><path d="M48 58v-7M56 58v-7M64 58v-7M72 58v-7"/>'
+    + '</g>'
+    + '</svg>';
+}
+
+/** Les petits ciseaux du filet orne, au milieu de la fiche. */
+export function ciseauxPetits() {
+  return '<svg class="illu illu--ciseaux-petits" viewBox="0 0 32 24" fill="none" aria-hidden="true" focusable="false">'
+    + '<g class="illu__trait">'
+    + '<circle cx="9" cy="18" r="3.2"/><circle cx="23" cy="18" r="3.2"/>'
+    + '<path d="M11.3 15.7 25 4M20.7 15.7 7 4"/>'
+    + '</g></svg>';
+}
+
+/* ------------------------------------------------------------------ */
+/*  Le contact                                                         */
+/* ------------------------------------------------------------------ */
+
+const enveloppeIcone = (formes) => '<svg class="illu illu--contacto" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">'
+  + '<g class="illu__trait">' + formes + '</g></svg>';
+
+/** Une epingle de carte. */
+export function iconeLieu() {
+  return enveloppeIcone('<path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/>');
+}
+
+/** Un combine telephonique. */
+export function iconeTelephone() {
+  return enveloppeIcone('<path d="M6 3h3l2 5-2.5 1.5a12 12 0 0 0 6 6L16 13l5 2v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4 5.2 2 2 0 0 1 6 3Z"/>');
+}
+
+/** Une bulle de conversation. */
+export function iconeConversation() {
+  return enveloppeIcone('<path d="M4 5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9l-5 4V6a1 1 0 0 1 1-1Z"/>'
+    + '<path d="M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01"/>');
 }
 
 /**
@@ -137,4 +207,123 @@ export function separateur() {
     + '</svg>'
     + '<span class="separateur__filet"></span>'
     + '</div>';
+}
+
+
+/* ------------------------------------------------------------------ */
+/*  Les scenes du salon — en attendant les vraies photos               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Trois scenes dessinees, montrees tant que le gerant n'a depose aucune photo.
+ *
+ * POURQUOI PAS UNE PHOTO DE BANQUE D'IMAGES. Parce qu'elle mentirait. Un
+ * client qui pousse la porte et ne reconnait rien de ce qu'il a vu sur le site
+ * se sent trompe, et il a raison : la photo montrait un autre salon. Un dessin,
+ * lui, ne pretend a rien — il dit « voila l'idee » et laisse la place.
+ *
+ * Elles disparaissent d'elles-memes : des qu'une seule vraie photo arrive dans
+ * le dossier, la galerie montre les photos et plus les dessins. Il n'y a pas de
+ * reglage a penser a changer, et c'est voulu — un reglage a decocher plus tard
+ * reste coche pour toujours.
+ *
+ * L'OCCLUSION EST LE SUJET. En dessin au trait, un meuble derriere un fauteuil
+ * se voit A TRAVERS le fauteuil : tout devient une radiographie et la scene ne
+ * se lit plus. Les formes du premier plan portent donc `illu__masque`, qui les
+ * remplit de la couleur du cadre avant de les cerner. C'est ce qui donne la
+ * profondeur, et c'est le seul endroit du dessin ou une forme est pleine.
+ */
+const SCENES = [
+  ['Nuestro salón', '<svg class="illu illu--scene" viewBox="0 0 320 200" fill="none" aria-hidden="true" focusable="false">'
+    + '<g class="illu__trait-fin">'
+    // Le fond : le sol, les deux miroirs, le plan de travail continu.
+    + '<path d="M18 176 H302"/>'
+    + '<rect x="46" y="24" width="72" height="86" rx="8"/>'
+    + '<rect x="202" y="24" width="72" height="86" rx="8"/>'
+    + '<rect x="26" y="120" width="268" height="10" rx="3"/>'
+    // Les flacons, poses entre les deux postes : la seule zone libre.
+    + '<path d="M142 120 v-12 a5 5 0 0 1 10 0 v12"/>'
+    + '<path d="M162 120 v-16 h8 v16"/>'
+    + '<path d="M178 120 v-10 a4 4 0 0 1 8 0 v10"/>'
+    + '</g>'
+    + '<g class="illu__laiton-trait">'
+    // La suspension, au centre : le seul accent de laiton de la scene.
+    + '<path d="M160 6 v30"/><path d="M140 36 h40 l-11 20 h-18 Z"/><path d="M152 64 h16"/>'
+    + '</g>'
+    // Les deux fauteuils, au premier plan : pleins, donc ils cachent le meuble.
+    + '<g class="illu__masque">'
+    + '<path d="M64 152 v-34 a10 10 0 0 1 10-10 h20 a10 10 0 0 1 10 10 v34 Z"/>'
+    + '<rect x="56" y="148" width="56" height="14" rx="7"/>'
+    + '<path d="M214 152 v-34 a10 10 0 0 1 10-10 h20 a10 10 0 0 1 10 10 v34 Z"/>'
+    + '<rect x="206" y="148" width="56" height="14" rx="7"/>'
+    + '</g>'
+    + '<g class="illu__trait">'
+    + '<path d="M84 162 v14"/><path d="M68 176 H100"/>'
+    + '<path d="M234 162 v14"/><path d="M218 176 H250"/>'
+    + '</g></svg>'],
+
+  ['El sillón', '<svg class="illu illu--scene" viewBox="0 0 320 200" fill="none" aria-hidden="true" focusable="false">'
+    + '<g class="illu__trait-fin">'
+    + '<path d="M18 180 H302"/>'
+    // Le grand miroir et sa couronne d'ampoules. Les ampoules sont DANS
+    // l'anneau, pas posees dessus : sur le cercle lui-meme, elles donnaient
+    // une roue dentee.
+    + '<circle cx="210" cy="88" r="70"/>'
+    + '<circle cx="210" cy="88" r="52"/>'
+    + [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) => {
+      const a = (i * Math.PI) / 6;
+      return '<circle cx="' + (210 + 61 * Math.cos(a)).toFixed(1)
+        + '" cy="' + (88 + 61 * Math.sin(a)).toFixed(1) + '" r="3.4"/>';
+    }).join('')
+    + '</g>'
+    // Le fauteuil, de profil, tourne vers le miroir.
+    + '<g class="illu__masque">'
+    + '<path d="M60 130 V62 a12 12 0 0 1 12-12 h34 a12 12 0 0 1 12 12 v68 Z"/>'
+    + '<path d="M74 50 V40 a9 9 0 0 1 9-9 h12 a9 9 0 0 1 9 9 v10 Z"/>'
+    + '<path d="M50 128 h74 a9 9 0 0 1 0 26 H50 a9 9 0 0 1 0-26 Z"/>'
+    + '</g>'
+    + '<g class="illu__trait">'
+    + '<path d="M92 154 v26"/><path d="M60 180 H124"/><path d="M70 168 H114"/>'
+    + '</g>'
+    + '<g class="illu__laiton-trait">'
+    // Le repose-pied et la manette, en laiton : sur un fauteuil de barbier ce
+    // sont les deux pieces qui brillent, et elles suffisent a le dater.
+    + '<path d="M50 136 H32 a7 7 0 0 0-7 7 v11"/>'
+    + '<path d="M25 154 h16"/>'
+    + '<path d="M124 158 h22"/><circle cx="150" cy="158" r="4"/>'
+    + '</g></svg>'],
+
+  ['La entrada', '<svg class="illu illu--scene" viewBox="0 0 320 200" fill="none" aria-hidden="true" focusable="false">'
+    + '<g class="illu__trait-fin">'
+    + '<path d="M14 186 H306"/>'
+    // La facade, la vitrine, la porte.
+    + '<path d="M44 186 V58 h232 v128"/>'
+    + '<rect x="60" y="96" width="106" height="74"/>'
+    + '<path d="M78 170 v-24 h60 v24"/>'
+    + '<rect x="186" y="96" width="56" height="90" rx="4"/>'
+    + '<circle cx="195" cy="144" r="3" class="illu__point"/>'
+    + '</g>'
+    + '<g class="illu__laiton-trait">'
+    // L'auvent raye, et l'enseigne au-dessus.
+    + '<path d="M36 58 h248 l-12 24 H48 Z"/>'
+    + [0, 1, 2, 3, 4, 5, 6, 7].map((i) => '<path d="M' + (58 + i * 29) + ' 58 l-6 24"/>').join('')
+    + '<rect x="98" y="22" width="124" height="24" rx="6"/>'
+    + '</g>'
+    // Le mat de barbier, contre le mur — a l'INTERIEUR de la facade, sinon il
+    // flotte a cote du batiment.
+    + '<g class="illu__masque">'
+    + '<rect x="252" y="106" width="14" height="52" rx="7"/>'
+    + '</g>'
+    + '<g class="illu__trait">'
+    + '<path d="M250 102 h18"/><path d="M250 162 h18"/>'
+    + '</g></svg>'],
+];
+
+/**
+ * Les scenes, sous la forme que la galerie attend : un titre et un dessin.
+ * On rend une COPIE du tableau — l'appelant ne doit pas pouvoir vider la liste
+ * pour tout le monde en la triant ou en la coupant.
+ */
+export function scenesDuSalon() {
+  return SCENES.map(([legende, dessin]) => ({ legende, dessin }));
 }

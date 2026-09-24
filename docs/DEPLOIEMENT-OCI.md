@@ -253,8 +253,22 @@ Dans l'ordre de fréquence :
    docker compose -f docker-compose.oci.yml up -d
    ```
 3. Réglages → nom du salon, adresse, téléphone, durée d'une coupe, fauteuils.
-4. Onglet **Tarifas** → vos vrais prix. Les huit lignes créées au premier
-   démarrage sont des ordres de grandeur, pas une vérité.
+4. Onglet **Tarifas** → vos vrais prix. Les lignes créées au premier démarrage
+   sont des ordres de grandeur, pas une vérité.
+
+   Sur une base **déjà en service**, l'amorçage ne touche plus à la table — il
+   protège ainsi les prix que vous avez saisis. Pour y charger d'un coup la
+   fiche du salon écrite dans le code :
+
+   ```bash
+   docker compose -f docker-compose.oci.yml exec app npm run tarifas
+   # rien n'est écrit : le script affiche seulement ce qui changerait
+   docker compose -f docker-compose.oci.yml exec app npm run tarifas -- --remplacer
+   ```
+
+   `--remplacer` **vide la table** avant d'écrire : c'est voulu, une fusion sur
+   les noms laisserait des doublons proches (« Corte » / « Corte normal »)
+   qu'on ne verrait qu'en vitrine. Aucun ticket ne référence un tarif.
 5. Onglet **QR Code** → vérifiez l'adresse, **scannez-la avec un téléphone**,
    puis imprimez l'affiche.
 
@@ -262,8 +276,14 @@ Dans l'ordre de fréquence :
 
 ## 8 bis. Les photos du salon
 
-La page d'accueil affiche une section « El salón » dès qu'il y a des photos, et
-la masque quand il n'y en a pas. Elles ne sont **pas** dans l'image Docker :
+La page d'accueil affiche une section « El salón » dès qu'il y a des photos.
+Tant qu'il n'y en a aucune, elle montre **trois scènes dessinées** — un salon,
+un fauteuil, une devanture — et le dit en toutes lettres sous les images. Pas
+de photo de banque d'images : un client qui pousse la porte et ne reconnaît
+rien se sent trompé, et il a raison. Les dessins s'effacent d'eux-mêmes dès la
+première vraie photo déposée ; il n'y a aucun réglage à décocher.
+
+Elles ne sont **pas** dans l'image Docker :
 `/opt/haron/photos` est monté en volume, donc en ajouter une ne demande ni
 reconstruction, ni redémarrage.
 

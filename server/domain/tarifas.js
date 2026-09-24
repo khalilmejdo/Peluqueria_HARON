@@ -18,8 +18,9 @@ import { all, one, execute, transaction } from '../db/index.js';
 import { newId } from '../core/crypto.js';
 import { AppError, notFound, badRequest } from '../core/errors.js';
 import { normalize, cleanSpaces } from '../core/text.js';
+import { ICONES } from '../site/icones-tarifas.js';
 
-const COLONNES = 'id, nombre, precio_cts, nota, ordre, visible, created_at, updated_at';
+const COLONNES = 'id, nombre, precio_cts, nota, icono, ordre, visible, created_at, updated_at';
 
 /** Au-dela, ce n'est plus un prix de coiffure mais une faute de frappe. */
 const PRIX_MAX_CTS = 100000;
@@ -100,6 +101,7 @@ export async function pourVitrine() {
     id: l.id,
     nombre: l.nombre,
     nota: l.nota || '',
+    icono: l.icono || null,
     precioCts: l.precio_cts,
     precio: prixLegible(l.precio_cts),
   }));
@@ -120,6 +122,17 @@ function notaValide(valeur) {
   const nota = cleanSpaces(String(valeur ?? ''));
   if (nota.length > NOTA_MAX) throw badRequest('La nota no puede pasar de ' + NOTA_MAX + ' caracteres.');
   return nota;
+}
+
+/**
+ * L'icone : un nom de la liste fermee, ou rien.
+ *
+ * Un nom inconnu est ECARTE en silence plutot que refuse : le gerant n'a rien
+ * fait de mal, et une ligne sans icone reste parfaitement lisible.
+ */
+function iconeValide(valeur) {
+  const nom = String(valeur ?? '').trim();
+  return ICONES.includes(nom) ? nom : null;
 }
 
 function prixValide(valeur) {
@@ -145,19 +158,20 @@ function traduireErreur(err) {
 }
 
 /** Ajoute une prestation en fin de fiche. */
-export async function crear({ nombre, precio, nota } = {}) {
+export async function crear({ nombre, precio, nota, icono } = {}) {
   const nom = nomValide(nombre);
   const cts = prixValide(precio);
   const note = notaValide(nota);
+  const icone = iconeValide(icono);
   const id = newId();
 
   // « ordre » suit le maximum existant : une nouvelle ligne arrive en bas, la
   // ou le gerant vient de la taper. Elle ne se glisse jamais au milieu.
   try {
     await execute(
-      'INSERT INTO tarifas (id, nombre, nombre_lower, precio_cts, nota, ordre, visible) '
-      + 'VALUES ($1, $2, $3, $4, $5, COALESCE((SELECT MAX(ordre) + 1 FROM tarifas), 0), TRUE)',
-      [id, nom, normalize(nom), cts, note || null],
+      'INSERT INTO tarifas (id, nombre, nombre_lower, precio_cts, nota, icono, ordre, visible) '
+      + 'VALUES ($1, $2, $3, $4, $5, $6, COALESCE((SELECT MAX(ordre) + 1 FROM tarifas), 0), TRUE)',
+      [id, nom, normalize(nom), cts, note || null, icone],
     );
   } catch (err) {
     throw traduireErreur(err);
@@ -174,11 +188,12 @@ export async function modificar(id, champs = {}) {
   const cts = champs.precio === undefined ? actuel.precio_cts : prixValide(champs.precio);
   const note = champs.nota === undefined ? (actuel.nota || '') : notaValide(champs.nota);
   const visible = champs.visible === undefined ? actuel.visible : Boolean(champs.visible);
+  const icone = champs.icono === undefined ? actuel.icono : iconeValide(champs.icono);
 
   try {
     await execute(
-      'UPDATE tarifas SET nombre = $2, nombre_lower = $3, precio_cts = $4, nota = $5, visible = $6 WHERE id = $1',
-      [id, nom, normalize(nom), cts, note || null, visible],
+      'UPDATE tarifas SET nombre = $2, nombre_lower = $3, precio_cts = $4, nota = $5, visible = $6, icono = $7 WHERE id = $1',
+      [id, nom, normalize(nom), cts, note || null, visible, icone],
     );
   } catch (err) {
     throw traduireErreur(err);

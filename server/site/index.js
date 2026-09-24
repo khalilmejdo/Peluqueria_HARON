@@ -27,7 +27,12 @@ import { pngNoirEtBlanc } from '../core/png.js';
 import { prendreTour, ticketParJeton, chargerEtat, pourClient, etatPriseDeTour } from '../domain/file.js';
 import { pourVitrine } from '../domain/tarifas.js';
 import { page, marque, entete, piedDePage, pageErreur } from './mise-en-page.js';
-import { matDeBarbier, fauteuil, ciseauxEtPeigne, iconeEtape, separateur } from './illustrations.js';
+import {
+  matDeBarbier, fauteuil, ciseauxEtPeigne, iconeEtape, separateur,
+  emblemeRond, ciseauxPetits, iconeLieu, iconeTelephone, iconeConversation,
+  scenesDuSalon,
+} from './illustrations.js';
+import { iconeTarifa } from './icones-tarifas.js';
 import { photosDuSalon } from './galerie.js';
 
 export const siteRoutes = new Router();
@@ -48,25 +53,112 @@ export const siteRoutes = new Router();
  */
 function ficheDePrix(lignes, nota) {
   if (!lignes.length) return '';
-  const items = lignes.map((t) => '<li class="tarifa">'
-    + '<span class="tarifa__nombre">' + escapeHtml(t.nombre) + '</span>'
-    + '<span class="tarifa__filete" aria-hidden="true"></span>'
-    + '<span class="tarifa__precio">' + escapeHtml(t.precio) + '</span>'
-    + (t.nota ? '<span class="tarifa__nota">' + escapeHtml(t.nota) + '</span>' : '')
-    + '</li>').join('');
+  const items = lignes.map((t) => {
+    const icone = iconeTarifa(t.icono);
+    return '<li class="tarifa">'
+      + (icone ? '<span class="tarifa__icone" aria-hidden="true">' + icone + '</span>' : '<span class="tarifa__icone"></span>')
+      + '<span class="tarifa__nombre">' + escapeHtml(t.nombre) + '</span>'
+      + '<span class="tarifa__filete" aria-hidden="true"></span>'
+      + '<span class="tarifa__precio">' + escapeHtml(t.precio) + '</span>'
+      + (t.nota ? '<span class="tarifa__nota">' + escapeHtml(t.nota) + '</span>' : '')
+      + '</li>';
+  }).join('');
 
   return '<section class="enveloppe seccion seccion--tarifas" id="tarifas">'
     + '<div class="seccion__tete">'
     + '<h2 class="seccion__titulo">Tarifas</h2>'
     + '<p class="seccion__intro">Precios claros, sin sorpresas.</p>'
     + '</div>'
+    // Le cadre reprend le tableau accroche dans le salon : un double filet de
+    // laiton, l'embleme en haut, et la devise en bas sur une plaque.
     + '<div class="tarifas__cadre">'
-    // Le mat de barbier tient la colonne de gauche sur grand ecran, et
-    // disparait sur telephone : il decore, il n'informe pas.
+    // Le mat tourne, et c'est la seule chose qui bouge ici. Il n'apparait qu'a
+    // partir de la largeur ou il ne vole de place a aucun prix.
     + '<div class="tarifas__mat" aria-hidden="true">' + matDeBarbier() + '</div>'
+    + '<div class="tarifas__contenu">'
+    + '<div class="tarifas__entete">'
+    + '<span class="tarifas__embleme" aria-hidden="true">' + emblemeRond() + '</span>'
+    + '<span class="tarifas__bandeau">Barbería &amp; estilo</span>'
+    + '</div>'
+    + '<div class="tarifas__filet-orne" aria-hidden="true">'
+    + '<span class="tarifas__filet"></span>' + ciseauxPetits() + '<span class="tarifas__filet"></span>'
+    + '</div>'
     + '<ul class="tarifas">' + items + '</ul>'
+    + '<p class="tarifas__devise">Tu estilo, nuestra pasión</p>'
+    + '</div>'
     + '</div>'
     + (nota ? '<p class="tarifas__nota">' + escapeHtml(nota) + '</p>' : '')
+    + '</section>';
+}
+
+/**
+ * Le contact : ou venir, comment appeler.
+ *
+ * Chaque ligne n'apparait QUE si le reglage correspondant est rempli. Un salon
+ * qui n'a pas encore saisi son adresse n'affiche pas un cadre vide — la
+ * section entiere disparait si rien n'est renseigne.
+ *
+ * L'adresse ouvre une carte, le telephone compose, le WhatsApp ouvre la
+ * conversation : sur un telephone, ce sont trois gestes d'un seul appui. C'est
+ * tout ce qu'on demande a un contact.
+ */
+function contact(reglages, horaires) {
+  const adresse = reglages['salon.adresse'];
+  const telephone = reglages['salon.telephone'];
+  const whatsapp = reglages['salon.whatsapp'];
+  if (!adresse && !telephone && !whatsapp && !horaires) return '';
+
+  const numero = (v) => String(v).replace(/[^+0-9]/g, '');
+
+  const cartes = [];
+
+  if (adresse) {
+    cartes.push('<a class="contacto" href="https://www.google.com/maps/search/?api=1&amp;query='
+      + encodeURIComponent(adresse) + '" target="_blank" rel="noopener noreferrer">'
+      + '<span class="contacto__icone" aria-hidden="true">' + iconeLieu() + '</span>'
+      + '<span class="contacto__quoi">Dónde estamos</span>'
+      + '<span class="contacto__valeur">' + escapeHtml(adresse) + '</span>'
+      + '<span class="contacto__action">Abrir en el mapa</span>'
+      + '</a>');
+  }
+
+  if (telephone) {
+    cartes.push('<a class="contacto" href="tel:' + escapeHtml(numero(telephone)) + '">'
+      + '<span class="contacto__icone" aria-hidden="true">' + iconeTelephone() + '</span>'
+      + '<span class="contacto__quoi">Llámanos</span>'
+      + '<span class="contacto__valeur">' + escapeHtml(telephone) + '</span>'
+      + '<span class="contacto__action">Llamar ahora</span>'
+      + '</a>');
+  }
+
+  if (whatsapp) {
+    cartes.push('<a class="contacto" href="https://wa.me/' + escapeHtml(numero(whatsapp).replace(/^\+/, ''))
+      + '" target="_blank" rel="noopener noreferrer">'
+      + '<span class="contacto__icone" aria-hidden="true">' + iconeConversation() + '</span>'
+      + '<span class="contacto__quoi">WhatsApp</span>'
+      + '<span class="contacto__valeur">' + escapeHtml(whatsapp) + '</span>'
+      + '<span class="contacto__action">Escribir</span>'
+      + '</a>');
+  }
+
+  const grille = horaires && horaires.length
+    ? '<div class="horario">'
+      + '<h3 class="horario__titre">Horario</h3>'
+      + '<ul class="horario__liste">'
+      + horaires.map((h) => '<li' + (h.ferme ? ' class="horario--cerrado"' : '') + '>'
+        + '<span>' + escapeHtml(h.nom) + '</span>'
+        + '<span>' + (h.ferme ? 'Cerrado' : escapeHtml(h.ouverture + ' – ' + h.fermeture)) + '</span>'
+        + '</li>').join('')
+      + '</ul></div>'
+    : '';
+
+  return '<section class="enveloppe seccion" id="contacto">'
+    + '<div class="seccion__tete">'
+    + '<h2 class="seccion__titulo">Contacto</h2>'
+    + '<p class="seccion__intro">Pasa cuando quieras, o escríbenos antes.</p>'
+    + '</div>'
+    + '<div class="contactos">' + cartes.join('') + '</div>'
+    + grille
     + '</section>';
 }
 
@@ -80,7 +172,7 @@ function ficheDePrix(lignes, nota) {
  * doit voir le haut de la page, pas attendre six photos.
  */
 function galerie(photos) {
-  if (!photos.length) return '';
+  if (!photos.length) return scenesDessinees();
   const vignettes = photos.map((p, i) => '<figure class="cliche' + (i === 0 ? ' cliche--grand' : '') + '">'
     + '<img class="cliche__image" src="' + escapeHtml(p.src) + '" alt="' + escapeHtml(p.legende || 'Peluquería HARON') + '"'
     + (i === 0 ? '' : ' loading="lazy"') + ' decoding="async">'
@@ -93,6 +185,32 @@ function galerie(photos) {
     + '<p class="seccion__intro">Así es la casa.</p>'
     + '</div>'
     + '<div class="galeria">' + vignettes + '</div>'
+    + '</section>';
+}
+
+/**
+ * La galerie tant qu'aucune photo n'a ete deposee : trois scenes dessinees.
+ *
+ * Une vitrine sans la moindre image a l'air d'un site inacheve, et le gerant
+ * n'a pas toujours de photo le premier jour. Ces dessins tiennent la place —
+ * ils ne pretendent pas etre des photographies, et la legende le dit.
+ *
+ * Ils s'effacent tout seuls des la premiere vraie photo deposee.
+ */
+function scenesDessinees() {
+  const scenes = scenesDuSalon();
+  const vignettes = scenes.map((s) => '<figure class="escena">'
+    + '<div class="escena__dessin">' + s.dessin + '</div>'
+    + '<figcaption class="escena__legende">' + escapeHtml(s.legende) + '</figcaption>'
+    + '</figure>').join('');
+
+  return '<section class="enveloppe seccion" id="galeria">'
+    + '<div class="seccion__tete">'
+    + '<h2 class="seccion__titulo">El salón</h2>'
+    + '<p class="seccion__intro">Así es la casa.</p>'
+    + '</div>'
+    + '<div class="escenas">' + vignettes + '</div>'
+    + '<p class="escenas__nota">Ilustraciones. Las fotos del salón llegan pronto.</p>'
     + '</section>';
 }
 
@@ -200,6 +318,7 @@ siteRoutes.get('/', async (ctx) => {
     + galerie(photos)
     + separateur()
     + commentCaMarche()
+    + contact(reglages, reglages['horaires.actifs'] ? horairesLisibles(reglages) : null)
     + '<section class="enveloppe bandeau-qr">'
     + '<div class="bandeau-qr__illu" aria-hidden="true">' + fauteuil() + '</div>'
     + '<div class="bandeau-qr__texte-bloc">'

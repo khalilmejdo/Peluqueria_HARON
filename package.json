@@ -20,7 +20,8 @@
     "test": "node --test \"test/unit/*.test.js\"",
     "test:integration": "node --test --test-concurrency=2 \"test/integration/*.test.js\"",
     "verify": "npm test && npm run test:integration",
-    "images": "node scripts/images.js"
+    "images": "node scripts/images.js",
+    "tarifas": "node scripts/tarifas.js"
   },
   "dependencies": {
     "pg": "^8.13.0"

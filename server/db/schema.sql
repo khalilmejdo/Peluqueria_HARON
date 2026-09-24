@@ -222,6 +222,12 @@ CREATE TABLE IF NOT EXISTS tarifas (
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
+-- L'icone de la ligne, comme sur un tableau de barbier. C'est un NOM choisi
+-- dans une liste fermee (« tijeras », « barba »...), pas un fichier : le
+-- dessin vit dans le code, il suit les couleurs du theme et ne se telecharge
+-- pas. Une valeur inconnue s'affiche sans icone plutot que cassee.
+ALTER TABLE tarifas ADD COLUMN IF NOT EXISTS icono text;
+
 DO $$ BEGIN
   ALTER TABLE tarifas ADD CONSTRAINT tarifas_prix_plausible
     CHECK (precio_cts >= 0 AND precio_cts <= 100000);

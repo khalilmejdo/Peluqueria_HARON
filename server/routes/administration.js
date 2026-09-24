@@ -337,6 +337,7 @@ const tarifaVersClient = (t) => ({
   id: t.id,
   nombre: t.nombre,
   nota: t.nota || '',
+  icono: t.icono || null,
   precioCts: t.precio_cts,
   precio: prixLegible(t.precio_cts),
   ordre: t.ordre,
@@ -362,6 +363,7 @@ tarifasRoutes.post('/', async (ctx) => {
     nombre: { type: 'string', required: true, min: 1, max: 60, requiredMessage: 'Indique el nombre del servicio.' },
     precio: { type: 'string', required: true, max: 12, requiredMessage: 'Indique el precio.' },
     nota: { type: 'string', max: 80 },
+    icono: { type: 'string', max: 20 },
   });
   const cree = await crearTarifa(data);
   log.info('Tarif cree', { nombre: cree.nombre, par: ctx.user.identifiant });
@@ -373,6 +375,7 @@ tarifasRoutes.patch('/:id', async (ctx) => {
     nombre: { type: 'string', min: 1, max: 60 },
     precio: { type: 'string', max: 12 },
     nota: { type: 'string', max: 80 },
+    icono: { type: 'string', max: 20 },
     visible: { type: 'bool' },
   });
   // Une note effacee arrive en chaine vide, que validate() rend en null : le

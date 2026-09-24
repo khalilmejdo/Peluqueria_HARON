@@ -38,17 +38,17 @@ export const CATALOGUE = {
   'salon.adresse': {
     type: 'texte', defaut: '', maxLongueur: 160,
     libelle: 'Dirección del salón',
-    aide: 'Se muestra en la página de seguimiento, para que el cliente sepa dónde volver.',
+    aide: 'Aparece en la sección Contacto de la página de inicio, con enlace al mapa, y en la página de seguimiento.',
   },
   'salon.telephone': {
     type: 'telephone', defaut: '', maxLongueur: 25,
     libelle: 'Teléfono del salón',
-    aide: 'Se ofrece al cliente cuando no se pueden pedir turnos por internet.',
+    aide: 'Aparece en la sección Contacto de la página de inicio y se ofrece al cliente cuando no se pueden pedir turnos por internet.',
   },
   'salon.whatsapp': {
     type: 'telephone', defaut: '', maxLongueur: 25,
     libelle: 'WhatsApp del salón',
-    aide: 'Número desde el que salen los mensajes; se muestra al cliente.',
+    aide: 'Número desde el que salen los mensajes. Aparece en la sección Contacto, con enlace directo a la conversación.',
   },
 
   'file.dureeMoyenneMinutes': {

@@ -417,8 +417,28 @@ main { flex: 1; }
 }
 .illu__point { fill: currentColor; stroke: none; }
 
+/*
+ * Les formes du premier plan des scènes dessinées. Remplies de la couleur du
+ * cadre : c'est ce qui les rend opaques et donne la profondeur. Sans ça, le
+ * meuble du fond se voit à travers le fauteuil et la scène devient une
+ * radiographie. `--fond-scene` permet de les poser ailleurs qu'en carte.
+ */
+.illu__masque {
+  fill: var(--fond-scene, var(--fond-carte-2));
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
 /* Le mât de barbier. */
 .illu__laiton-plein { fill: var(--laiton); }
+.illu__laiton-trait {
+  stroke: var(--laiton);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
 .illu__tube { fill: var(--creme); }
 .illu__tube-bord { fill: none; stroke: var(--laiton-sombre); stroke-width: 1.5; }
 .illu__bande { fill: color-mix(in srgb, var(--rouge) 78%, #7a1f1a); }
@@ -656,6 +676,93 @@ main { flex: 1; }
 }
 
 /*
+ * Le double filet de laiton du tableau accroché dans le salon. Deux traits,
+ * l'extérieur plein et l'intérieur plus fin, avec du vide entre les deux :
+ * c'est ce jeu-là qui fait « cadre » plutôt que « boîte ».
+ */
+.tarifas__cadre::before {
+  content: '';
+  position: absolute;
+  inset: 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--laiton) 35%, transparent);
+  border-radius: calc(var(--r-grand) - 0.4rem);
+  pointer-events: none;
+}
+.tarifas__cadre { position: relative; }
+
+.tarifas__contenu { min-width: 0; }
+
+/* L'en-tête : le médaillon, puis la plaque. */
+.tarifas__entete {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.1rem;
+}
+
+.tarifas__embleme { display: block; width: clamp(5rem, 22vw, 7rem); }
+
+.medaillon__bord { fill: none; stroke: var(--laiton); stroke-width: 2.5; }
+.medaillon__bord--fin { stroke-width: 1; opacity: 0.65; }
+.medaillon__dessin { color: var(--laiton); }
+
+/*
+ * Le texte suit le cercle, comme un cachet. La taille est en unités du
+ * `viewBox` : le médaillon se redimensionne d'un bloc, texte compris.
+ */
+.medaillon__texte {
+  fill: var(--laiton);
+  font-family: var(--police-titre);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2.2px;
+}
+.medaillon__texte--petit { font-size: 7px; letter-spacing: 1.6px; opacity: 0.8; }
+
+/* La plaque « Barbería & estilo », en creux. */
+.tarifas__bandeau {
+  padding: 0.3rem 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--laiton) 50%, transparent);
+  border-radius: var(--r-petit);
+  background: color-mix(in srgb, var(--laiton) 12%, transparent);
+  color: var(--laiton-clair);
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+/* Le filet orné, avec les petits ciseaux au milieu. */
+.tarifas__filet-orne {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+.tarifas__filet {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--laiton) 55%, transparent), transparent);
+}
+.illu--ciseaux-petits { width: 1.9rem; flex: none; color: var(--laiton); }
+
+/* La devise, sur une plaque en bas — comme au bas du tableau. */
+.tarifas__devise {
+  margin: 1.4rem auto 0;
+  width: fit-content;
+  padding: 0.45rem 1.4rem;
+  border: 1px solid color-mix(in srgb, var(--laiton) 40%, transparent);
+  border-radius: var(--r-petit);
+  background: color-mix(in srgb, var(--laiton) 8%, transparent);
+  color: var(--creme-doux);
+  font-family: var(--police-titre);
+  font-style: italic;
+  font-size: 0.92rem;
+  text-align: center;
+}
+
+/*
  * Le mât n'apparaît qu'à partir de la largeur où il ne vole pas de place — et
  * quand il apparaît, il doit se lire comme un mât de barbier, pas comme une
  * pastille. En dessous de 3rem de large, la spirale devient illisible et
@@ -663,7 +770,7 @@ main { flex: 1; }
  */
 .tarifas__mat { display: none; }
 
-@media (min-width: 48rem) {
+@media (min-width: 52rem) {
   .tarifas__cadre { grid-template-columns: auto 1fr; align-items: center; }
   .tarifas__mat {
     display: block;
@@ -686,10 +793,29 @@ main { flex: 1; }
   align-items: baseline;
   gap: 0.6rem;
   flex-wrap: wrap;
-  padding: 0.8rem 0.25rem;
+  padding: 0.72rem 0.25rem;
   border-bottom: 1px solid color-mix(in srgb, var(--bordure) 60%, transparent);
 }
 .tarifa:last-child { border-bottom: 0; }
+
+/*
+ * L'icône de la ligne, comme sur un tableau de barbier.
+ *
+ * L'emplacement est réservé MÊME sans icône : sinon une ligne qui n'en a pas
+ * décalerait son nom de deux centimètres vers la gauche, et toute la colonne
+ * se mettrait à zigzaguer.
+ *
+ * `align-self: center` parce que la ligne s'aligne sur la ligne de base du
+ * texte — une icône alignée sur la base flotterait trop haut.
+ */
+.tarifa__icone {
+  width: 1.35rem;
+  flex: none;
+  align-self: center;
+  color: var(--laiton);
+  opacity: 0.85;
+}
+.illu--tarifa { width: 100%; height: auto; }
 
 .tarifa__nombre {
   font-family: var(--police-titre);
@@ -727,6 +853,106 @@ main { flex: 1; }
   font-size: 0.85rem;
   color: var(--texte-doux);
 }
+
+/* ------------------------------------------------------------------ */
+/*  Contact                                                            */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Trois cartes, et chacune est un LIEN ENTIER : adresse → carte, téléphone →
+ * appel, WhatsApp → conversation. Sur un téléphone, ce sont trois gestes d'un
+ * seul appui, et c'est tout ce qu'on demande à un contact.
+ *
+ * `<a>` et pas un `<div>` avec un écouteur : le clavier y arrive, le clic
+ * droit propose « ouvrir dans un nouvel onglet », et le lecteur d'écran
+ * l'annonce comme un lien.
+ */
+.contactos {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+}
+
+.contacto {
+  display: grid;
+  gap: 0.2rem;
+  padding: 1.25rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--r);
+  background: var(--fond-carte);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color var(--transition), transform var(--transition);
+}
+.contacto:hover {
+  border-color: color-mix(in srgb, var(--laiton) 55%, var(--bordure));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .contacto:hover { transform: translateY(-2px); }
+}
+.contacto:focus-visible { outline: 3px solid var(--laiton); outline-offset: 3px; }
+
+.contacto__icone { width: 1.6rem; color: var(--laiton); margin-bottom: 0.35rem; }
+.illu--contacto { width: 100%; height: auto; }
+
+.contacto__quoi {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--texte-doux);
+}
+.contacto__valeur {
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: 1.02rem;
+  text-wrap: balance;
+}
+.contacto__action {
+  margin-top: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--laiton);
+  font-weight: 600;
+}
+
+/* Les horaires, sous les cartes. */
+.horario {
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--r);
+  background: var(--fond-carte);
+}
+.horario__titre {
+  margin: 0 0 0.75rem;
+  font-family: var(--police-titre);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--texte-doux);
+}
+.horario__liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+  /* Deux colonnes dès qu'il y a la place : sept lignes en pile font une
+     colonne maigre et longue que personne ne lit jusqu'au bout. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  column-gap: 2rem;
+}
+.horario__liste li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--bordure) 55%, transparent);
+  font-size: 0.9rem;
+}
+.horario__liste li span:first-child { text-transform: capitalize; }
+.horario--cerrado { color: var(--texte-doux); }
 
 /* ------------------------------------------------------------------ */
 /*  La galerie : les vraies photos du salon                            */
@@ -799,6 +1025,58 @@ main { flex: 1; }
 }
 
 .cliche--grand .cliche__legende { font-size: 0.92rem; padding-bottom: 0.8rem; }
+
+/*
+ * LES SCÈNES DESSINÉES, tant qu'aucune photo n'a été déposée.
+ *
+ * Elles ne reprennent pas le style des vignettes photo : pas de légende posée
+ * sur l'image, pas de recadrage. Un dessin au trait recadré perd son sujet, et
+ * une légende blanche sur un fond clair ne se lit plus. Ici le dessin respire
+ * dans son cadre et la légende se pose dessous, comme sous une gravure.
+ */
+.escenas {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 46rem) {
+  .escenas { grid-template-columns: repeat(3, 1fr); }
+}
+
+.escena {
+  margin: 0;
+  padding: 0.9rem 0.9rem 0.7rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--r);
+  background: var(--fond-carte-2);
+  color: var(--texte-doux);
+}
+
+/* Le dessin garde son rapport : il ne s'étire jamais pour remplir la carte. */
+.escena__dessin { color: var(--texte-doux); }
+.escena__dessin .illu--scene { width: 100%; height: auto; }
+
+.escena__legende {
+  margin-top: 0.55rem;
+  color: var(--laiton);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/*
+ * La note dit que ce sont des dessins. Elle est discrète mais elle y est : une
+ * vitrine qui laisse croire à des photos trahit le client dès qu'il pousse la
+ * porte.
+ */
+.escenas__nota {
+  margin: 0.9rem 0 0;
+  color: var(--texte-doux);
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
 
 @media (prefers-reduced-motion: no-preference) {
   .cliche__image { transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1); }

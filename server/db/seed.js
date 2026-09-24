@@ -19,6 +19,33 @@ import { newId, hashPassword } from '../core/crypto.js';
 import { normalize } from '../core/text.js';
 import { CATALOGUE } from '../core/reglages.js';
 
+/**
+ * La fiche de prix de depart : celle du tableau affiche dans le salon.
+ *
+ *   nom, prix EN CENTIMES, icone, note
+ *
+ * Elle n'est posee que sur une base VIDE. Sur un salon deja en service, c'est
+ * `npm run tarifas` qui la charge, et lui seul — le seed ne doit jamais
+ * ecraser les prix que le gerant a saisis.
+ */
+export const TARIFS_DE_DEPART = [
+  ['Corte normal', 700, 'tijeras', ''],
+  ['Barba', 500, 'barba', ''],
+  ['Corte + barba', 1200, 'navaja', 'El más pedido'],
+  ['Mascarilla', 300, 'mascarilla', ''],
+  ['Dark', 800, 'bote', ''],
+  ['Queratina', 4000, 'gota', ''],
+  ['Mechas', 2000, 'mechas', ''],
+  ['Mechas blancas', 4000, 'mechas', ''],
+  ['Peinado', 300, 'peine', ''],
+  ['Cejas', 300, 'cejas', ''],
+  ['Cejas con cera', 300, 'cera', ''],
+  ['Tinte normal', 500, 'tinte', ''],
+  ['Tinte de pelo', 1000, 'tinte', ''],
+  ['Tinte barba', 300, 'barba', ''],
+  ['Lavado de pelo', 200, 'lavado', ''],
+];
+
 export async function seed({ silencieux = false } = {}) {
   const dire = silencieux ? () => {} : (message) => console.log(message);
 
@@ -52,24 +79,14 @@ export async function seed({ silencieux = false } = {}) {
   // gestion ; les prix ci-dessous sont des ordres de grandeur, pas une verite.
   const tarifs = await one('SELECT COUNT(*)::int AS n FROM tarifas');
   if (tarifs.n === 0) {
-    const depart = [
-      ['Corte de pelo', 1400, ''],
-      ['Corte + lavado', 1700, 'Incluye secado'],
-      ['Arreglo de barba', 1000, ''],
-      ['Corte + barba', 2200, 'El más pedido'],
-      ['Afeitado clásico', 1200, 'A navaja'],
-      ['Corte infantil', 1100, 'Hasta 12 años'],
-      ['Rapado', 1000, ''],
-      ['Cejas', 500, ''],
-    ];
-    for (let i = 0; i < depart.length; i += 1) {
-      const [nombre, cts, nota] = depart[i];
+    for (let i = 0; i < TARIFS_DE_DEPART.length; i += 1) {
+      const [nombre, cts, icono, nota] = TARIFS_DE_DEPART[i];
       await execute(
-        'INSERT INTO tarifas (id, nombre, nombre_lower, precio_cts, nota, ordre) VALUES ($1,$2,$3,$4,$5,$6)',
-        [newId(), nombre, normalize(nombre), cts, nota || null, i],
+        'INSERT INTO tarifas (id, nombre, nombre_lower, precio_cts, nota, icono, ordre) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+        [newId(), nombre, normalize(nombre), cts, nota || null, icono || null, i],
       );
     }
-    dire('  Fiche de prix : ' + depart.length + ' ligne(s) de depart creee(s).');
+    dire('  Fiche de prix : ' + TARIFS_DE_DEPART.length + ' ligne(s) de depart creee(s).');
   } else {
     dire('  Fiche de prix : ' + tarifs.n + ' ligne(s) deja presente(s).');
   }
