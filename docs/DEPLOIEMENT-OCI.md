@@ -74,10 +74,12 @@ part.
 
 ---
 
-## 3. Ouvrir les ports — **les deux pare-feux**
+## 3. Ouvrir les ports, et régler la taille des paquets
 
-C'est le piège n°1 d'OCI, celui qui fait perdre une soirée : **il y a deux
-pare-feux**, et ouvrir seulement le premier ne sert à rien.
+Trois réglages, et chacun coûte une soirée quand on l'oublie. Les deux premiers
+sont les **deux pare-feux** d'OCI — n'ouvrir que le premier ne sert à rien. Le
+troisième, la taille des segments TCP, ne se voit pas du tout depuis un bureau :
+il ne casse que les réseaux mobiles.
 
 ### a. Le réseau (côté Oracle)
 
@@ -116,6 +118,50 @@ Sur une image **Oracle Linux**, c'est `firewalld` à la place :
 sudo firewall-cmd --permanent --add-service=http --add-service=https
 sudo firewall-cmd --reload
 ```
+
+### c. La taille des segments TCP — **le piège invisible**
+
+Une ligne à passer sur la machine, et il faut la passer :
+
+```bash
+sudo iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1360
+sudo netfilter-persistent save
+```
+
+**Sans elle, le salon marche en wifi et ne marche pas en 4G/5G.** C'est-à-dire
+qu'il ne marche pas pour le client debout devant la vitrine, qui est justement
+celui pour qui tout ce travail existe.
+
+Ce qui se passe : Caddy répond à la poignée de main TLS par un gros paquet, qui
+contient le certificat. Il l'envoie en segments de 1460 octets, la taille
+normale sur un réseau à 1500. Beaucoup de chemins mobiles plafonnent plus bas —
+1400, parfois moins — à cause des tunnels des opérateurs. Le paquet trop gros
+est alors **jeté en silence** : les messages ICMP qui devraient l'annoncer sont
+filtrés par presque tous les opérateurs.
+
+Résultat : la connexion s'établit, puis plus rien. Pas d'erreur, pas de refus,
+pas une ligne dans les journaux du serveur — **le navigateur tourne
+indéfiniment**. C'est le pire genre de panne : celle qui ne laisse aucune trace.
+
+La règle dit simplement à chaque nouvelle connexion de ne pas dépasser 1360
+octets par segment. Elle ne coûte rien et ne se remarque pas.
+
+> **Ce que ça a coûté à trouver**, le 24 septembre 2026, faute d'y avoir pensé :
+> on a successivement soupçonné un filtrage de `duckdns.org` par l'opérateur
+> (faux), un problème d'IPv6 (faux), et HTTP/3 (faux, mais corrigé au passage —
+> voir le `Caddyfile`). Entre-temps l'adresse IP a été changée pour rien.
+>
+> La signature à reconnaître : **ça marche en wifi, ça tourne sans fin en
+> mobile, et il n'y a d'erreur nulle part.** Un blocage DNS donne « serveur
+> introuvable », un blocage réseau donne un délai dépassé. Un silence, lui,
+> vient presque toujours d'un paquet trop gros.
+>
+> Test qui tranche en trente secondes, depuis le mobile :
+> `https://<IP du serveur>/` doit donner une **erreur de certificat immédiate**.
+> Si oui, TCP passe et le problème est plus haut — donc la taille des paquets.
+
+Si 1360 ne suffisait pas, descendre à 1200 avant de chercher ailleurs :
+certains réseaux 5G en IPv6 avec traduction d'adresses passent sous 1300.
 
 ---
 
