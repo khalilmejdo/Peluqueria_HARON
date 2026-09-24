@@ -46,6 +46,61 @@ if (bloc) {
     element.classList.add('vient-de-changer');
   };
 
+  /**
+   * La file en marques : une par personne qui attend.
+   *
+   * ON N'ANIME QUE CE QUI CHANGE VRAIMENT. Une rangée qui ondulerait en
+   * permanence dirait que la file avance alors qu'elle stagne peut-être depuis
+   * dix minutes — c'est précisément le mensonge qu'une animation décorative
+   * fait dire à une page. Ici, une marque n'apparaît que quand quelqu'un entre,
+   * et ne part que quand quelqu'un passe au fauteuil.
+   *
+   * Les départs s'animent AVANT d'être retirés du document : enlever l'élément
+   * tout de suite ferait sauter la rangée, et un saut se remarque bien plus
+   * qu'un mouvement.
+   */
+  const MARQUES_MAX = 10;
+  const cola = bloc.querySelector('[data-cola]');
+
+  const poserCola = (enAttente) => {
+    if (!cola) return;
+    const n = Math.max(0, Math.trunc(Number(enAttente) || 0));
+    const voulues = Math.min(n, MARQUES_MAX);
+    const reste = n - voulues;
+
+    // Les marques déjà en train de partir ne comptent plus : sans ça, deux
+    // rafraîchissements rapprochés en recréeraient autant qu'elles en enlèvent.
+    const vivantes = [...cola.querySelectorAll('.cola__marque:not(.cola__marque--part)')];
+
+    for (let i = vivantes.length; i < voulues; i += 1) {
+      const marque = document.createElement('li');
+      marque.className = 'cola__marque cola__marque--entre';
+      marque.addEventListener('animationend', () => marque.classList.remove('cola__marque--entre'), { once: true });
+      cola.insertBefore(marque, cola.querySelector('[data-cola-reste]'));
+    }
+
+    for (const marque of vivantes.slice(voulues)) {
+      marque.classList.add('cola__marque--part');
+      marque.addEventListener('animationend', () => marque.remove(), { once: true });
+      // Sans animation (préférence système, onglet caché), l'événement ne vient
+      // jamais : on retire quand même, un peu plus tard.
+      setTimeout(() => marque.remove(), 600);
+    }
+
+    let etiquette = cola.querySelector('[data-cola-reste]');
+    if (reste > 0) {
+      if (!etiquette) {
+        etiquette = document.createElement('li');
+        etiquette.className = 'cola__reste';
+        etiquette.dataset.colaReste = '';
+        cola.append(etiquette);
+      }
+      etiquette.textContent = '+' + reste;
+    } else if (etiquette) {
+      etiquette.remove();
+    }
+  };
+
   const rafraichir = async () => {
     if (document.visibilityState !== 'visible') return;
     try {
@@ -59,6 +114,7 @@ if (bloc) {
         poser(forte, etat.enAttente + ' persona' + (etat.enAttente > 1 ? 's' : '') + ' en la fila');
         poser(detail, 'Espera estimada: ≈ ' + minutesLisibles(etat.attenteEstimeeMinutes));
       }
+      poserCola(etat.enAttente);
 
       // Le compteur du jour n'apparait qu'a partir de trois : « 1 atendido hoy »
       // fait plus vide qu'un silence.

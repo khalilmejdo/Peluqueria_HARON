@@ -96,6 +96,36 @@ function ficheDePrix(lignes, nota) {
 }
 
 /**
+ * LA FILE, EN MARQUES.
+ *
+ * Une marque par personne qui attend. Un chiffre se lit, une longueur se VOIT :
+ * « 7 » demande un instant de traduction, sept traits n'en demandent aucun, et
+ * c'est ce coup d'oeil-la que donne un passant devant la vitrine.
+ *
+ * DIX AU PLUS, puis « +n ». Au-dela, la rangee deviendrait une bouillie ou
+ * douze et quinze se ressemblent — et un nombre qu'on ne peut plus estimer ne
+ * vaut pas mieux qu'un nombre qu'on ne montre pas.
+ *
+ * Elle est rendue par le SERVEUR, pas seulement par le script : une page sans
+ * JavaScript montre la file du chargement, elle ne montre pas un vide.
+ *
+ * `aria-hidden` : la phrase juste au-dessus dit deja « 7 personas en la fila ».
+ * Faire lire sept traits a un lecteur d'ecran serait du bruit pur.
+ */
+function colaDeMarques(enAttente) {
+  const n = Math.max(0, Math.trunc(Number(enAttente) || 0));
+  const montrees = Math.min(n, MARQUES_MAX);
+  const reste = n - montrees;
+
+  return '<ul class="cola" data-cola aria-hidden="true">'
+    + '<li class="cola__marque"></li>'.repeat(montrees)
+    + (reste ? '<li class="cola__reste" data-cola-reste>+' + reste + '</li>' : '')
+    + '</ul>';
+}
+
+const MARQUES_MAX = 10;
+
+/**
  * LE BANDEAU DES CONGES.
  *
  * Deux situations qui n'ont rien a voir, et qui meritaient deux traitements :
@@ -412,6 +442,7 @@ siteRoutes.get('/', async (ctx) => {
     ? '<p class="affluence__forte" data-forte>Sin espera</p><p class="affluence__detail" data-detail>El sillón te está esperando.</p>'
     : '<p class="affluence__forte" data-forte>' + etat.compteurs.enAttente + ' persona' + (etat.compteurs.enAttente > 1 ? 's' : '') + ' en la fila</p>'
       + '<p class="affluence__detail" data-detail>Espera estimada: ' + escapeHtml(attenteLisible(attente).replace(/^unos /, '≈ ').replace(/^alrededor de /, '≈ ')) + '</p>')
+    + colaDeMarques(etat.compteurs.enAttente)
     // Le compteur du jour n'apparait qu'a partir de trois : « 1 atendido hoy »
     // fait plus vide qu'un silence.
     + (etat.compteurs.servis >= 3

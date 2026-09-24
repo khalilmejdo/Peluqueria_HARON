@@ -42,6 +42,46 @@ const ongletsVisibles = () => ONGLETS.filter((o) => !o.gerant || estGerant());
 /*  Connexion                                                          */
 /* ------------------------------------------------------------------ */
 
+/**
+ * VOIR CE QU'ON TAPE.
+ *
+ * Un mot de passe de douze caracteres se saisit au pouce, souvent debout dans
+ * le salon, parfois avec les mains mouillees. Sans pouvoir le relire, on s'y
+ * reprend a trois fois — et au troisieme echec le compte se verrouille.
+ *
+ * L'oeil barre est un BOUTON, pas une icone cliquable posee sur un div : au
+ * clavier on l'atteint par Tab, et un lecteur d'ecran annonce son etat grace a
+ * `aria-pressed`. Il fait quarante-quatre pixels de cote, la taille d'un
+ * pouce, et vit DANS le champ plutot qu'a cote pour ne pas voler de largeur au
+ * texte saisi.
+ *
+ * Il revient toujours a « masque » quand la page change : un mot de passe
+ * laisse en clair sur la tablette du comptoir se lit depuis le fauteuil.
+ */
+function champMotDePasse(entree) {
+  const bouton = el('button.champ__oeil', {
+    type: 'button',
+    'aria-pressed': 'false',
+    'aria-label': 'Mostrar la contraseña',
+    title: 'Mostrar la contraseña',
+    surClick: () => {
+      const visible = entree.type === 'text';
+      entree.type = visible ? 'password' : 'text';
+      bouton.setAttribute('aria-pressed', visible ? 'false' : 'true');
+      const libelle = visible ? 'Mostrar la contraseña' : 'Ocultar la contraseña';
+      bouton.setAttribute('aria-label', libelle);
+      bouton.setAttribute('title', libelle);
+      // Le curseur revient dans le champ, a la fin : sans cela, continuer a
+      // taper demande un second appui, et on tape a cote.
+      const fin = entree.value.length;
+      entree.focus();
+      entree.setSelectionRange?.(fin, fin);
+    },
+  });
+
+  return el('div.champ__avec-oeil', entree, bouton);
+}
+
 function ecranConnexion({ message = null } = {}) {
   const erreur = el('p.alerte.alerte--refus', { role: 'alert', hidden: !message, texte: message || '' });
 
@@ -76,7 +116,7 @@ function ecranConnexion({ message = null } = {}) {
   },
   erreur,
   el('div.champ', el('label', { for: 'c-identifiant', texte: 'Usuario' }), identifiant),
-  el('div.champ', el('label', { for: 'c-motdepasse', texte: 'Contraseña' }), motDePasse),
+  el('div.champ', el('label', { for: 'c-motdepasse', texte: 'Contraseña' }), champMotDePasse(motDePasse)),
   bouton);
 
   return el('main.enveloppe.page-etroite#principal',
@@ -115,8 +155,8 @@ function ecranMotDePasse() {
     },
   },
   erreur,
-  el('div.champ', el('label', { for: 'm-actuel', texte: 'Contraseña actual' }), actuel),
-  el('div.champ', el('label', { for: 'm-nouveau', texte: 'Contraseña nueva' }), nouveau,
+  el('div.champ', el('label', { for: 'm-actuel', texte: 'Contraseña actual' }), champMotDePasse(actuel)),
+  el('div.champ', el('label', { for: 'm-nouveau', texte: 'Contraseña nueva' }), champMotDePasse(nouveau),
     el('p.champ__aide', { texte: 'Al menos 12 caracteres.' })),
   bouton);
 

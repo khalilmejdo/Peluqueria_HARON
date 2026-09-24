@@ -2247,3 +2247,131 @@ main { flex: 1; }
 .alerte-conges--maintenant .alerte-conges__pastille { background: var(--rouge); color: #fff; }
 .alerte-conges--maintenant .alerte-conges__titre { color: var(--creme); }
 .alerte-conges--maintenant .alerte-conges__texte { color: var(--creme-doux); }
+
+/* ------------------------------------------------------------------ */
+/*  La file en marques                                                 */
+/* ------------------------------------------------------------------ */
+
+/*
+ * UNE MARQUE PAR PERSONNE QUI ATTEND.
+ *
+ * Un chiffre se lit, une longueur se VOIT. « 7 » demande un instant de
+ * traduction ; sept traits n'en demandent aucun, et c'est exactement le temps
+ * qu'accorde un passant qui jette un œil à la vitrine.
+ *
+ * Pas de `gap` : chaque marque porte sa propre marge, et c'est ce qui permet à
+ * une marque qui s'en va de se refermer complètement. Avec `gap`, l'espace
+ * resterait après la disparition et la rangée garderait un trou.
+ */
+.cola {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  list-style: none;
+  margin: 0.4rem 0 0.1rem;
+  padding: 0;
+  min-height: 0.85rem;
+}
+.cola:empty { display: none; }
+
+.cola__marque {
+  width: 0.3rem;
+  height: 0.85rem;
+  margin-inline: 0.14rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--laiton) 62%, transparent);
+  transform-origin: bottom center;
+}
+
+/* Le prochain appelé est en tête, et il est plus clair : dans la file, c'est
+   la seule position qui intéresse quelqu'un. */
+.cola__marque:first-child { background: var(--laiton-clair); }
+
+.cola__reste {
+  align-self: center;
+  margin-inline-start: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--texte-doux);
+}
+
+/*
+ * L'arrivée et le départ, et RIEN D'AUTRE. Une rangée qui ondulerait en
+ * permanence dirait que la file avance alors qu'elle stagne peut-être depuis
+ * dix minutes. Ici le mouvement ne ment pas : il n'a lieu que quand quelqu'un
+ * entre dans la file ou passe au fauteuil.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .cola__marque--entre { animation: cola-entre 420ms cubic-bezier(0.32, 0.72, 0, 1) both; }
+  .cola__marque--part { animation: cola-part 320ms cubic-bezier(0.32, 0.72, 0, 1) both; }
+}
+
+@keyframes cola-entre {
+  from { transform: scaleY(0.2); opacity: 0; width: 0; margin-inline: 0; }
+  to   { transform: scaleY(1); opacity: 1; width: 0.3rem; margin-inline: 0.14rem; }
+}
+
+/* La marque se referme sur elle-même avant d'être retirée du document :
+   l'enlever d'un coup ferait sauter la rangée, et un saut se remarque bien
+   plus qu'un mouvement. */
+@keyframes cola-part {
+  from { transform: scaleY(1); opacity: 1; width: 0.3rem; margin-inline: 0.14rem; }
+  to   { transform: scaleY(0.2); opacity: 0; width: 0; margin-inline: 0; }
+}
+
+/*
+ * L'ŒIL QUI MONTRE LE MOT DE PASSE.
+ *
+ * Il vit DANS le champ plutôt qu'à côté : posé à côté, il volerait de la
+ * largeur au texte saisi, et c'est justement ce texte qu'on cherche à relire.
+ *
+ * Quarante-quatre pixels de côté — la taille d'un pouce. Le champ réserve la
+ * place à droite par son `padding`, sinon la fin d'un mot de passe long passe
+ * sous l'icône et devient illisible au moment exact où on la révèle.
+ */
+.champ__avec-oeil { position: relative; display: block; }
+
+.champ__avec-oeil input { width: 100%; padding-inline-end: 3.1rem; }
+
+.champ__oeil {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 2.75rem;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--texte-doux);
+  cursor: pointer;
+  border-radius: var(--r);
+}
+.champ__oeil:hover { color: var(--texte); }
+
+/*
+ * L'œil est dessiné en CSS, pas en SVG ni en caractère : le bouton est créé
+ * par `createElement` et ne reçoit jamais de HTML, ce qui garde la règle « rien
+ * n'est assemblé en chaîne » sans exception à retenir.
+ */
+.champ__oeil::before {
+  content: '';
+  width: 1.2rem;
+  height: 1.2rem;
+  border: 1.6px solid currentColor;
+  border-radius: 100% 0;
+  transform: rotate(45deg);
+}
+
+/* Barré quand le mot de passe est visible : l'état se lit sans le tester. */
+.champ__oeil::after {
+  content: '';
+  position: absolute;
+  width: 1.5rem;
+  height: 1.6px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: rotate(-45deg);
+  opacity: 0;
+}
+.champ__oeil[aria-pressed='true'] { color: var(--laiton); }
+.champ__oeil[aria-pressed='true']::after { opacity: 1; }
