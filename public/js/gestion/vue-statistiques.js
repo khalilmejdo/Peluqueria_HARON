@@ -100,6 +100,7 @@ export async function vueStatistiques(conteneur, { etat }) {
           el('li', { texte: 'Base de datos: ' + (service.base.ok ? (service.base.ecriture ? 'en línea' : 'solo lectura — ' + service.base.motif) : 'no responde — ' + service.base.motif) }),
           el('li', { texte: 'WhatsApp: ' + (service.whatsapp.actif ? 'activo' : 'sin configurar') + ' — ' + service.whatsapp.enAttente + ' en espera, ' + service.whatsapp.enEchec + ' con error' }),
           el('li', { texte: 'Pantallas conectadas en directo: ' + service.tempsReel.abonnes }),
+          el('li', { texte: 'Informe de errores: ' + (service.sentry ? 'activo' : 'sin configurar') }),
           el('li', { texte: 'Versión desplegada: ' + (service.version || 'desconocida') + ' — zona horaria ' + service.fuseau }))));
     }
   }

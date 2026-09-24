@@ -30,6 +30,7 @@ import {
   eliminar as eliminarTarifa, mover as moverTarifa, reordenar as reordenarTarifas, prixLegible,
 } from '../domain/tarifas.js';
 import { etatBoite } from '../domain/notifications.js';
+import { sentryActif } from '../core/sentry.js';
 import { executerTache, nomsDesTaches } from '../core/taches.js';
 import { jourLocal } from '../core/temps.js';
 
@@ -555,6 +556,9 @@ serviceRoutes.get('/etat', async (ctx) => {
     base,
     whatsapp,
     tempsReel: { abonnes: nombreAbonnes() },
+    // On dit seulement SI la remontee d'erreurs est branchee. Le DSN est une
+    // cle : il ne sort jamais, pas meme vers l'ecran du gerant.
+    sentry: sentryActif,
     taches: nomsDesTaches(),
   });
 }, { role: 'GERANT' });

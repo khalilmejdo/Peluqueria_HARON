@@ -36,6 +36,7 @@ import { chargerEtat, pourSalon, pourClient } from './domain/file.js';
 import { pageErreur } from './site/mise-en-page.js';
 import { buildRouter } from './app.js';
 import { demarrerTaches, arreterTaches } from './core/taches.js';
+import { signalerErreur } from './core/sentry.js';
 
 const router = buildRouter();
 
@@ -214,6 +215,13 @@ export async function respondWithError(ctx, err) {
   }
 
   log.error('Erreur non geree', { requestId: ctx.requestId, path: ctx.path, method: ctx.method, user: ctx.user?.identifiant, error: err?.message, stack: err?.stack, pgCode: err?.code });
+  // SEULES les erreurs non gerees partent chez Sentry. Un refus metier
+  // (fauteuil occupe, numero invalide) n'est pas un incident : il nomme
+  // parfois un client, et il n'a rien a faire chez un tiers.
+  signalerErreur(err, {
+    methode: ctx.method, chemin: ctx.path, requestId: ctx.requestId,
+    utilisateur: ctx.user?.identifiant ?? null,
+  });
   if (veutUnePage(ctx)) {
     ctx.html(500, pageErreur({
       base: ctx.base,
@@ -307,9 +315,15 @@ async function start() {
   };
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
-  process.on('unhandledRejection', (reason) => log.error('Promesse rejetee sans gestionnaire', { error: String(reason?.message || reason) }));
+  process.on('unhandledRejection', (reason) => {
+    log.error('Promesse rejetee sans gestionnaire', { error: String(reason?.message || reason) });
+    signalerErreur(reason instanceof Error ? reason : new Error(String(reason)));
+  });
   process.on('uncaughtException', (err) => {
     log.error('Exception non capturee', { error: err.message, stack: err.stack });
+    // Le processus va s'arreter : l'envoi part, mais on ne l'attend pas —
+    // retarder l'arret d'un processus deja casse ne rend service a personne.
+    signalerErreur(err);
     shutdown('uncaughtException');
   });
 }

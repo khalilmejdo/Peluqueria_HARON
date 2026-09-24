@@ -312,6 +312,40 @@ crontab -e
 Le script écrit un dump dans `/opt/haron/sauvegardes/`, vérifie qu'il n'est pas
 vide, et efface ceux de plus de quatorze jours.
 
+### Recevoir les erreurs par courriel (Sentry)
+
+Sentry répond à **une** question : « l'application a-t-elle planté sur une
+erreur, et laquelle ». Il ne répond pas à « le salon est-il tombé » — si le
+processus est mort, il n'envoie plus rien. Les deux sections se complètent.
+
+1. Créez un compte gratuit sur [sentry.io](https://sentry.io), un projet
+   **Node.js**, et copiez son **DSN**.
+2. Ajoutez-le au `.env`, puis redéployez :
+
+```bash
+echo 'SENTRY_DSN=https://xxxx@oNNNN.ingest.de.sentry.io/NNNNN' >> /opt/haron/.env
+cd /opt/haron && ./scripts/deployer.sh
+```
+
+3. Dans Sentry : **Settings → Alerts**. La règle par défaut envoie déjà un
+   courriel à la première occurrence de chaque nouvelle erreur.
+
+Vérifiez dans **Cifras → Estado del servicio** : *Informe de errores* doit dire
+**activo**.
+
+> **Aucun paquet n'est installé.** L'application parle à Sentry en HTTP
+> ordinaire — le dépôt n'a toujours qu'une seule dépendance.
+>
+> **Ce qui sort, et ce qui ne sort jamais.** Seules les erreurs *non gérées*
+> partent : un refus métier (« ce fauteuil est occupé ») nomme parfois un
+> client et reste ici. L'adresse est nettoyée avant l'envoi : `/ticket/<jeton>`
+> devient littéralement `/ticket/<jeton>`, car ce jeton **est** le mot de passe
+> du client. Un test unitaire le vérifie à chaque `npm test`.
+>
+> Une même erreur répétée n'est envoyée qu'une fois par tranche de dix minutes :
+> mille lignes identiques ne disent rien de plus que la première, et la limite
+> gratuite est vite atteinte.
+
 ### Savoir que le salon est tombé
 
 Sans alerte, une panne à trois heures du matin s'apprend par un client devant
@@ -326,7 +360,7 @@ crontab -e
 ```
 
 ```cron
-*/5 * * * * cd /opt/haron && ALERTE_URL=https://ntfy.sh/haron-VOTRE-MOT-SECRET REPARER=1 ./scripts/surveillance.sh >> /var/log/haron-surveillance.log 2>&1
+*/5 * * * * cd /opt/haron && ALERTE_URL=https://ntfy.sh/haron-VOTRE-MOT-SECRET ALERTE_COURRIEL=vous@exemple.com REPARER=1 ./scripts/surveillance.sh >> /opt/haron/surveillance.log 2>&1
 ```
 
 Le script :

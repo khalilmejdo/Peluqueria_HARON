@@ -30,8 +30,22 @@
 #    sujet. Choisissez un nom qu'on ne devine pas : chez ntfy, qui connait le
 #    sujet lit les messages.
 #
+#  PAR COURRIEL
+#    ALERTE_COURRIEL fait suivre l'alerte a une boite aux lettres. ntfy s'en
+#    charge, sans compte ni serveur de courrier a installer sur la machine :
+#
+#        export ALERTE_COURRIEL=vous@exemple.com
+#
+#    Un courrier arrive plus tard qu'une notification et peut tomber dans les
+#    indesirables : gardez les deux si l'alerte compte vraiment.
+#
 #  SANS ALERTE_URL, le script se contente d'ecrire dans son journal. Il sert
 #  alors d'historique, pas d'alarme.
+#
+#  IL SE TAIT QUAND TOUT VA BIEN. Une ligne toutes les cinq minutes ferait 288
+#  lignes par jour, toutes identiques : le journal grossirait sans fin et les
+#  vraies pannes s'y noieraient. Seuls les CHANGEMENTS sont ecrits. Pour une
+#  mise au point, « VERBEUX=1 » rend la trace complete.
 # =====================================================================
 set -eu
 
@@ -60,7 +74,22 @@ horodatage() { date '+%F %T'; }
 alerter() {
   echo "$(horodatage)  ALERTE : $1"
   [ -z "$ALERTE_URL" ] && return 0
-  if ! curl -fsS --max-time 15 -d "$1" "$ALERTE_URL" >/dev/null 2>&1; then
+
+  # « X-Email » demande a ntfy de faire suivre par courrier. Sur un autre
+  # service de webhook l'en-tete est simplement ignore : rien ne casse.
+  if [ -n "${ALERTE_COURRIEL:-}" ]; then
+    entete_courriel="-H X-Email:${ALERTE_COURRIEL}"
+  else
+    entete_courriel=""
+  fi
+
+  # shellcheck disable=SC2086
+  if ! curl -fsS --max-time 20 \
+       -H "Title: Peluqueria HARON" \
+       -H "Priority: high" \
+       -H "Tags: warning" \
+       $entete_courriel \
+       -d "$1" "$ALERTE_URL" >/dev/null 2>&1; then
     echo "$(horodatage)  ATTENTION : l'alerte n'a pas pu etre envoyee." >&2
   fi
 }
@@ -75,9 +104,18 @@ code=$(curl -s -o /dev/null -w '%{http_code}' --max-time "$DELAI" "$ADRESSE" 2>/
 if [ "$code" = "200" ]; then
   if [ "$signale" = "alerte" ]; then
     alerter "Peluqueria HARON est de nouveau en ligne. Interruption d'environ $((echecs * 5)) minutes."
+    echo "$(horodatage)  de nouveau en ligne"
+  elif [ "$echecs" -gt 0 ]; then
+    echo "$(horodatage)  de nouveau en ligne (un echec isole, sans alerte)"
   fi
+  # SILENCE quand tout va bien.
+  #
+  # Une ligne toutes les cinq minutes fait 288 lignes par jour, toutes
+  # identiques : le journal grossit sans fin ET les vraies pannes s'y noient.
+  # On n'ecrit donc que les CHANGEMENTS. « VERBEUX=1 » rend la trace complete,
+  # le temps d'une mise au point.
+  [ "${VERBEUX:-0}" = "1" ] && echo "$(horodatage)  en ligne (HTTP $code)"
   echo "0 ok" > "$ETAT"
-  echo "$(horodatage)  en ligne (HTTP $code)"
   exit 0
 fi
 
