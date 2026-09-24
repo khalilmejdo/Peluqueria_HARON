@@ -1105,3 +1105,7 @@
   color: var(--rouge);
 }
 .bouton--danger:hover:not(:disabled) { background: color-mix(in srgb, var(--rouge) 15%, transparent); }
+
+/* Le retour à la vitrine, sous le formulaire de connexion. Centré et discret :
+   c'est une sortie, pas l'action de la page. */
+.connexion__sortie { display: flex; justify-content: center; margin-top: 1rem; }

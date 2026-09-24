@@ -124,7 +124,18 @@ function ecranConnexion({ message = null } = {}) {
       el('p.pastille', { texte: 'Área del salón' }),
       el('h1.titre-page', { texte: 'Peluquería HARON' }),
       el('p.texte-doux', { texte: 'Entra para llevar la fila del día.' }),
-      el('section.carte', formulaire)));
+      el('section.carte', formulaire),
+      /*
+       * LA SORTIE. Apres « Salir », on atterrit ici — et sans ce lien, le seul
+       * chemin vers la vitrine est de retaper l'adresse. C'est aussi l'ecran ou
+       * arrive quelqu'un qui a suivi « Acceso del personal » par curiosite : lui
+       * laisser une porte evite qu'il essaie un mot de passe pour voir.
+       *
+       * Un vrai lien, pas un bouton qui appelle `location` : il s'ouvre dans un
+       * nouvel onglet au clic du milieu, et le navigateur le montre au survol.
+       */
+      el('div.connexion__sortie',
+        el('a.bouton.bouton--discret', { href: '/', texte: 'Ir a la página del salón' }))));
 }
 
 /* ------------------------------------------------------------------ */
