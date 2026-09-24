@@ -5,7 +5,7 @@
 #      ./scripts/surveillance.sh
 #
 #  Toutes les cinq minutes, par cron :
-#      */5 * * * * cd /opt/haron && ./scripts/surveillance.sh >> /var/log/haron-surveillance.log 2>&1
+#      */5 * * * * cd /opt/haron && ./scripts/surveillance.sh >> /opt/haron/surveillance.log 2>&1
 #
 #  Le trou que ce script bouche : sans lui, si l'application tombe a trois
 #  heures du matin, personne ne le sait avant l'ouverture — et le gerant
@@ -38,6 +38,22 @@
 #
 #    Un courrier arrive plus tard qu'une notification et peut tomber dans les
 #    indesirables : gardez les deux si l'alerte compte vraiment.
+#
+#  PAR SENTRY (le plus sur pour le courriel)
+#    SENTRY_CRON_URL est l'adresse de « check-in » d'un Cron Monitor Sentry.
+#    Le script la ping a chaque passage : « ok » quand le salon repond,
+#    « error » sinon.
+#
+#        export SENTRY_CRON_URL=https://oNNN.ingest.de.sentry.io/api/NNN/cron/haron/CLE/
+#
+#    Deux avantages sur tout le reste :
+#
+#      - Sentry envoie le courriel LUI-MEME, avec ses propres regles. Pas de
+#        serveur de courrier, pas de service tiers bride ;
+#      - il alerte aussi quand le battement S'ARRETE. Si la machine entiere
+#        meurt — coupure Oracle, disque plein, noyau fige — ce script ne tourne
+#        plus du tout, donc aucune alerte ne PART. Sentry, lui, remarque le
+#        silence. C'est le seul mecanisme ici qui couvre ce cas.
 #
 #  SANS ALERTE_URL, le script se contente d'ecrire dans son journal. Il sert
 #  alors d'historique, pas d'alarme.
@@ -83,15 +99,40 @@ alerter() {
     entete_courriel=""
   fi
 
+  # On garde le CODE et le CORPS de la reponse.
+  #
+  # « ATTENTION : l'alerte n'a pas pu etre envoyee » sans rien d'autre est
+  # inutilisable : c'est le moment ou l'on a le plus besoin de savoir pourquoi.
+  # Le service d'alerte dit presque toujours ce qui ne va pas — encore faut-il
+  # ne pas jeter sa reponse.
+  reponse=$(mktemp 2>/dev/null || echo /tmp/haron-alerte.$$)
   # shellcheck disable=SC2086
-  if ! curl -fsS --max-time 20 \
+  code=$(curl -sS --max-time 20 -o "$reponse" -w '%{http_code}' \
        -H "Title: Peluqueria HARON" \
        -H "Priority: high" \
-       -H "Tags: warning" \
        $entete_courriel \
-       -d "$1" "$ALERTE_URL" >/dev/null 2>&1; then
-    echo "$(horodatage)  ATTENTION : l'alerte n'a pas pu etre envoyee." >&2
+       -d "$1" "$ALERTE_URL" 2>>"$reponse" || echo 000)
+
+  if [ "$code" = "200" ]; then
+    rm -f "$reponse"
+    return 0
   fi
+
+  echo "$(horodatage)  ATTENTION : l'alerte n'est PAS partie (HTTP ${code})." >&2
+  echo "    reponse du service : $(head -c 400 "$reponse" 2>/dev/null | tr '\n' ' ')" >&2
+  echo "    adresse : ${ALERTE_URL}" >&2
+  rm -f "$reponse"
+}
+
+#
+# Le battement vers Sentry.
+#
+# Il part a CHAQUE passage, pas seulement en cas de panne : c'est le silence
+# qui fait l'alerte. Il ne bloque jamais et ne parle pas — un Sentry injoignable
+# ne doit pas empecher la surveillance de faire son travail.
+battement() {
+  [ -z "${SENTRY_CRON_URL:-}" ] && return 0
+  curl -fsS --max-time 10 -o /dev/null "${SENTRY_CRON_URL}?status=$1" 2>/dev/null || true
 }
 
 mkdir -p "$(dirname "$ETAT")"
@@ -115,12 +156,14 @@ if [ "$code" = "200" ]; then
   # On n'ecrit donc que les CHANGEMENTS. « VERBEUX=1 » rend la trace complete,
   # le temps d'une mise au point.
   [ "${VERBEUX:-0}" = "1" ] && echo "$(horodatage)  en ligne (HTTP $code)"
+  battement ok
   echo "0 ok" > "$ETAT"
   exit 0
 fi
 
 echecs=$((echecs + 1))
 echo "$(horodatage)  INJOIGNABLE (HTTP $code) — echec $echecs"
+battement error
 
 # Un seul echec : on note et on attend le passage suivant. Le reseau hoquette.
 if [ "$echecs" -lt 2 ]; then

@@ -346,6 +346,26 @@ Vérifiez dans **Cifras → Estado del servicio** : *Informe de errores* doit di
 > mille lignes identiques ne disent rien de plus que la première, et la limite
 > gratuite est vite atteinte.
 
+#### Le battement : faire dire à Sentry que le salon est tombé
+
+Le DSN ci-dessus couvre « l'application a planté ». Il ne couvre **pas** « le
+salon ne répond plus » : si le processus est mort, il n'envoie plus rien.
+
+Un **Cron Monitor** comble ce trou, et c'est le seul mécanisme qui alerte quand
+la machine entière meurt — parce que Sentry remarque alors le **silence**.
+
+1. Sentry → **Crons** → *Add Monitor* → type **Cron**
+   - *Name* : `haron`
+   - *Schedule* : `*/5 * * * *`
+   - *Grace period* : 5 minutes, *Max runtime* : 2 minutes
+   - *Timezone* : Europe/Madrid
+2. Sentry affiche une adresse de check-in. Copiez-la — elle ressemble à :
+   `https://oNNN.ingest.de.sentry.io/api/NNN/cron/haron/<clé>/`
+3. Ajoutez-la à la ligne de cron, en `SENTRY_CRON_URL`.
+
+Le script la ping à chaque passage : `ok` quand le salon répond, `error` sinon.
+Si les deux battements manquent, Sentry envoie le courriel de lui-même.
+
 ### Savoir que le salon est tombé
 
 Sans alerte, une panne à trois heures du matin s'apprend par un client devant
@@ -360,7 +380,7 @@ crontab -e
 ```
 
 ```cron
-*/5 * * * * cd /opt/haron && ALERTE_URL=https://ntfy.sh/haron-VOTRE-MOT-SECRET ALERTE_COURRIEL=vous@exemple.com REPARER=1 ./scripts/surveillance.sh >> /opt/haron/surveillance.log 2>&1
+*/5 * * * * cd /opt/haron && ALERTE_URL=https://ntfy.sh/haron-VOTRE-MOT-SECRET ALERTE_COURRIEL=vous@exemple.com SENTRY_CRON_URL=https://oNNN.ingest.de.sentry.io/api/NNN/cron/haron/CLE/ REPARER=1 ./scripts/surveillance.sh >> /opt/haron/surveillance.log 2>&1
 ```
 
 Le script :
