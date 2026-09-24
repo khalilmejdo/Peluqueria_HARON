@@ -315,11 +315,7 @@ vide, et efface ceux de plus de quatorze jours.
 ### Savoir que le salon est tombé
 
 Sans alerte, une panne à trois heures du matin s'apprend par un client devant
-la porte. Cinq minutes à poser :
-
-```bash
-chmod +x /opt/haron/scripts/surveillance.sh
-```
+la porte. Cinq minutes à poser.
 
 Choisissez un **sujet difficile à deviner** sur [ntfy.sh](https://ntfy.sh) —
 chez eux, qui connaît le sujet lit les messages — puis installez l'application
@@ -407,11 +403,9 @@ réglages, les fauteuils, les tarifs et les congés sont en base : **rien n'est
 perdu**, même en pleine journée. Le `.env`, les photos et les sauvegardes sont
 hors de git et hors de l'image — le script n'y touche pas.
 
-La première fois :
-
-```bash
-chmod +x /opt/haron/scripts/deployer.sh
-```
+> Les scripts sont enregistrés exécutables dans le dépôt : il n'y a **pas** de
+> `chmod` à faire. Un `chmod +x` créerait au contraire une modification suivie
+> par git, et `deployer.sh` refuserait alors de partir — à juste titre.
 
 ---
 
