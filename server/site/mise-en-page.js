@@ -118,7 +118,27 @@ export function piedDePage({ horaires = null, adresse = null, telephone = null }
   return '<footer class="pied">'
     + '<div class="enveloppe">'
     + (lignes.length ? '<div class="pied__infos">' + lignes.join('') + '</div>' : '')
+    + '<div class="pied__bas">'
     + '<p class="pied__mention">Un salón. Una fila. Un turno.</p>'
+    // L'acces du personnel : discret, en bas, et JAMAIS un bouton.
+    //
+    // POURQUOI PAS CACHE. Le masquer ne protege rien : « /gestion » est un
+    // chemin ordinaire, et les robots qui sondent deja « /.env » le trouvent
+    // sans lien. Ce qui protege, c'est la limite de debit sur la connexion et
+    // le verrouillage du compte apres plusieurs echecs — tous deux en place.
+    //
+    // POURQUOI PAS UN BOUTON. La vitrine n'a qu'un seul geste a proposer :
+    // prendre son tour. Un second bouton oblige le client a choisir, et un
+    // choix inutile coute tous les jours ce qu'un lien discret ne coute
+    // jamais.
+    //
+    // « Personal » et non « gerente » : le coiffeur s'en sert plus que le
+    // gerant. C'est son ecran de travail.
+    //
+    // « nofollow » va avec le « Disallow: /gestion » de robots.txt : les deux
+    // disent la meme chose, a deux robots qui ne lisent pas les memes regles.
+    + '<a class="pied__acces" href="/gestion" rel="nofollow">Acceso del personal</a>'
+    + '</div>'
     + '</div>'
     + '</footer>';
 }

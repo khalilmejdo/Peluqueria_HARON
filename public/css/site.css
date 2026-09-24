@@ -359,12 +359,41 @@ main { flex: 1; }
 }
 .pied__horaires li span:first-child { text-transform: capitalize; }
 
+/*
+ * La devise et l'accès du personnel se partagent la dernière ligne. Sur un
+ * téléphone ils s'empilent plutôt que de se serrer : « Acceso del personal »
+ * coupé en deux mots sur deux lignes aurait l'air d'une erreur.
+ */
+.pied__bas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+}
+
 .pied__mention {
   font-family: var(--police-titre);
   font-weight: 600;
   letter-spacing: 0.06em;
   color: color-mix(in srgb, var(--laiton) 70%, transparent);
 }
+
+/*
+ * Volontairement PÂLE. Le personnel sait qu'il est là — il vient le chercher ;
+ * le client n'a aucune raison de le remarquer. Au survol et au clavier il
+ * redevient net : discret ne veut pas dire introuvable, et un lien qu'on ne
+ * voit pas au focus est inutilisable sans souris.
+ */
+.pied__acces {
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--texte-doux) 65%, transparent);
+  text-decoration: none;
+  /* Une cible d'au moins 44 px de haut : c'est la taille d'un doigt. */
+  padding-block: 0.6rem;
+}
+.pied__acces:hover,
+.pied__acces:focus-visible { color: var(--texte-doux); }
 
 /* ------------------------------------------------------------------ */
 /*  Héros                                                              */
