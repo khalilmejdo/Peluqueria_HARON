@@ -407,18 +407,36 @@ reconnecte après une coupure, et se recharge d'elle-même au changement de jour
 
 > **Aucun compte, et c'est délibéré.** Un téléviseur ne se reconnecte pas quand
 > une session expire, et une session éternelle sur un appareil que tout le salon
-> manipule serait pire que pas de session. L'adresse est donc **publique** :
-> qui la connaît voit la file.
+> manipule serait pire que pas de session.
 >
 > C'est pourquoi cette page a sa **propre projection**, distincte de celle du
-> personnel : il n'en sort qu'un numéro de tour, un prénom et un nom de
-> fauteuil. Jamais un numéro de téléphone, jamais un nom de famille, jamais un
-> jeton de suivi, jamais une heure d'arrivée. Des tests unitaires le vérifient
-> sur la sortie entière.
+> personnel : il n'en sort qu'un numéro de tour, un nom et un nom de fauteuil.
+> Jamais un numéro de téléphone, jamais un jeton de suivi, jamais une heure
+> d'arrivée — l'heure d'arrivée dit qui poireaute depuis une heure, et ce n'est
+> l'affaire de personne dans la salle. Des tests unitaires le vérifient sur la
+> sortie entière.
+
+**Ajustes → Pantalla del salón** règle ce qui s'affiche, en trois niveaux :
+
+| Réglage | L'écran montre | L'adresse |
+|---|---|---|
+| *Solo los números* | `A012` | `/pantalla` |
+| *Número y nombre de pila* (par défaut) | `A012 — Ana` | `/pantalla` |
+| *Número, nombre y apellido* | `A012 — Ana Ruiz` | `/pantalla?k=…` |
+
+> **Le troisième niveau ferme la page.** Un nom de famille sur un mur, dans une
+> pièce où tout le monde se voit, n'est pas la même chose qu'un nom de famille
+> sur une adresse que n'importe qui peut ouvrir depuis chez lui. Choisir ce
+> niveau fabrique donc **automatiquement une clé** : l'écran ne répond plus
+> qu'à `/pantalla?k=<clé>`, et toute autre demande reçoit un 404 — pas un
+> « mauvaise clé », qui confirmerait que la page existe.
 >
-> **Ajustes → Pantalla del salón** permet même de couper les prénoms : l'écran
-> n'affiche alors que des numéros, comme une boulangerie. C'est le réglage à
-> mettre si l'écran se voit depuis la rue.
+> C'est le même principe que le lien de suivi d'un client : pas de session à
+> expirer sur un téléviseur, mais une adresse qu'on ne devine pas. L'onglet
+> **Código QR** affiche l'adresse complète, clé comprise, avec un bouton pour
+> la copier — c'est **elle** qu'il faut mettre dans le navigateur de l'écran.
+>
+> Si l'écran se voit depuis la rue, mettez *solo los números*.
 
 Si la connexion tombe, la page le **dit** : un bandeau ambre et le contenu qui
 pâlit. Un écran figé sur la file d'il y a deux heures a l'air juste — c'est

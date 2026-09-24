@@ -13,6 +13,7 @@
  * quelques secondes : la file est recalculee a chaque geste, il serait absurde
  * d'aller chercher « duree moyenne » en base vingt fois par minute.
  */
+import { randomBytes } from 'node:crypto';
 import { all, execute } from '../db/index.js';
 import { heureValide, heureEnMinutes, NOMS_JOURS } from './temps.js';
 import { config } from './config.js';
@@ -118,9 +119,20 @@ export const CATALOGUE = {
     aide: 'Referencias, transporte y aparcamiento. Por ejemplo: « Frente a la farmacia, metro Sol a 3 minutos, aparcamiento en la plaza. »',
   },
   'pantalla.nombres': {
-    type: 'booleen', defaut: true,
-    libelle: 'Mostrar los nombres en la pantalla del salón',
-    aide: 'Desactívelo y la pantalla solo mostrará los números de turno, como en una panadería. Útil si la pantalla se ve desde la calle.',
+    type: 'choix',
+    defaut: 'NOMBRE',
+    options: [
+      { valeur: 'NINGUNO', libelle: 'Solo los números de turno' },
+      { valeur: 'NOMBRE', libelle: 'Número y nombre de pila' },
+      { valeur: 'COMPLETO', libelle: 'Número, nombre y apellido' },
+    ],
+    libelle: 'Qué se muestra en la pantalla del salón',
+    aide: 'Si la pantalla se ve desde la calle, deje solo los números. Con « nombre y apellido », la pantalla pasa a estar protegida por una clave en su dirección: solo se abre desde el aparato donde la haya puesto.',
+  },
+  'pantalla.clave': {
+    type: 'texte', defaut: '', maxLongueur: 64,
+    libelle: 'Clave de la pantalla',
+    aide: 'Vacía, la pantalla se abre en /pantalla sin más. Rellena, hace falta /pantalla?k=… — es la dirección que hay que poner en el televisor. Se genera sola al elegir « nombre y apellido ».',
   },
   'public.url': {
     type: 'url', defaut: '', maxLongueur: 300,
@@ -410,6 +422,31 @@ export async function enregistrer(valeurs, { tx = null, parUtilisateurId = null 
           });
         }
       }
+    }
+  }
+
+  /*
+   * L'ECRAN QUI MONTRE LES NOMS COMPLETS SE FERME.
+   *
+   * L'adresse de /pantalla n'a pas de session : elle est lisible par quiconque
+   * la connait. Montrer un nom de famille sur une page ouverte a tout internet
+   * n'est pas la meme chose que de l'afficher sur un mur, et le gerant qui
+   * coche « nombre y apellido » pense au mur.
+   *
+   * On ne le lui refuse pas — c'est son salon — mais on ne le laisse pas non
+   * plus croire que l'ecran est prive alors qu'il ne l'est pas. La cle est
+   * donc fabriquee ICI, toute seule, au moment ou elle devient necessaire :
+   * une friction de moins, et la promesse tenue.
+   *
+   * Vingt-quatre octets : on ne devine pas une adresse pareille, et elle tient
+   * dans un champ qu'on recopie sur un televiseur.
+   */
+  const aEcrireMap = new Map(aEcrire);
+  if (aEcrireMap.get('pantalla.nombres') === 'COMPLETO') {
+    const actuels = await lireTous({ frais: true });
+    const dejaPosee = aEcrireMap.get('pantalla.clave') ?? actuels['pantalla.clave'];
+    if (!dejaPosee) {
+      aEcrire.push(['pantalla.clave', randomBytes(24).toString('base64url')]);
     }
   }
 

@@ -287,7 +287,7 @@ export async function chargerEtat(jour) {
     adresseSalon: reglages['salon.adresse'] || null,
     // Porte par l'etat, et non relu dans la projection : celle-ci est pure et
     // synchrone, et le diffuseur l'appelle une fois pour tous les ecrans.
-    pantallaNombres: reglages['pantalla.nombres'] !== false,
+    pantallaNombres: reglages['pantalla.nombres'] || 'NOMBRE',
     maj: new Date().toISOString(),
     priseDeTour: prise,
     postes,
@@ -426,12 +426,20 @@ export function pourSalon(etat) {
  * @param {object} etat
  * @param {{ nommer?: boolean, combien?: number }} [options]
  */
-export function pourPantalla(etat, { nommer = etat.pantallaNombres !== false, combien = 8 } = {}) {
+export function pourPantalla(etat, { nommer = etat.pantallaNombres || 'NOMBRE', combien = 8 } = {}) {
   const nomDuPoste = new Map(etat.postes.map((p) => [p.id, p.coiffeur || p.nom]));
+
+  // Trois niveaux, et le nom de famille n'est JAMAIS un defaut : il faut
+  // l'avoir choisi, et ce choix ferme la page derriere une cle.
+  const nomAffiche = (t) => {
+    if (nommer === 'NINGUNO') return null;
+    if (nommer === 'COMPLETO' && t.nom) return t.prenom ? t.prenom + ' ' + t.nom : t.nom;
+    return t.prenom || null;
+  };
 
   const ligne = (t) => ({
     numero: t.numero_affiche,
-    prenom: nommer ? t.prenom : null,
+    prenom: nomAffiche(t),
     poste: t.poste_id ? nomDuPoste.get(t.poste_id) ?? null : (t.poste_choisi_id ? nomDuPoste.get(t.poste_choisi_id) ?? null : null),
   });
 

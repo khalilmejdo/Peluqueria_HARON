@@ -3,7 +3,9 @@
  *
  * DEUX RISQUES, ET UN TEST POUR CHACUN.
  *
- * 1. CE QUI SORT. L'ecran est accroche au mur et son adresse est publique :
+ * 1. CE QUI SORT. L'ecran est accroche au mur, et son adresse est ouverte tant
+ *    que le gerant n'a pas choisi d'afficher les apellidos (ce choix pose une
+ *    cle dans l'adresse) :
  *    tout ce que la projection laisse passer est lisible par quiconque la
  *    connait. Un numero de telephone ou un jeton de suivi qui s'y glisserait
  *    ne se verrait jamais — un televiseur n'a pas de lecteur attentif.
@@ -49,7 +51,7 @@ const ticket = (n, statut, extra = {}) => ({
   ...extra,
 });
 
-function etatDeTest(tickets, { pantallaNombres = true } = {}) {
+function etatDeTest(tickets, { pantallaNombres = 'NOMBRE' } = {}) {
   return {
     jour: '2026-09-24',
     ouverte: true,
@@ -97,7 +99,7 @@ test('le fauteuil affiche le nom du coiffeur quand il en a un', () => {
  * de l'ecran ne doit rien en savoir, et il ne suffit pas de « ne pas les
  * mettre » : il faut le verifier sur la sortie entiere, serialisee.
  */
-test('ni telephone, ni jeton, ni nom de famille ne sortent sur l ecran', () => {
+test('ni telephone, ni jeton, ni nom de famille ne sortent par defaut', () => {
   const texte = JSON.stringify(pourPantalla(JOURNEE));
   for (const interdit of ['CHIFFRE-TELEPHONE', 'CHIFFRE-JETON', 'Apellido', '6781', '6782']) {
     assert.ok(!texte.includes(interdit), interdit + ' se retrouve sur l écran du salon');
@@ -108,10 +110,37 @@ test('ni telephone, ni jeton, ni nom de famille ne sortent sur l ecran', () => {
 });
 
 test('un salon peut couper les prenoms et n afficher que des numeros', () => {
-  const vue = pourPantalla(etatDeTest(JOURNEE.tickets, { pantallaNombres: false }));
+  const vue = pourPantalla(etatDeTest(JOURNEE.tickets, { pantallaNombres: 'NINGUNO' }));
   assert.equal(vue.appeles[0].numero, 'A002');
   assert.equal(vue.appeles[0].prenom, null);
   assert.ok(!JSON.stringify(vue).includes('Cliente'));
+});
+
+/*
+ * Le nom de famille N'EST JAMAIS UN DEFAUT. Il faut l'avoir choisi, et ce choix
+ * ferme la page derriere une cle (voir `enregistrer` dans reglages.js) : un
+ * apellido sur une adresse que tout internet peut ouvrir n'est pas la meme
+ * chose qu'un apellido sur un mur.
+ */
+test('le nom de famille ne sort que si le salon l a explicitement choisi', () => {
+  assert.equal(pourPantalla(etatDeTest(JOURNEE.tickets)).appeles[0].prenom, 'Cliente2');
+  assert.equal(
+    pourPantalla(etatDeTest(JOURNEE.tickets, { pantallaNombres: 'COMPLETO' })).appeles[0].prenom,
+    'Cliente2 Apellido2',
+  );
+  // Une valeur inconnue retombe sur le prenom seul, jamais sur le nom complet.
+  assert.equal(
+    pourPantalla(etatDeTest(JOURNEE.tickets, { pantallaNombres: 'AUTRE_CHOSE' })).appeles[0].prenom,
+    'Cliente2',
+  );
+});
+
+test('un client sans nom de famille ne fabrique pas un libelle bancal', () => {
+  const sansNom = [ticket(1, 'CALLED', { nom: '' }), ticket(2, 'CALLED', { prenom: '', nom: 'Solo' })];
+  const vue = pourPantalla(etatDeTest(sansNom, { pantallaNombres: 'COMPLETO' }));
+  assert.equal(vue.appeles[0].prenom, 'Cliente1');
+  assert.equal(vue.appeles[1].prenom, 'Solo');
+  assert.ok(!JSON.stringify(vue).includes('  '), 'une double espace traîne dans un libellé');
 });
 
 test('les termines et les annules ne montent pas sur l ecran', () => {
@@ -219,7 +248,8 @@ test('le serveur et le script affichent exactement le meme texte', async () => {
     pourPantalla(JOURNEE),
     pourPantalla(etatDeTest([])),
     pourPantalla(etatDeTest([ticket(1, 'IN_SERVICE', { poste_id: 'p1' })])),
-    pourPantalla(etatDeTest(JOURNEE.tickets, { pantallaNombres: false })),
+    pourPantalla(etatDeTest(JOURNEE.tickets, { pantallaNombres: 'NINGUNO' })),
+    pourPantalla(etatDeTest(JOURNEE.tickets, { pantallaNombres: 'COMPLETO' })),
     pourPantalla({ ...etatDeTest([]), ouverte: false }),
   ]) {
     assert.equal(

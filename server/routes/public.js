@@ -12,6 +12,7 @@
  * suivi est le seul sesame, il fait 192 bits, et une demande sur un jeton mal
  * forme rend exactement la meme reponse qu'une demande sur un jeton inconnu.
  */
+import { timingSafeEqual } from 'node:crypto';
 import { Router } from '../http/router.js';
 import { validate, rules } from '../core/validate.js';
 import { jetonDe } from '../http/aides.js';
@@ -23,6 +24,35 @@ import { jourLocal } from '../core/temps.js';
 import { prendreTour, ticketParJeton, chargerEtat, pourClient, annulerParClient, etatPriseDeTour } from '../domain/file.js';
 
 export const publicRoutes = new Router();
+
+/**
+ * La cle de l'ecran du salon.
+ *
+ * Vide, la page est ouverte comme avant. Posee, elle devient une ADRESSE
+ * SECRETE : c'est le meme principe que le lien de suivi d'un client — pas de
+ * session a expirer sur un televiseur, mais une adresse qu'on ne devine pas.
+ * Elle est fabriquee automatiquement des que le gerant choisit d'afficher les
+ * noms de famille.
+ *
+ * On repond 404, pas 403 : une page protegee qui dit « mauvaise cle » confirme
+ * qu'elle existe, et invite a essayer la suivante.
+ *
+ * La comparaison est a temps constant. La difference est theorique sur un
+ * reseau, mais elle ne coute rien et elle evite d'avoir a se demander si elle
+ * l'est vraiment.
+ */
+export async function exigerClePantalla(ctx) {
+  const reglages = await lireTous();
+  const attendue = reglages['pantalla.clave'];
+  if (!attendue) return;
+
+  const fournie = String(ctx.query('k') || '');
+  const a = Buffer.from(fournie);
+  const b = Buffer.from(attendue);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    throw notFound('Página no encontrada.');
+  }
+}
 
 /**
  * PRENDRE SON TOUR.
@@ -134,6 +164,7 @@ publicRoutes.post('/tickets/:jeton/annuler', async (ctx) => {
  * garde toute la journee.
  */
 publicRoutes.get('/pantalla/flux', async (ctx) => {
+  await exigerClePantalla(ctx);
   const limite = consume('pantalla:' + ctx.ip, PROFILES.flux);
   if (!limite.allowed) {
     ctx.res.setHeader('Retry-After', String(limite.retryAfterSeconds));

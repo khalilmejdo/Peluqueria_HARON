@@ -37,6 +37,7 @@ import {
 } from './illustrations.js';
 import { iconeTarifa } from './icones-tarifas.js';
 import { photosDuSalon } from './galerie.js';
+import { exigerClePantalla } from '../routes/public.js';
 
 export const siteRoutes = new Router();
 
@@ -866,6 +867,9 @@ siteRoutes.get('/affiche', async (ctx) => {
  * script affiche donc l'etat du chargement, pas une page vide.
  */
 siteRoutes.get('/pantalla', async (ctx) => {
+  // La meme cle que le flux, et pour la meme raison : une page ouverte dont le
+  // flux est ferme afficherait un ecran vide sans dire pourquoi.
+  await exigerClePantalla(ctx);
   const reglages = await lireTous();
   const jour = jourLocal();
   const [etat, adresse] = await Promise.all([chargerEtat(jour), adresseDuQr(ctx)]);

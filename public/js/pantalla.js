@@ -147,7 +147,10 @@ function horsLigne(oui) {
 
 function brancher() {
   debrancher();
-  flux = new EventSource('/api/public/pantalla/flux');
+  // La cle de l'ecran voyage avec la page : elle est dans SON adresse, on la
+  // repasse au flux. Sans cela, une page ouverte avec la bonne cle afficherait
+  // un ecran fige, son flux ayant ete refuse — et rien ne le dirait.
+  flux = new EventSource('/api/public/pantalla/flux' + location.search);
 
   flux.addEventListener('pantalla', (evenement) => {
     dernierMessage = Date.now();
