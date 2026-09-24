@@ -27,6 +27,8 @@ import { pngNoirEtBlanc } from '../core/png.js';
 import { prendreTour, ticketParJeton, chargerEtat, pourClient, etatPriseDeTour } from '../domain/file.js';
 import { pourVitrine } from '../domain/tarifas.js';
 import { page, marque, entete, piedDePage, pageErreur } from './mise-en-page.js';
+import { matDeBarbier, fauteuil, ciseauxEtPeigne, iconeEtape, separateur } from './illustrations.js';
+import { photosDuSalon } from './galerie.js';
 
 export const siteRoutes = new Router();
 
@@ -53,13 +55,44 @@ function ficheDePrix(lignes, nota) {
     + (t.nota ? '<span class="tarifa__nota">' + escapeHtml(t.nota) + '</span>' : '')
     + '</li>').join('');
 
-  return '<section class="enveloppe seccion" id="tarifas">'
+  return '<section class="enveloppe seccion seccion--tarifas" id="tarifas">'
     + '<div class="seccion__tete">'
     + '<h2 class="seccion__titulo">Tarifas</h2>'
     + '<p class="seccion__intro">Precios claros, sin sorpresas.</p>'
     + '</div>'
+    + '<div class="tarifas__cadre">'
+    // Le mat de barbier tient la colonne de gauche sur grand ecran, et
+    // disparait sur telephone : il decore, il n'informe pas.
+    + '<div class="tarifas__mat" aria-hidden="true">' + matDeBarbier() + '</div>'
     + '<ul class="tarifas">' + items + '</ul>'
+    + '</div>'
     + (nota ? '<p class="tarifas__nota">' + escapeHtml(nota) + '</p>' : '')
+    + '</section>';
+}
+
+/**
+ * La galerie : les vraies photos du salon.
+ *
+ * Aucune photo, aucune section. Le premier cliche est mis en avant — c'est
+ * presque toujours la vue d'ensemble que le gerant depose en premier.
+ *
+ * `loading="lazy"` sur tout sauf la premiere : un client sur un reseau faible
+ * doit voir le haut de la page, pas attendre six photos.
+ */
+function galerie(photos) {
+  if (!photos.length) return '';
+  const vignettes = photos.map((p, i) => '<figure class="cliche' + (i === 0 ? ' cliche--grand' : '') + '">'
+    + '<img class="cliche__image" src="' + escapeHtml(p.src) + '" alt="' + escapeHtml(p.legende || 'Peluquería HARON') + '"'
+    + (i === 0 ? '' : ' loading="lazy"') + ' decoding="async">'
+    + (p.legende ? '<figcaption class="cliche__legende">' + escapeHtml(p.legende) + '</figcaption>' : '')
+    + '</figure>').join('');
+
+  return '<section class="enveloppe seccion" id="galeria">'
+    + '<div class="seccion__tete">'
+    + '<h2 class="seccion__titulo">El salón</h2>'
+    + '<p class="seccion__intro">Así es la casa.</p>'
+    + '</div>'
+    + '<div class="galeria">' + vignettes + '</div>'
     + '</section>';
 }
 
@@ -76,8 +109,11 @@ function commentCaMarche() {
     ['2', 'Sigue tu posición', 'Te llevas un enlace que te dice en directo cuántas personas te faltan.'],
     ['3', 'Llega a tiempo', 'Espera donde quieras y ven cuando el enlace te diga que te toca.'],
   ];
-  const items = etapes.map(([n, titre, texte]) => '<li class="paso">'
+  const items = etapes.map(([n, titre, texte], i) => '<li class="paso">'
+    + '<div class="paso__marque">'
+    + iconeEtape(i)
     + '<span class="paso__num" aria-hidden="true">' + n + '</span>'
+    + '</div>'
     + '<h3 class="paso__titulo">' + escapeHtml(titre) + '</h3>'
     + '<p class="paso__texto">' + escapeHtml(texte) + '</p>'
     + '</li>').join('');
@@ -85,6 +121,7 @@ function commentCaMarche() {
   return '<section class="enveloppe seccion">'
     + '<div class="seccion__tete">'
     + '<h2 class="seccion__titulo">Cómo funciona</h2>'
+    + '<p class="seccion__intro">Tres pasos, y ninguno cuesta nada.</p>'
     + '</div>'
     + '<ol class="pasos">' + items + '</ol>'
     + '</section>';
@@ -92,10 +129,11 @@ function commentCaMarche() {
 
 siteRoutes.get('/', async (ctx) => {
   const reglages = await lireTous();
-  const [etat, prise, tarifas] = await Promise.all([
+  const [etat, prise, tarifas, photos] = await Promise.all([
     chargerEtat(jourLocal()),
     etatPriseDeTour(),
     reglages['tarifas.visible'] ? pourVitrine() : Promise.resolve([]),
+    photosDuSalon(),
   ]);
   const devant = etat.compteurs.enAttente + etat.compteurs.enCours;
   const attente = devant * etat.dureeMoyenneMinutes;
@@ -138,6 +176,9 @@ siteRoutes.get('/', async (ctx) => {
   const corps = '<main id="principal">'
     + '<section class="hero">'
     + '<div class="hero__raies" aria-hidden="true"></div>'
+    // Le filigrane : ciseaux et peigne croises, tres pales, derriere le titre.
+    // Purement decoratif, donc hors du flux et invisible des lecteurs d'ecran.
+    + '<div class="hero__filigrane" aria-hidden="true">' + ciseauxEtPeigne() + '</div>'
     + '<div class="enveloppe hero__contenu">'
     + marque({ taille: 'grand', lien: false })
     + '<h1 class="hero__accroche">' + escapeHtml(reglages['salon.accroche']) + '</h1>'
@@ -146,10 +187,15 @@ siteRoutes.get('/', async (ctx) => {
     + '</section>'
     + annonce
     + ficheDePrix(tarifas, reglages['tarifas.nota'])
+    + galerie(photos)
+    + separateur()
     + commentCaMarche()
     + '<section class="enveloppe bandeau-qr">'
+    + '<div class="bandeau-qr__illu" aria-hidden="true">' + fauteuil() + '</div>'
+    + '<div class="bandeau-qr__texte-bloc">'
     + '<p class="bandeau-qr__titre">¿Ya estás en el salón?</p>'
     + '<p class="bandeau-qr__texte">Escanea el código QR del escaparate y entras en la misma fila.</p>'
+    + '</div>'
     + '</section>'
     + '</main>';
 

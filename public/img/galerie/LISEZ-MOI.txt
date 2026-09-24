@@ -1,0 +1,50 @@
+LES PHOTOS DU SALON
+===================
+
+Deposez ici les photos qui s'afficheront sur la page d'accueil, section
+« El salon ». Formats acceptes : .jpg  .jpeg  .png  .webp  .avif
+Vingt-quatre au maximum, les suivantes sont ignorees.
+
+Dossier vide : la section n'apparait pas du tout. C'est voulu — un salon sans
+photos garde une page complete, sans cadre gris « image manquante ».
+
+
+L'ORDRE ET LES LEGENDES VIENNENT DU NOM DU FICHIER
+--------------------------------------------------
+
+Les photos sont classees par ordre alphabetique, et le nom du fichier devient
+la legende : le prefixe numerique est retire, les tirets et soulignes
+deviennent des espaces, la premiere lettre est mise en majuscule.
+
+    01-nuestro-salon.jpg      ->  « Nuestro salon »
+    02-la_vitrina.jpg         ->  « La vitrina »
+    03-corte-clasico.webp     ->  « Corte clasico »
+    04.jpg                    ->  aucune legende
+
+La PREMIERE photo est mise en avant : elle occupe quatre fois la place des
+autres. Mettez-y la vue d'ensemble.
+
+
+SUR LE SERVEUR
+--------------
+
+Ce dossier est monte en volume depuis /opt/haron/photos (voir
+docker-compose.oci.yml). Ajouter une photo ne demande donc NI reconstruction
+d'image, NI redemarrage :
+
+    mkdir -p /opt/haron/photos
+    scp mesphotos/*.jpg ubuntu@<serveur>:/opt/haron/photos/
+
+La galerie se rafraichit au plus dix secondes plus tard.
+
+
+CONSEILS
+--------
+
+- Format carre ou proche du carre : la mosaique recadre au centre.
+- Environ 1200 x 1200 pixels suffisent. Une photo de 4000 pixels de large
+  ne sera pas plus belle a l'ecran, mais fera attendre le client.
+- Comptez le trafic : l'offre Oracle gratuite donne 10 To par mois, ce qui
+  est enorme, mais une page de 15 Mo de photos est lente sur un telephone
+  en 4G faible, et c'est la que vos clients la regardent.
+- Ce fichier peut rester : il n'est pas une image, il est ignore.

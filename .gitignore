@@ -9,3 +9,4 @@ coverage/
 
 # Sauvegardes produites sur le serveur : jamais dans le depot.
 sauvegardes/
+photos/

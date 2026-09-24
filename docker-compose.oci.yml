@@ -76,6 +76,17 @@ services:
     depends_on:
       base:
         condition: service_healthy
+    volumes:
+      # Les photos du salon, en lecture seule.
+      #
+      # Elles ne sont PAS dans l'image : y ajouter un cliché demanderait de
+      # reconstruire et de redéployer. Montées depuis le disque, il suffit de
+      # les déposer et de recharger la page :
+      #
+      #   scp mesphotos/*.jpg ubuntu@<serveur>:/opt/haron/photos/
+      #
+      # Le dossier peut rester vide : la galerie disparaît alors de la vitrine.
+      - ./photos:/app/public/img/galerie:ro
     # Aucun port publié : l'application n'est joignable que par Caddy.
     expose:
       - "3000"

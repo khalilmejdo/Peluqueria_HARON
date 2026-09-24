@@ -283,7 +283,12 @@ main { flex: 1; }
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  padding-block: clamp(2.5rem, 12vw, 5.5rem) clamp(2.5rem, 9vw, 4.5rem);
+  /*
+   * Le bas est plus serré que le haut : la première section ajoute déjà son
+   * propre espace, et les deux cumulés creusaient une bande vide de neuf rem
+   * entre le bouton et « Tarifas ».
+   */
+  padding-block: clamp(2.5rem, 12vw, 5.5rem) clamp(1.5rem, 5vw, 2.5rem);
 }
 
 /*
@@ -386,6 +391,81 @@ main { flex: 1; }
 }
 
 /* ------------------------------------------------------------------ */
+/*  Illustrations                                                      */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Toutes les illustrations sont dessinées en SVG et suivent les couleurs du
+ * thème : aucune teinte n'est écrite deux fois, ici et dans le dessin. Un seul
+ * jeu de traits, une seule épaisseur — trois épaisseurs différentes donneraient
+ * l'impression d'un assemblage de pictogrammes trouvés ailleurs.
+ */
+.illu { display: block; width: 100%; height: auto; }
+
+.illu__trait {
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+.illu__trait-fin {
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  fill: none;
+}
+.illu__point { fill: currentColor; stroke: none; }
+
+/* Le mât de barbier. */
+.illu__laiton-plein { fill: var(--laiton); }
+.illu__tube { fill: var(--creme); }
+.illu__tube-bord { fill: none; stroke: var(--laiton-sombre); stroke-width: 1.5; }
+.illu__bande { fill: color-mix(in srgb, var(--rouge) 78%, #7a1f1a); }
+
+.illu--etape { width: 1.7rem; height: 1.7rem; color: var(--accent); }
+
+/* Le rasoir du séparateur : sous 4,5rem il ne se lit plus comme un rasoir,
+   seulement comme une bavure entre deux filets. */
+.illu--rasoir { width: 4.5rem; flex: none; color: var(--laiton); opacity: 0.55; }
+
+/*
+ * Le filigrane du héros : très grand, très pâle, décalé hors-champ pour qu'il
+ * suggère plutôt qu'il ne s'affiche. `z-index: -1` le met derrière le texte,
+ * et le `mask` l'efface avant qu'il n'atteigne le bord de l'écran.
+ */
+.hero__filigrane {
+  position: absolute;
+  z-index: -1;
+  top: -8%;
+  right: -14%;
+  width: clamp(18rem, 46vw, 30rem);
+  color: var(--laiton);
+  opacity: 0.1;
+  transform: rotate(12deg);
+  mask-image: radial-gradient(70% 70% at 40% 40%, #000 30%, transparent 100%);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero__filigrane { transition: opacity var(--transition); }
+}
+
+/* Le séparateur au rasoir, entre deux sections. */
+.separateur {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: min(var(--largeur), 100% - 2 * var(--pas));
+  margin-inline: auto;
+}
+.separateur__filet {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--bordure), transparent);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Sections de la vitrine                                             */
 /* ------------------------------------------------------------------ */
 
@@ -437,6 +517,43 @@ main { flex: 1; }
  * s'arrête ainsi exactement où le prix commence, et la note éventuelle passe
  * proprement à la ligne dessous.
  */
+/*
+ * La fiche est posée dans un cadre à elle : un fond crème très légèrement
+ * différent du reste, un filet de laiton, et le mât de barbier en marge. C'est
+ * ce qui la fait lire comme une carte affichée au mur plutôt que comme une
+ * liste de plus dans la page.
+ */
+.tarifas__cadre {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(1rem, 3vw, 2rem);
+  padding: clamp(1.1rem, 4vw, 2rem);
+  border: 1px solid color-mix(in srgb, var(--laiton) 30%, var(--bordure));
+  border-radius: var(--r-grand);
+  background:
+    radial-gradient(120% 100% at 100% 0%, color-mix(in srgb, var(--laiton) 5%, transparent), transparent 60%),
+    var(--fond-carte);
+  box-shadow: var(--ombre-douce);
+}
+
+/*
+ * Le mât n'apparaît qu'à partir de la largeur où il ne vole pas de place — et
+ * quand il apparaît, il doit se lire comme un mât de barbier, pas comme une
+ * pastille. En dessous de 3rem de large, la spirale devient illisible et
+ * l'ornement a l'air d'être tombé là par accident.
+ */
+.tarifas__mat { display: none; }
+
+@media (min-width: 48rem) {
+  .tarifas__cadre { grid-template-columns: auto 1fr; align-items: center; }
+  .tarifas__mat {
+    display: block;
+    width: 3.25rem;
+    justify-self: center;
+    filter: drop-shadow(0 6px 14px rgb(0 0 0 / 45%));
+  }
+}
+
 .tarifas {
   list-style: none;
   margin: 0;
@@ -493,6 +610,83 @@ main { flex: 1; }
 }
 
 /* ------------------------------------------------------------------ */
+/*  La galerie : les vraies photos du salon                            */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Une galerie JUSTIFIÉE, pas une grille.
+ *
+ * Une grille laisse toujours un trou : avec quatre colonnes et une grande
+ * vignette en tête, six photos en laissent une seule sur la dernière rangée,
+ * trois colonnes vides à sa droite — et ça se lit comme un chargement
+ * interrompu. Aucun arrangement de grille ne comble ce trou pour un nombre
+ * QUELCONQUE de photos, et le salon en déposera autant qu'il voudra.
+ *
+ * En flex, les vignettes de la dernière rangée s'étirent (`flex-grow`) jusqu'à
+ * remplir la largeur. Il n'y a donc jamais de trou, quel que soit le compte.
+ * La hauteur est fixée par rangée : les photos gardent un alignement net, et la
+ * page ne saute pas quand elles arrivent.
+ */
+.galeria {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.cliche {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border-radius: var(--r);
+  background: var(--fond-carte-2);
+  /* base large : sur téléphone, deux par rangée. */
+  flex: 1 1 8rem;
+  height: 9.5rem;
+}
+
+/* La première photo tient toute la largeur : c'est la vue d'ensemble. */
+.cliche--grand { flex: 1 1 100%; height: clamp(12rem, 52vw, 16rem); }
+
+@media (min-width: 46rem) {
+  .galeria { gap: 0.85rem; }
+  .cliche { flex: 1 1 13rem; height: 13rem; }
+  /* Deux fois plus large que les autres, même hauteur : la hiérarchie sans
+     casser l'alignement des rangées. */
+  .cliche--grand { flex: 2 1 27rem; height: 13rem; }
+}
+
+.cliche__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/*
+ * La légende flotte sur le bas de la photo, sur un dégradé plutôt qu'un bandeau
+ * opaque : le cliché reste entier, et le texte reste lisible quelle que soit la
+ * photo, claire ou sombre.
+ */
+.cliche__legende {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 1.5rem 0.75rem 0.6rem;
+  background: linear-gradient(transparent, rgb(0 0 0 / 72%));
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 60%);
+}
+
+.cliche--grand .cliche__legende { font-size: 0.92rem; padding-bottom: 0.8rem; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .cliche__image { transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1); }
+  .cliche:hover .cliche__image { transform: scale(1.04); }
+}
+
+/* ------------------------------------------------------------------ */
 /*  Comment ça marche                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -502,6 +696,7 @@ main { flex: 1; }
   padding: 0;
   display: grid;
   gap: 1rem;
+  counter-reset: paso;
 }
 
 @media (min-width: 46rem) {
@@ -509,7 +704,9 @@ main { flex: 1; }
 }
 
 .paso {
-  padding: 1.4rem;
+  position: relative;
+  overflow: hidden;
+  padding: 1.5rem 1.4rem;
   border: 1px solid var(--bordure);
   border-radius: var(--r);
   background: var(--fond-carte);
@@ -518,16 +715,35 @@ main { flex: 1; }
   align-content: start;
 }
 
+/* Un filet de laiton en haut de chaque carte : le rappel du mât, trois fois. */
+.paso::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--laiton), transparent 70%);
+}
+
+/* L'icône et le chiffre côte à côte : l'icône dit QUOI, le chiffre dit QUAND. */
+.paso__marque {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.15rem;
+}
+
 .paso__num {
   font-family: var(--police-titre);
   font-weight: 800;
-  font-size: 1.05rem;
-  width: 2.1rem;
-  height: 2.1rem;
+  font-size: 0.95rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  flex: none;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  border: 1.5px solid var(--accent);
+  border: 1.5px solid color-mix(in srgb, var(--accent) 45%, transparent);
   color: var(--accent);
 }
 
@@ -544,18 +760,45 @@ main { flex: 1; }
   font-size: 0.92rem;
 }
 
+/*
+ * Le bandeau du QR : le fauteuil dessiné à gauche, le texte à droite. Sur
+ * téléphone, le fauteuil passe au-dessus et se réduit — il accompagne le
+ * message, il ne le pousse pas hors de l'écran.
+ */
 .bandeau-qr {
-  padding-block: clamp(2rem, 6vw, 3rem);
-  text-align: center;
+  padding-block: clamp(2.5rem, 7vw, 4rem);
   display: grid;
-  gap: 0.4rem;
+  gap: 1.25rem;
+  justify-items: center;
+  text-align: center;
+  border-top: 1px solid var(--bordure);
 }
+
+.bandeau-qr__illu {
+  width: clamp(5rem, 18vw, 7.5rem);
+  color: var(--laiton);
+  opacity: 0.55;
+}
+
+.bandeau-qr__texte-bloc { display: grid; gap: 0.35rem; }
+
+@media (min-width: 40rem) {
+  .bandeau-qr {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    justify-items: start;
+    text-align: start;
+    gap: 2rem;
+  }
+}
+
 .bandeau-qr__titre {
+  margin: 0;
   font-family: var(--police-titre);
   font-weight: 700;
-  font-size: 1.15rem;
+  font-size: clamp(1.15rem, 3.6vw, 1.45rem);
 }
-.bandeau-qr__texte { color: var(--texte-doux); }
+.bandeau-qr__texte { margin: 0; color: var(--texte-doux); }
 
 /* ------------------------------------------------------------------ */
 /*  Boutons                                                            */

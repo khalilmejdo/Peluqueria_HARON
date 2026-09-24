@@ -253,8 +253,49 @@ Dans l'ordre de fréquence :
    docker compose -f docker-compose.oci.yml up -d
    ```
 3. Réglages → nom du salon, adresse, téléphone, durée d'une coupe, fauteuils.
-4. Onglet **QR Code** → vérifiez l'adresse, **scannez-la avec un téléphone**,
+4. Onglet **Tarifas** → vos vrais prix. Les huit lignes créées au premier
+   démarrage sont des ordres de grandeur, pas une vérité.
+5. Onglet **QR Code** → vérifiez l'adresse, **scannez-la avec un téléphone**,
    puis imprimez l'affiche.
+
+---
+
+## 8 bis. Les photos du salon
+
+La page d'accueil affiche une section « El salón » dès qu'il y a des photos, et
+la masque quand il n'y en a pas. Elles ne sont **pas** dans l'image Docker :
+`/opt/haron/photos` est monté en volume, donc en ajouter une ne demande ni
+reconstruction, ni redémarrage.
+
+Créez le dossier **avant** le premier démarrage, sinon Docker le crée lui-même
+et il appartiendra à `root` :
+
+```bash
+mkdir -p /opt/haron/photos
+```
+
+Puis, depuis votre poste :
+
+```bash
+scp mesphotos/*.jpg ubuntu@<IP publique>:/opt/haron/photos/
+```
+
+La galerie se rafraîchit au plus dix secondes après. Le **nom du fichier** donne
+l'ordre et la légende :
+
+```
+01-nuestro-salon.jpg   ->  « Nuestro salon », affichée en grand
+02-la_vitrina.jpg      ->  « La vitrina »
+03.jpg                 ->  aucune légende
+```
+
+La première photo occupe deux fois la largeur des autres : mettez-y la vue
+d'ensemble. Formats acceptés : `.jpg .jpeg .png .webp .avif`, vingt-quatre au
+maximum.
+
+> Des photos de 4 000 pixels de large ne seront pas plus belles à l'écran, mais
+> feront attendre un client en 4G — et c'est là qu'il regarde la page. Environ
+> 1 200 × 1 200 suffisent.
 
 ---
 
