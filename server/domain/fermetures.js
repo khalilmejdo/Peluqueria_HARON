@@ -41,7 +41,7 @@ export async function prochaine(jour = jourLocal()) {
 }
 
 export async function ajouter({ du, au, motif = null }, { parUtilisateurId = null } = {}) {
-  if (au < du) throw conflict('La date de fin doit être postérieure ou égale à la date de début.');
+  if (au < du) throw conflict('La fecha de fin debe ser posterior o igual a la de inicio.');
   const id = newId();
   try {
     await execute(
@@ -56,8 +56,8 @@ export async function ajouter({ du, au, motif = null }, { parUtilisateurId = nul
         [du, au, '[]'],
       );
       throw conflict(existante
-        ? 'Une fermeture couvre déjà cette période (du ' + existante.du + ' au ' + existante.au + '). Modifiez-la plutôt que d’en ajouter une seconde.'
-        : 'Une fermeture couvre déjà cette période.');
+        ? 'Ya hay un cierre que cubre estas fechas (del ' + existante.du + ' al ' + existante.au + '). Modifíquelo en lugar de añadir otro.'
+        : 'Ya hay un cierre que cubre estas fechas.');
     }
     throw err;
   }
@@ -66,7 +66,7 @@ export async function ajouter({ du, au, motif = null }, { parUtilisateurId = nul
 
 export async function supprimer(id) {
   const n = await execute('DELETE FROM fermetures WHERE id = $1', [id]);
-  if (!n) throw notFound('Cette période de fermeture n’existe plus.');
+  if (!n) throw notFound('Este periodo de cierre ya no existe.');
   return true;
 }
 
@@ -77,6 +77,6 @@ export async function supprimer(id) {
 export function messageDeFermeture(fermeture) {
   const reouverture = dateLongueFr(addDays(fermeture.au, 1));
   const raison = fermeture.motif ? fermeture.motif + '. ' : '';
-  return raison + 'Le salon est fermé jusqu’au ' + dateLongueFr(fermeture.au)
-    + ' inclus. Nous rouvrons le ' + reouverture + '.';
+  return raison + 'El salón está cerrado hasta el ' + dateLongueFr(fermeture.au)
+    + ' incluido. Reabrimos el ' + reouverture + '.';
 }

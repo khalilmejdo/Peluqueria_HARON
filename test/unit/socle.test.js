@@ -90,12 +90,13 @@ test('les heures se lisent et se comptent', () => {
 });
 
 test('l attente se dit comme on la dit a un client', () => {
-  assert.equal(attenteLisible(0), 'quelques instants');
-  assert.equal(attenteLisible(1), 'environ 1 minute');
-  assert.equal(attenteLisible(25), 'environ 25 minutes');
-  assert.equal(attenteLisible(60), 'environ 1 h');
-  assert.equal(attenteLisible(95), 'environ 1 h 35');
-  assert.equal(dateLongueFr('2026-09-23'), 'mercredi 23 septembre 2026');
+  assert.equal(attenteLisible(0), 'unos minutos');
+  assert.equal(attenteLisible(1), 'unos 1 minuto');
+  assert.equal(attenteLisible(25), 'unos 25 minutos');
+  assert.equal(attenteLisible(60), 'alrededor de 1 h');
+  assert.equal(attenteLisible(95), 'alrededor de 1 h 35');
+  // La forme espagnole intercale « de » deux fois.
+  assert.equal(dateLongueFr('2026-09-23'), 'miércoles 23 de septiembre de 2026');
 });
 
 /* ------------------------------------------------------------------ */
@@ -319,8 +320,8 @@ test('les trois messages disent le numero de ticket et le lien de suivi', () => 
     assert.ok(texte.includes('Peluquería HARON'), type);
     assert.ok(texte.includes(commun.lien), type + ' : le lien de suivi doit y etre');
   }
-  assert.ok(texteMessage('CONFIRMATION', commun).includes('Personnes devant vous : 4'));
-  assert.match(texteMessage('TOUR', commun), /c’est votre tour/i);
+  assert.ok(texteMessage('CONFIRMATION', commun).includes('Personas delante de ti: 4'));
+  assert.match(texteMessage('TOUR', commun), /es tu turno/i);
 });
 
 /* ------------------------------------------------------------------ */

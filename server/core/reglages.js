@@ -28,76 +28,89 @@ import { ValidationError } from './errors.js';
 export const CATALOGUE = {
   'salon.nom': {
     type: 'texte', defaut: 'Peluquería HARON', maxLongueur: 60,
-    libelle: 'Nom du salon',
-    aide: 'Affiché en haut de toutes les pages et dans les messages WhatsApp.',
+    libelle: 'Nombre del salón',
+    aide: 'Aparece en la cabecera de todas las páginas y en los mensajes de WhatsApp.',
   },
   'salon.accroche': {
-    type: 'texte', defaut: 'Prenez votre tour, sans attendre.', maxLongueur: 120,
-    libelle: 'Accroche de la page d’accueil',
+    type: 'texte', defaut: 'Pide tu turno sin esperar de pie.', maxLongueur: 120,
+    libelle: 'Frase de la página de inicio',
   },
   'salon.adresse': {
     type: 'texte', defaut: '', maxLongueur: 160,
-    libelle: 'Adresse du salon',
-    aide: 'Affichée sur la page de suivi, pour que le client sache où revenir.',
+    libelle: 'Dirección del salón',
+    aide: 'Se muestra en la página de seguimiento, para que el cliente sepa dónde volver.',
   },
   'salon.telephone': {
     type: 'telephone', defaut: '', maxLongueur: 25,
-    libelle: 'Téléphone du salon',
-    aide: 'Proposé au client quand la prise de tour en ligne est momentanément refusée.',
+    libelle: 'Teléfono del salón',
+    aide: 'Se ofrece al cliente cuando no se pueden pedir turnos por internet.',
   },
   'salon.whatsapp': {
     type: 'telephone', defaut: '', maxLongueur: 25,
-    libelle: 'WhatsApp du salon',
-    aide: 'Numéro depuis lequel partent les messages, affiché au client.',
+    libelle: 'WhatsApp del salón',
+    aide: 'Número desde el que salen los mensajes; se muestra al cliente.',
   },
 
   'file.dureeMoyenneMinutes': {
     type: 'entier', defaut: 20, min: 1, max: 240,
-    libelle: 'Durée moyenne d’une coupe (minutes)',
-    aide: 'Sert à estimer l’attente. Modifiable à tout moment ; la journée en cours garde la valeur du matin.',
+    libelle: 'Duración media de un corte (minutos)',
+    aide: 'Sirve para estimar la espera. Se puede cambiar en cualquier momento; el día en curso conserva el valor de la mañana.',
   },
   'file.seuilPrevenir': {
     type: 'entier', defaut: 2, min: 0, max: 20,
-    libelle: 'Prévenir le client quand il reste N personnes devant lui',
-    aide: 'Au-dessous de ce seuil, le client voit « votre tour approche » et reçoit un message WhatsApp.',
+    libelle: 'Avisar al cliente cuando le queden N personas delante',
+    aide: 'Por debajo de este umbral, el cliente ve « tu turno se acerca » y recibe un mensaje de WhatsApp.',
   },
   'file.mode': {
     type: 'choix',
     defaut: 'UNIQUE',
     options: [
-      { valeur: 'UNIQUE', libelle: 'Une seule file pour tout le salon' },
-      { valeur: 'PAR_FAUTEUIL', libelle: 'Une file par coiffeur' },
+      { valeur: 'UNIQUE', libelle: 'Una sola fila para todo el salón' },
+      { valeur: 'PAR_FAUTEUIL', libelle: 'Una fila por peluquero' },
     ],
-    libelle: 'Organisation de la file',
-    aide: 'Une seule file : le client prend un tour, le premier coiffeur libre le sert. '
-      + 'Une file par coiffeur : le client choisit son coiffeur et attend dans SA file. '
-      + 'Ne se change qu’avec une file vide.',
+    libelle: 'Organización de la fila',
+    aide: 'Una sola fila: el cliente pide turno y le atiende el primer peluquero libre. '
+      + 'Una fila por peluquero: el cliente elige el suyo y espera en SU fila. '
+      + 'Solo se puede cambiar con la fila vacía.',
   },
   'file.priseDeTourOuverte': {
     type: 'booleen', defaut: true,
-    libelle: 'Accepter de nouveaux tours',
-    aide: 'Décochez pour arrêter les prises de tour sans toucher à la file en cours : ceux qui attendent restent servis, personne de nouveau n’entre.',
+    libelle: 'Aceptar nuevos turnos',
+    aide: 'Desmarque para dejar de dar turnos sin tocar la fila en curso: quien espera será atendido, pero nadie nuevo entra.',
   },
   'file.messagePause': {
     type: 'texte', defaut: '', maxLongueur: 160,
-    libelle: 'Message affiché quand les tours sont arrêtés',
-    aide: 'Par exemple : « Nous ne prenons plus de tour ce soir, à demain 9 h 30. » Laissé vide, un message par défaut est utilisé.',
+    libelle: 'Mensaje cuando no se dan turnos',
+    aide: 'Por ejemplo: « Esta tarde ya no damos más turnos, mañana a las 9:30. » Si lo deja vacío se usa un mensaje predeterminado.',
   },
   'file.maxParJour': {
     type: 'entier', defaut: 200, min: 1, max: 2000,
-    libelle: 'Nombre maximum de tickets par journée',
-    aide: 'Garde-fou : au-delà, la prise de tour en ligne est refusée avec un message clair.',
+    libelle: 'Número máximo de turnos por día',
+    aide: 'Tope de seguridad: por encima, no se aceptan más turnos por internet y se explica al cliente.',
   },
 
   'horaires.actifs': {
     type: 'booleen', defaut: false,
-    libelle: 'Refuser la prise de tour en dehors des horaires',
-    aide: 'Désactivé, le client peut prendre son tour à toute heure.',
+    libelle: 'No dar turnos fuera del horario',
+    aide: 'Desactivado, el cliente puede pedir turno a cualquier hora.',
+  },
+
+  // La fiche de prix elle-meme vit dans sa propre table, avec son propre ecran.
+  // Ces deux reglages ne disent que comment la SECTION se presente en vitrine.
+  'tarifas.visible': {
+    type: 'booleen', defaut: true,
+    libelle: 'Mostrar las tarifas en la página de inicio',
+    aide: 'Desactívelo si prefiere no publicar los precios.',
+  },
+  'tarifas.nota': {
+    type: 'texte', defaut: '', maxLongueur: 160,
+    libelle: 'Nota debajo de las tarifas',
+    aide: 'Por ejemplo: « Efectivo y tarjeta. » Se deja vacío si no hace falta.',
   },
   'public.url': {
     type: 'url', defaut: '', maxLongueur: 300,
-    libelle: 'Adresse publique du salon',
-    aide: 'Celle qu’encode le QR Code collé en vitrine. Laissez vide pour utiliser PUBLIC_URL.',
+    libelle: 'Dirección pública del salón',
+    aide: 'Es la que codifica el código QR del escaparate. Déjelo vacío para usar PUBLIC_URL.',
   },
 };
 
@@ -106,11 +119,11 @@ export const CATALOGUE = {
 for (let j = 0; j < 7; j += 1) {
   CATALOGUE['horaires.' + j + '.ouverture'] = {
     type: 'heure', defaut: j === 0 ? '' : '09:30', maxLongueur: 5,
-    libelle: 'Ouverture ' + NOMS_JOURS[j], groupe: 'horaires',
+    libelle: 'Apertura ' + NOMS_JOURS[j], groupe: 'horaires',
   };
   CATALOGUE['horaires.' + j + '.fermeture'] = {
     type: 'heure', defaut: j === 0 ? '' : '20:00', maxLongueur: 5,
-    libelle: 'Fermeture ' + NOMS_JOURS[j], groupe: 'horaires',
+    libelle: 'Cierre ' + NOMS_JOURS[j], groupe: 'horaires',
   };
 }
 
@@ -147,17 +160,17 @@ function depuisTexte(cle, brut) {
 /** Valide une valeur soumise par le gerant et rend sa forme de stockage (texte). */
 export function versTexte(cle, valeur) {
   const regle = CATALOGUE[cle];
-  if (!regle) throw new ValidationError({ [cle]: 'Réglage inconnu.' });
+  if (!regle) throw new ValidationError({ [cle]: 'Ajuste desconocido.' });
   const vide = valeur === null || valeur === undefined || String(valeur).trim() === '';
 
   switch (regle.type) {
     case 'entier': {
-      if (vide) throw new ValidationError({ [cle]: 'Une valeur est attendue.' });
+      if (vide) throw new ValidationError({ [cle]: 'Se espera un valor.' });
       const texte = String(valeur).trim();
       const n = /^-?\d+$/.test(texte) ? Number(texte) : Number.NaN;
-      if (!Number.isSafeInteger(n)) throw new ValidationError({ [cle]: 'Un nombre entier est attendu.' });
-      if (regle.min !== undefined && n < regle.min) throw new ValidationError({ [cle]: 'Au minimum ' + regle.min + '.' });
-      if (regle.max !== undefined && n > regle.max) throw new ValidationError({ [cle]: 'Au maximum ' + regle.max + '.' });
+      if (!Number.isSafeInteger(n)) throw new ValidationError({ [cle]: 'Se espera un número entero.' });
+      if (regle.min !== undefined && n < regle.min) throw new ValidationError({ [cle]: 'Como mínimo ' + regle.min + '.' });
+      if (regle.max !== undefined && n > regle.max) throw new ValidationError({ [cle]: 'Como máximo ' + regle.max + '.' });
       return String(n);
     }
     case 'booleen':
@@ -187,20 +200,20 @@ export function versTexte(cle, valeur) {
       } catch {
         throw new ValidationError({ [cle]: 'Adresse invalide. Exemple : https://file.peluqueria-haron.com' });
       }
-      if (texte.length > (regle.maxLongueur ?? 300)) throw new ValidationError({ [cle]: 'Adresse trop longue.' });
+      if (texte.length > (regle.maxLongueur ?? 300)) throw new ValidationError({ [cle]: 'Dirección demasiado larga.' });
       return texte;
     }
     case 'telephone': {
       if (vide) return '';
       const texte = String(valeur).replace(/\s+/g, ' ').trim();
-      if (!/^\+?[0-9][0-9\s.\-()/]*$/.test(texte)) throw new ValidationError({ [cle]: 'Numéro invalide.' });
-      if (texte.length > (regle.maxLongueur ?? 25)) throw new ValidationError({ [cle]: 'Numéro trop long.' });
+      if (!/^\+?[0-9][0-9\s.\-()/]*$/.test(texte)) throw new ValidationError({ [cle]: 'Número no válido.' });
+      if (texte.length > (regle.maxLongueur ?? 25)) throw new ValidationError({ [cle]: 'Número demasiado largo.' });
       return texte;
     }
     default: {
       const texte = String(valeur).replace(/\s+/g, ' ').trim();
       if (texte.length > (regle.maxLongueur ?? 200)) {
-        throw new ValidationError({ [cle]: 'Ce texte ne peut pas dépasser ' + (regle.maxLongueur ?? 200) + ' caractères.' });
+        throw new ValidationError({ [cle]: 'Este texto no puede pasar de ' + (regle.maxLongueur ?? 200) + ' caracteres.' });
       }
       return texte;
     }
@@ -252,7 +265,7 @@ export async function enregistrer(valeurs, { tx = null, parUtilisateurId = null 
   const aEcrire = [];
   for (const [cle, valeur] of Object.entries(valeurs || {})) {
     if (!Object.hasOwn(CATALOGUE, cle)) {
-      erreurs[cle] = 'Réglage inconnu.';
+      erreurs[cle] = 'Ajuste desconocido.';
       continue;
     }
     try {
@@ -282,7 +295,7 @@ export async function enregistrer(valeurs, { tx = null, parUtilisateurId = null 
       const fermeture = paire.fermeture ?? actuels['horaires.' + jour + '.fermeture'];
       if (ouverture && fermeture && heureEnMinutes(fermeture) <= heureEnMinutes(ouverture)) {
         throw new ValidationError({
-          ['horaires.' + jour + '.fermeture']: 'La fermeture doit être postérieure à l’ouverture (' + NOMS_JOURS[Number(jour)] + ').',
+          ['horaires.' + jour + '.fermeture']: 'El cierre debe ser posterior a la apertura (' + NOMS_JOURS[Number(jour)] + ').',
         });
       }
     }

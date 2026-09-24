@@ -67,18 +67,22 @@ export function resetAll() {
 }
 
 /**
- * Attente reelle, en francais. « Patientez un instant » est un mensonge quand
- * Retry-After vaut 3 600 s : le client appelle le salon, et le salon ne sait
- * pas pourquoi.
+ * L'attente reelle, dite au client. « Espere un momento » est un mensonge quand
+ * Retry-After vaut 3 600 s : le client appelle le salon, et le salon ne sait pas
+ * pourquoi.
+ *
+ * La preposition « en » fait partie du retour : les appelants concatenent la
+ * phrase telle quelle et n'ont pas a savoir si l'attente se dit en secondes ou
+ * en heures.
  */
 export function attenteLisible(secondes) {
   const s = Math.max(1, Math.ceil(Number(secondes) || 0));
-  if (s < 90) return 'dans ' + s + ' seconde' + (s > 1 ? 's' : '');
+  if (s < 90) return 'en ' + s + ' segundo' + (s > 1 ? 's' : '');
   const minutes = Math.ceil(s / 60);
-  if (minutes < 60) return 'dans ' + minutes + ' minute' + (minutes > 1 ? 's' : '');
+  if (minutes < 60) return 'en ' + minutes + ' minuto' + (minutes > 1 ? 's' : '');
   const heures = Math.floor(minutes / 60);
   const reste = minutes % 60;
-  return 'dans ' + heures + ' heure' + (heures > 1 ? 's' : '') + (reste ? ' et ' + reste + ' minute' + (reste > 1 ? 's' : '') : '');
+  return 'en ' + heures + ' hora' + (heures > 1 ? 's' : '') + (reste ? ' y ' + reste + ' minuto' + (reste > 1 ? 's' : '') : '');
 }
 
 /**
@@ -103,10 +107,10 @@ export function consommerPriseDeTour({ ip, telephone = null }, { telephoneSalon 
   if (!bloquant) return { allowed: true, retryAfterSeconds: 0, message: null, portee: null };
 
   const attente = attenteLisible(bloquant.r.retryAfterSeconds);
-  const ouAppeler = telephoneSalon ? ' Vous pouvez aussi appeler le salon au ' + telephoneSalon + '.' : ' Vous pouvez aussi vous présenter directement au salon.';
+  const ouAppeler = telephoneSalon ? ' También puedes llamar al salón al ' + telephoneSalon + '.' : ' También puedes venir directamente al salón.';
   const message = bloquant.portee === 'NUMERO'
-    ? 'Ce numéro a déjà pris plusieurs tours aujourd’hui. Le prochain sera possible ' + attente + '.' + ouAppeler
-    : 'Trop de demandes depuis cette connexion internet. Réessayez ' + attente + '.' + ouAppeler;
+    ? 'Este número ya ha pedido varios turnos hoy. El siguiente será posible ' + attente + '.' + ouAppeler
+    : 'Demasiadas peticiones desde esta conexión a internet. Inténtalo de nuevo ' + attente + '.' + ouAppeler;
   return { allowed: false, retryAfterSeconds: bloquant.r.retryAfterSeconds, message, portee: bloquant.portee };
 }
 

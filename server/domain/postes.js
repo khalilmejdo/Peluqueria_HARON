@@ -49,8 +49,8 @@ export async function creer({ nom, coiffeur = null, ordre = null }) {
   const existe = await one('SELECT id, actif FROM postes WHERE nom_lower = $1', [normalize(nom)]);
   if (existe) {
     throw conflict(existe.actif
-      ? 'Un fauteuil porte déjà ce nom.'
-      : 'Un fauteuil désactivé porte déjà ce nom. Réactivez-le plutôt que d’en créer un second.');
+      ? 'Ya hay un sillón con ese nombre.'
+      : 'Un sillón desactivado ya lleva ese nombre. Reactívelo en lugar de crear un segundo.');
   }
   const rang = ordre ?? ((await one('SELECT COALESCE(MAX(ordre), 0) + 1 AS suivant FROM postes'))?.suivant ?? 1);
   const id = newId();
@@ -69,11 +69,11 @@ export async function creer({ nom, coiffeur = null, ordre = null }) {
  */
 export async function modifier(id, champs) {
   const poste = await parId(id);
-  if (!poste) throw notFound('Ce fauteuil n’existe plus.');
+  if (!poste) throw notFound('Este sillón ya no existe.');
 
   if (champs.nom !== undefined) {
     const autre = await one('SELECT id FROM postes WHERE nom_lower = $1 AND id <> $2', [normalize(champs.nom), id]);
-    if (autre) throw conflict('Un autre fauteuil porte déjà ce nom.');
+    if (autre) throw conflict('Otro sillón ya lleva ese nombre.');
   }
 
   if (champs.actif === false) {
@@ -83,8 +83,8 @@ export async function modifier(id, champs) {
       [id],
     );
     if (occupe) {
-      throw conflict(occupe.prenom + ' (' + occupe.numero_affiche + ') est assis à ce fauteuil. '
-        + 'Terminez-le, ou marquez-le absent, avant de fermer le fauteuil.');
+      throw conflict(occupe.prenom + ' (' + occupe.numero_affiche + ') está sentado en este sillón. '
+        + 'Termínelo, o márquelo ausente, antes de cerrar el sillón.');
     }
 
     // En file par coiffeur, fermer un fauteuil abandonnerait sa file : ces
@@ -98,15 +98,15 @@ export async function modifier(id, champs) {
         [id],
       );
       if ((attente?.n ?? 0) > 0) {
-        throw conflict(attente.n + ' client' + (attente.n > 1 ? 's attendent' : ' attend')
-          + ' ce coiffeur. Servez-' + (attente.n > 1 ? 'les' : 'le')
-          + ', appelez-' + (attente.n > 1 ? 'les' : 'le') + ' depuis un autre fauteuil, ou annulez '
-          + (attente.n > 1 ? 'ces tours' : 'ce tour') + ' avant de fermer.');
+        throw conflict(attente.n + ' cliente' + (attente.n > 1 ? 's esperan' : ' espera')
+          + ' a este peluquero. Atiénda' + (attente.n > 1 ? 'los' : 'lo')
+          + ', lláma' + (attente.n > 1 ? 'los' : 'lo') + ' desde otro sillón, o anule '
+          + (attente.n > 1 ? 'esos turnos' : 'ese turno') + ' antes de cerrar.');
       }
     }
     const restants = await one('SELECT COUNT(*)::int AS n FROM postes WHERE actif AND id <> $1', [id]);
     if ((restants?.n ?? 0) === 0) {
-      throw conflict('C’est le dernier fauteuil ouvert : le salon doit en garder un. Créez-en un autre avant de fermer celui-ci.');
+      throw conflict('Es el último sillón abierto: el salón debe conservar uno. Cree otro antes de cerrar este.');
     }
   }
 
@@ -135,15 +135,15 @@ export async function modifier(id, champs) {
  */
 export async function supprimer(id) {
   const poste = await parId(id);
-  if (!poste) throw notFound('Ce fauteuil n’existe plus.');
+  if (!poste) throw notFound('Este sillón ya no existe.');
 
   const servis = await one('SELECT COUNT(*)::int AS n FROM tickets WHERE poste_id = $1', [id]);
   if ((servis?.n ?? 0) > 0) {
-    throw conflict('Ce fauteuil a déjà servi ' + servis.n + ' client' + (servis.n > 1 ? 's' : '')
-      + ' : le supprimer effacerait cet historique. Fermez-le plutôt.');
+    throw conflict('Este sillón ya ha atendido a ' + servis.n + ' cliente' + (servis.n > 1 ? 's' : '')
+      + ': borrarlo eliminaría ese historial. Ciérrelo en su lugar.');
   }
   const restants = await one('SELECT COUNT(*)::int AS n FROM postes WHERE id <> $1', [id]);
-  if ((restants?.n ?? 0) === 0) throw conflict('Le salon doit garder au moins un fauteuil.');
+  if ((restants?.n ?? 0) === 0) throw conflict('El salón debe conservar al menos un sillón.');
 
   await execute('DELETE FROM postes WHERE id = $1', [id]);
   return true;
@@ -159,8 +159,8 @@ export async function supprimer(id) {
 export async function posteLibre(jour, { prefere = null } = {}) {
   if (prefere) {
     const poste = await parId(prefere);
-    if (!poste) throw notFound('Ce fauteuil n’existe plus.');
-    if (!poste.actif) throw conflict('Le fauteuil « ' + poste.nom + ' » est fermé.');
+    if (!poste) throw notFound('Este sillón ya no existe.');
+    if (!poste.actif) throw conflict('El sillón « ' + poste.nom + ' » está cerrado.');
     return poste;
   }
 
@@ -186,16 +186,16 @@ export async function posteLibre(jour, { prefere = null } = {}) {
         ORDER BY p.ordre, p.nom_lower`,
       [jour],
     );
-    const suite = ' Terminez un client, ou marquez-le absent, avant d’appeler le suivant.';
+    const suite = ' Termine un cliente, o márquelo ausente, antes de llamar al siguiente.';
 
     if (assis.length === 1) {
       throw new AppError(409,
-        assis[0].prenom + ' (' + assis[0].numero_affiche + ') est déjà au fauteuil.' + suite,
+        assis[0].prenom + ' (' + assis[0].numero_affiche + ') ya está en el sillón.' + suite,
         { code: 'FAUTEUIL_OCCUPE' });
     }
-    const detail = assis.map((a) => a.prenom + ' (' + a.numero_affiche + ') au ' + a.nom).join(', ');
+    const detail = assis.map((a) => a.prenom + ' (' + a.numero_affiche + ') en ' + a.nom).join(', ');
     throw new AppError(409,
-      'Tous les fauteuils sont occupés' + (detail ? ' : ' + detail + '.' : '.') + suite,
+      'Todos los sillones están ocupados' + (detail ? ': ' + detail + '.' : '.') + suite,
       { code: 'FAUTEUILS_OCCUPES' });
   }
   return libre;

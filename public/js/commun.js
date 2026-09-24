@@ -45,7 +45,7 @@ export async function envoyer(url, { methode = 'POST', corps = null } = {}) {
     donnees = null;
   }
   if (!reponse.ok) {
-    const message = donnees?.error?.message || 'Le service est momentanément indisponible. Réessayez dans un instant.';
+    const message = donnees?.error?.message || 'El servicio no está disponible ahora mismo. Inténtalo en un instante.';
     const erreur = new Error(message);
     erreur.statut = reponse.status;
     erreur.details = donnees?.error?.details ?? null;

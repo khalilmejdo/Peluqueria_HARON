@@ -27,7 +27,7 @@ const TACHES = [
     intervalleMs: 10 * 60000,
     executer: async () => {
       const jour = jourLocal();
-      return transaction((tx) => cloturerJourneesAnterieures(tx, jour, { par: 'clôture automatique' }));
+      return transaction((tx) => cloturerJourneesAnterieures(tx, jour, { par: 'cierre automático' }));
     },
   },
   {

@@ -79,7 +79,7 @@ publicRoutes.get('/tickets/:jeton', async (ctx) => {
   const ticket = await chargerTicketDuJeton(ctx);
   const etat = await chargerEtat(ticket.jour);
   const vue = pourClient(etat, ticket.id);
-  if (!vue) throw notFound('Ce lien de suivi n’est plus valable.');
+  if (!vue) throw notFound('Este enlace de seguimiento ya no sirve.');
   ctx.ok(vue);
 }, { public: true });
 
@@ -177,6 +177,6 @@ async function chargerTicketDuJeton(ctx, profil = PROFILES.suivi) {
     throw new AppError(429, 'Trop de demandes. Patientez quelques instants.', { details: { retryAfter: limite.retryAfterSeconds } });
   }
   const ticket = await ticketParJeton(jeton);
-  if (!ticket) throw notFound('Ce lien de suivi n’est plus valable.');
+  if (!ticket) throw notFound('Este enlace de seguimiento ya no sirve.');
   return ticket;
 }

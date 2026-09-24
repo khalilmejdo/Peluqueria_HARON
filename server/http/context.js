@@ -134,10 +134,10 @@ export class Context {
     const texte = sansOctetNul(raw).trim();
     const n = /^[+-]?\d+$/.test(texte) ? Number(texte) : Number.NaN;
     if (!Number.isSafeInteger(n)) {
-      throw badRequest('Le paramètre « ' + name + ' » doit être un nombre entier.', { fields: { [name]: 'Nombre entier attendu.' } });
+      throw badRequest('El parámetro « ' + name + ' » debe ser un número entero.', { fields: { [name]: 'Se espera un número entero.' } });
     }
     if (n < min || n > max) {
-      throw badRequest('Le paramètre « ' + name + ' » doit être compris entre ' + min + ' et ' + max + '.', { fields: { [name]: 'Entre ' + min + ' et ' + max + '.' } });
+      throw badRequest('El parámetro « ' + name + ' » debe estar entre ' + min + ' y ' + max + '.', { fields: { [name]: 'Entre ' + min + ' y ' + max + '.' } });
     }
     return n;
   }
@@ -147,7 +147,7 @@ export class Context {
     const value = this.query(name);
     if (value === undefined) return undefined;
     if (!isUuid(value)) {
-      throw badRequest('Le paramètre « ' + name + ' » n’est pas un identifiant valide.', { fields: { [name]: 'Identifiant invalide.' } });
+      throw badRequest('El parámetro « ' + name + ' » no es un identificador válido.', { fields: { [name]: 'Identificador no válido.' } });
     }
     return value;
   }
@@ -157,7 +157,7 @@ export class Context {
     const value = this.query(name);
     if (value === undefined) return undefined;
     if (!isValidIsoDate(value)) {
-      throw badRequest('Le paramètre « ' + name + ' » doit être une date au format AAAA-MM-JJ.', { fields: { [name]: 'Date attendue : AAAA-MM-JJ.' } });
+      throw badRequest('El parámetro « ' + name + ' » debe ser una fecha con formato AAAA-MM-DD.', { fields: { [name]: 'Se espera una fecha: AAAA-MM-DD.' } });
     }
     return value;
   }

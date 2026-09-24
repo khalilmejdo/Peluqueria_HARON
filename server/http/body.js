@@ -22,7 +22,7 @@ export function readBody(req, limitBytes) {
     // Content-Length permet de refuser immediatement, sans lire un seul octet.
     const declared = Number.parseInt(req.headers['content-length'] || '', 10);
     if (Number.isFinite(declared) && declared > limitBytes) {
-      reject(tooLarge('Le contenu envoye depasse la limite autorisee.'));
+      reject(tooLarge('El contenido enviado supera el límite permitido.'));
       req.resume();
       return;
     }
@@ -42,7 +42,7 @@ export function readBody(req, limitBytes) {
       if (settled) return;
       size += chunk.length;
       if (size > limitBytes) {
-        fail(tooLarge('Le contenu envoye depasse la limite autorisee.'));
+        fail(tooLarge('El contenido enviado supera el límite permitido.'));
         return;
       }
       chunks.push(chunk);
@@ -78,7 +78,7 @@ export function parseContentType(header) {
 const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 function sanitizeKeys(input, depth = 0) {
-  if (depth > 12) throw badRequest('Structure JSON trop profonde.');
+  if (depth > 12) throw badRequest('Estructura JSON demasiado profunda.');
   if (Array.isArray(input)) return input.map((v) => sanitizeKeys(v, depth + 1));
   if (input === null || typeof input !== 'object') return input;
 
@@ -98,10 +98,10 @@ export function parseJsonBody(buffer) {
   try {
     parsed = JSON.parse(buffer.toString('utf8'));
   } catch {
-    throw badRequest('Le corps de la requete n est pas un JSON valide.');
+    throw badRequest('El cuerpo de la petición no es un JSON válido.');
   }
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw badRequest('Le corps de la requete doit etre un objet JSON.');
+    throw badRequest('El cuerpo de la petición debe ser un objeto JSON.');
   }
   // Neutralise la pollution de prototype : une cle « __proto__ » recue depuis
   // le reseau ne doit jamais atteindre Object.prototype.

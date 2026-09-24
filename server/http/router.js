@@ -146,20 +146,20 @@ export function enforceRouteRequirements(route, ctx) {
   if (options.public) return;
 
   if (!ctx.user) {
-    throw unauthorized('Votre session a expiré. Reconnectez-vous.');
+    throw unauthorized('Tu sesión ha caducado. Vuelve a entrar.');
   }
   if (ctx.user.actif === false) {
-    throw forbidden('Votre compte a été désactivé.');
+    throw forbidden('Tu cuenta ha sido desactivada.');
   }
   // Un changement de mot de passe impose ne laisse passer que les routes
   // permettant precisement de le changer.
   if (ctx.user.doitChangerMotDePasse && !options.allowDuringPasswordChange) {
-    throw new AppError(403, 'Vous devez d’abord définir un nouveau mot de passe.', { code: 'MOT_DE_PASSE_A_CHANGER' });
+    throw new AppError(403, 'Primero tienes que definir una contraseña nueva.', { code: 'MOT_DE_PASSE_A_CHANGER' });
   }
 
   if (!options.role) return;
   if (!aLeRole(ctx.user, options.role)) {
-    throw forbidden('Cette action est réservée au gérant du salon.');
+    throw forbidden('Esta acción está reservada al gerente del salón.');
   }
 }
 

@@ -34,9 +34,9 @@ import { lireTous } from '../core/reglages.js';
 export const ESSAIS_MAX = 6;
 
 export const TYPES = {
-  CONFIRMATION: 'Tour enregistré',
-  APPROCHE: 'Votre tour approche',
-  TOUR: 'C’est votre tour',
+  CONFIRMATION: 'Turno registrado',
+  APPROCHE: 'Tu turno se acerca',
+  TOUR: 'Es tu turno',
 };
 
 /* ------------------------------------------------------------------ */
@@ -53,27 +53,27 @@ export const TYPES = {
  * ils sont ecrits ici, cote a cote.
  */
 export function texteMessage(type, { prenom, numero, devant = 0, lien = '', nomSalon = 'Peluquería HARON' }) {
-  const suivi = lien ? '\n\nSuivez votre tour ici :\n' + lien : '';
+  const suivi = lien ? '\n\nSigue tu turno aquí:\n' + lien : '';
   switch (type) {
     case 'CONFIRMATION':
-      return 'Bonjour ' + prenom + ' 👋\n'
-        + 'Votre tour chez ' + nomSalon + ' est enregistré.\n\n'
-        + '🎟️ Numéro : ' + numero + '\n'
-        + '👥 Personnes devant vous : ' + devant
+      return '¡Hola ' + prenom + '! 👋\n'
+        + 'Tu turno en ' + nomSalon + ' está registrado.\n\n'
+        + '🎟️ Número: ' + numero + '\n'
+        + '👥 Personas delante de ti: ' + devant
         + suivi
-        + '\n\nNous vous préviendrons lorsque votre tour approchera.';
+        + '\n\nTe avisaremos cuando tu turno se acerque.';
     case 'APPROCHE':
-      return 'Bonjour ' + prenom + ' 🔔\n'
-        + 'Votre tour chez ' + nomSalon + ' approche.\n\n'
-        + '🎟️ Numéro : ' + numero + '\n'
-        + '👥 Personnes devant vous : ' + devant + '\n\n'
-        + 'Rapprochez-vous du salon.'
+      return '¡Hola ' + prenom + '! 🔔\n'
+        + 'Tu turno en ' + nomSalon + ' se acerca.\n\n'
+        + '🎟️ Número: ' + numero + '\n'
+        + '👥 Personas delante de ti: ' + devant + '\n\n'
+        + 'Acércate al salón.'
         + suivi;
     case 'TOUR':
-      return 'Bonjour ' + prenom + ' 🟢\n'
-        + 'C’est votre tour chez ' + nomSalon + ' !\n\n'
-        + '🎟️ Numéro : ' + numero + '\n\n'
-        + 'Présentez-vous au fauteuil.'
+      return '¡Hola ' + prenom + '! 🟢\n'
+        + '¡Es tu turno en ' + nomSalon + '!\n\n'
+        + '🎟️ Número: ' + numero + '\n\n'
+        + 'Pasa al sillón.'
         + suivi;
     default:
       return '';
@@ -136,7 +136,7 @@ export async function enfilerEnvoi(tx, { ticket, type, donnees = {} }) {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8, now())
        ON CONFLICT (ticket_id, type, passage) DO NOTHING`,
       [newId(), ticket.id, type, passage, statut, ticket.telephone_enc, contenu,
-        config.whatsapp.actif ? null : 'WhatsApp Business n’est pas configuré : message non envoyé.'],
+        config.whatsapp.actif ? null : 'WhatsApp Business no está configurado: mensaje no enviado.'],
     );
   } catch (err) {
     log.error('Boite d envoi WhatsApp : ecriture refusee, le geste metier est annule', { type, error: err?.message });
@@ -188,7 +188,7 @@ export async function traiterEnvois({ limite = 20, fetch: fetchFn = globalThis.f
     const brut = ligne.contenu_enc ? decrypt(ligne.contenu_enc) : '{}';
     if (destinataire === MARQUEUR_ILLISIBLE || brut === MARQUEUR_ILLISIBLE) {
       bilan.ignores += 1;
-      await marquer(ligne.id, 'ECHEC', { erreur: 'Contenu illisible (clé de chiffrement changée).' });
+      await marquer(ligne.id, 'ECHEC', { erreur: 'Contenido ilegible (la clave de cifrado ha cambiado).' });
       continue;
     }
     let contenu = {};

@@ -7,7 +7,7 @@ import { badRequest, notFound } from '../core/errors.js';
 /** Parametre de chemin identifiant : 404 plutot qu'une erreur de type en base. */
 export function idDe(ctx, nom = 'id') {
   const valeur = ctx.params[nom];
-  if (!isUuid(valeur)) throw notFound('Élément introuvable.');
+  if (!isUuid(valeur)) throw notFound('No encontrado.');
   return valeur.toLowerCase();
 }
 
@@ -20,11 +20,11 @@ export function idDe(ctx, nom = 'id') {
  */
 export function jetonDe(ctx, nom = 'jeton') {
   const valeur = ctx.params[nom];
-  if (!jetonPlausible(valeur)) throw notFound('Ce lien de suivi n’est plus valable.');
+  if (!jetonPlausible(valeur)) throw notFound('Este enlace de seguimiento ya no sirve.');
   return valeur;
 }
 
-export function exigerTrouve(ligne, message = 'Élément introuvable.') {
+export function exigerTrouve(ligne, message = 'No encontrado.') {
   if (!ligne) throw notFound(message);
   return ligne;
 }

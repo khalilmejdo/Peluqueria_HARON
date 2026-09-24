@@ -15,15 +15,15 @@ if (formulaire) {
   const NOM_RE = /^[\p{L}\p{M}][\p{L}\p{M} '’.-]*$/u;
 
   const REGLES = {
-    prenom: (v) => (v.length < 2 ? 'Votre prénom est obligatoire.'
-      : (!NOM_RE.test(v) ? 'Seules les lettres, l’espace, l’apostrophe et le trait d’union sont acceptés.' : null)),
+    prenom: (v) => (v.length < 2 ? 'Tu nombre es obligatorio.'
+      : (!NOM_RE.test(v) ? 'Solo se aceptan letras, espacio, apóstrofo y guion.' : null)),
     nom: (v) => (v.length < 2 ? 'Votre nom est obligatoire.'
-      : (!NOM_RE.test(v) ? 'Seules les lettres, l’espace, l’apostrophe et le trait d’union sont acceptés.' : null)),
+      : (!NOM_RE.test(v) ? 'Solo se aceptan letras, espacio, apóstrofo y guion.' : null)),
     telephone: (v) => {
-      if (!v) return 'Votre numéro WhatsApp est obligatoire.';
-      if (!/^\+?[0-9][0-9\s.\-()/]*$/.test(v)) return 'Numéro invalide : chiffres, espaces et « + » uniquement.';
+      if (!v) return 'Tu número de WhatsApp es obligatorio.';
+      if (!/^\+?[0-9][0-9\s.\-()/]*$/.test(v)) return 'Número no válido: solo cifras, espacios y « + ».';
       const chiffres = v.replace(/[^0-9]/g, '');
-      return chiffres.length >= 8 && chiffres.length <= 15 ? null : 'Ce numéro ne ressemble pas à un numéro de téléphone.';
+      return chiffres.length >= 8 && chiffres.length <= 15 ? null : 'Este número no parece un número de teléfono.';
     },
   };
 
@@ -105,7 +105,7 @@ if (formulaire) {
     const bouton = formulaire.querySelector('button[type="submit"]');
     if (bouton) {
       bouton.disabled = true;
-      bouton.textContent = 'Un instant…';
+      bouton.textContent = 'Un momento…';
       // Si la navigation echoue (hors ligne), le bouton doit redevenir
       // utilisable : sinon le client reste bloque devant un ecran mort.
       setTimeout(() => {

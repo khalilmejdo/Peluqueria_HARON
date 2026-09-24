@@ -177,7 +177,7 @@ export function needsRehash(stored) {
 const ENC_PREFIX = 'v1';
 
 /** Ce que decrypt() rend quand la valeur ne peut pas etre dechiffree. */
-export const MARQUEUR_ILLISIBLE = '[donnée illisible]';
+export const MARQUEUR_ILLISIBLE = '[dato ilegible]';
 
 /** Le masque rendu a qui n'a pas le droit de lire en clair. */
 export const MASQUE = '••••••••';

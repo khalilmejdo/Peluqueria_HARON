@@ -19,12 +19,12 @@ if (bloc) {
       const detail = bloc.querySelector('.affluence__detail');
       if (!forte || !detail) return;
       if (etat.enAttente === 0) {
-        forte.textContent = 'Aucune attente';
-        detail.textContent = 'Le fauteuil vous attend.';
+        forte.textContent = 'Sin espera';
+        detail.textContent = 'El sillón te está esperando.';
         return;
       }
-      forte.textContent = etat.enAttente + ' personne' + (etat.enAttente > 1 ? 's' : '') + ' dans la file';
-      detail.textContent = 'Attente estimée : ≈ ' + minutesLisibles(etat.attenteEstimeeMinutes);
+      forte.textContent = etat.enAttente + ' persona' + (etat.enAttente > 1 ? 's' : '') + ' en la fila';
+      detail.textContent = 'Espera estimada: ≈ ' + minutesLisibles(etat.attenteEstimeeMinutes);
     } catch {
       // Hors ligne : on garde ce qui est affiche plutot que d'inventer un chiffre.
     }

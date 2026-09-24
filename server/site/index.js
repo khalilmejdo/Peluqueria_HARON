@@ -25,6 +25,7 @@ import { jourLocal, attenteLisible, dateLongueFr } from '../core/temps.js';
 import { encoder, versSvg, versMatrice } from '../core/qrcode.js';
 import { pngNoirEtBlanc } from '../core/png.js';
 import { prendreTour, ticketParJeton, chargerEtat, pourClient, etatPriseDeTour } from '../domain/file.js';
+import { pourVitrine } from '../domain/tarifas.js';
 import { page, marque, entete, piedDePage, pageErreur } from './mise-en-page.js';
 
 export const siteRoutes = new Router();
@@ -33,43 +34,103 @@ export const siteRoutes = new Router();
 /*  Accueil                                                            */
 /* ------------------------------------------------------------------ */
 
+/**
+ * La fiche de prix, telle qu'elle s'affiche en vitrine.
+ *
+ * Une ligne = un nom, un filet de pointilles, un prix. C'est la forme d'une
+ * carte de salon depuis toujours, et elle se lit d'un coup d'oeil : le regard
+ * suit le pointille du service jusqu'au chiffre, sans hesiter sur la colonne.
+ *
+ * Les prix arrivent DEJA mis en forme par le domaine. Cette fonction ne fait
+ * aucun calcul sur de l'argent.
+ */
+function ficheDePrix(lignes, nota) {
+  if (!lignes.length) return '';
+  const items = lignes.map((t) => '<li class="tarifa">'
+    + '<span class="tarifa__nombre">' + escapeHtml(t.nombre) + '</span>'
+    + '<span class="tarifa__filete" aria-hidden="true"></span>'
+    + '<span class="tarifa__precio">' + escapeHtml(t.precio) + '</span>'
+    + (t.nota ? '<span class="tarifa__nota">' + escapeHtml(t.nota) + '</span>' : '')
+    + '</li>').join('');
+
+  return '<section class="enveloppe seccion" id="tarifas">'
+    + '<div class="seccion__tete">'
+    + '<h2 class="seccion__titulo">Tarifas</h2>'
+    + '<p class="seccion__intro">Precios claros, sin sorpresas.</p>'
+    + '</div>'
+    + '<ul class="tarifas">' + items + '</ul>'
+    + (nota ? '<p class="tarifas__nota">' + escapeHtml(nota) + '</p>' : '')
+    + '</section>';
+}
+
+/**
+ * « Cómo funciona » : trois etapes, pas une de plus.
+ *
+ * C'est la section qui remplace une explication au comptoir. Un client qui
+ * passe devant la vitrine doit comprendre en dix secondes qu'il n'a rien a
+ * installer et rien a payer d'avance.
+ */
+function commentCaMarche() {
+  const etapes = [
+    ['1', 'Pide tu turno', 'Tu nombre y tu teléfono. Nada más: ni cuenta, ni contraseña, ni aplicación.'],
+    ['2', 'Sigue tu posición', 'Te llevas un enlace que te dice en directo cuántas personas te faltan.'],
+    ['3', 'Llega a tiempo', 'Espera donde quieras y ven cuando el enlace te diga que te toca.'],
+  ];
+  const items = etapes.map(([n, titre, texte]) => '<li class="paso">'
+    + '<span class="paso__num" aria-hidden="true">' + n + '</span>'
+    + '<h3 class="paso__titulo">' + escapeHtml(titre) + '</h3>'
+    + '<p class="paso__texto">' + escapeHtml(texte) + '</p>'
+    + '</li>').join('');
+
+  return '<section class="enveloppe seccion">'
+    + '<div class="seccion__tete">'
+    + '<h2 class="seccion__titulo">Cómo funciona</h2>'
+    + '</div>'
+    + '<ol class="pasos">' + items + '</ol>'
+    + '</section>';
+}
+
 siteRoutes.get('/', async (ctx) => {
   const reglages = await lireTous();
-  const [etat, prise] = await Promise.all([chargerEtat(jourLocal()), etatPriseDeTour()]);
+  const [etat, prise, tarifas] = await Promise.all([
+    chargerEtat(jourLocal()),
+    etatPriseDeTour(),
+    reglages['tarifas.visible'] ? pourVitrine() : Promise.resolve([]),
+  ]);
   const devant = etat.compteurs.enAttente + etat.compteurs.enCours;
   const attente = devant * etat.dureeMoyenneMinutes;
 
   const affluence = etat.compteurs.enAttente === 0
-    ? '<p class="affluence__forte">Aucune attente</p><p class="affluence__detail">Le fauteuil vous attend.</p>'
-    : '<p class="affluence__forte">' + etat.compteurs.enAttente + ' personne' + (etat.compteurs.enAttente > 1 ? 's' : '') + ' dans la file</p>'
-      + '<p class="affluence__detail">Attente estimée : ' + escapeHtml(attenteLisible(attente).replace(/^environ /, '≈ ')) + '</p>';
+    ? '<p class="affluence__forte">Sin espera</p><p class="affluence__detail">El sillón te está esperando.</p>'
+    : '<p class="affluence__forte">' + etat.compteurs.enAttente + ' persona' + (etat.compteurs.enAttente > 1 ? 's' : '') + ' en la fila</p>'
+      + '<p class="affluence__detail">Espera estimada: ' + escapeHtml(attenteLisible(attente).replace(/^unos /, '≈ ').replace(/^alrededor de /, '≈ ')) + '</p>';
 
   // Congés, arrêt des tours, hors horaires : on le dit AVANT le bouton, et on
   // retire le bouton. Un client qui appuie pour se voir refuser à l'écran
   // suivant repart plus agacé que s'il avait su tout de suite.
   const appel = prise.ouverte
     ? '<div class="affluence" data-affluence>' + affluence + '</div>'
-      + '<a class="bouton bouton--principal bouton--geant" href="/join">Prendre mon tour</a>'
+      + '<a class="bouton bouton--principal bouton--geant" href="/join">Pedir mi turno</a>'
       // La promesse doit etre exacte : sans WhatsApp Business configure, aucun
       // message ne part, et annoncer le contraire serait un mensonge que le
       // client decouvrirait en attendant un message qui ne vient pas.
-      + '<p class="hero__note">Pas de compte, pas d’application à installer. '
+      + '<p class="hero__note">Sin cuenta y sin instalar nada. '
       + (config.whatsapp.actif
-        ? 'Vous recevez un lien de suivi sur WhatsApp.'
-        : 'Vous repartez avec un lien à garder, qui montre votre position en direct.')
+        ? 'Recibes un enlace de seguimiento por WhatsApp.'
+        : 'Te llevas un enlace que muestra tu posición en directo.')
       + '</p>'
     : '<div class="avis-ferme" data-ferme>'
-      + '<p class="avis-ferme__titre">' + escapeHtml(prise.code === 'SALON_EN_CONGES' ? 'Salon fermé' : 'Prise de tour arrêtée') + '</p>'
+      + '<p class="avis-ferme__titre">' + escapeHtml(prise.code === 'SALON_EN_CONGES' ? 'Salón cerrado' : 'No damos más turnos') + '</p>'
       + '<p class="avis-ferme__texte">' + escapeHtml(prise.message) + '</p>'
       + '</div>'
       + (reglages['salon.telephone']
-        ? '<a class="bouton bouton--discret" href="tel:' + escapeHtml(reglages['salon.telephone'].replace(/[^+0-9]/g, '')) + '">Appeler le salon</a>'
+        ? '<a class="bouton bouton--discret" href="tel:' + escapeHtml(reglages['salon.telephone'].replace(/[^+0-9]/g, '')) + '">Llamar al salón</a>'
         : '');
 
   const annonce = prise.ouverte && prise.prochaineFermeture
     ? '<section class="enveloppe bandeau-annonce">'
-      + '<p class="bandeau-annonce__texte">Fermeture à venir : du ' + escapeHtml(dateLongueFr(prise.prochaineFermeture.du))
-      + ' au ' + escapeHtml(dateLongueFr(prise.prochaineFermeture.au))
+      + '<p class="bandeau-annonce__texte">Próximo cierre: del ' + escapeHtml(dateLongueFr(prise.prochaineFermeture.du))
+      + ' al ' + escapeHtml(dateLongueFr(prise.prochaineFermeture.au))
       + (prise.prochaineFermeture.motif ? ' — ' + escapeHtml(prise.prochaineFermeture.motif) : '') + '.</p>'
       + '</section>'
     : '';
@@ -84,15 +145,17 @@ siteRoutes.get('/', async (ctx) => {
     + '</div>'
     + '</section>'
     + annonce
+    + ficheDePrix(tarifas, reglages['tarifas.nota'])
+    + commentCaMarche()
     + '<section class="enveloppe bandeau-qr">'
-    + '<p class="bandeau-qr__titre">Déjà au salon ?</p>'
-    + '<p class="bandeau-qr__texte">Scannez le QR Code affiché en vitrine et rejoignez la même file.</p>'
+    + '<p class="bandeau-qr__titre">¿Ya estás en el salón?</p>'
+    + '<p class="bandeau-qr__texte">Escanea el código QR del escaparate y entras en la misma fila.</p>'
     + '</section>'
     + '</main>';
 
   ctx.html(200, page({
-    titre: reglages['salon.nom'] + ' — Prenez votre tour, sans attendre',
-    description: 'Prenez votre tour chez ' + reglages['salon.nom'] + ' depuis votre téléphone, suivez votre position en direct et venez au bon moment. Sans compte et sans application.',
+    titre: reglages['salon.nom'] + ' — Pide tu turno sin esperar de pie',
+    description: 'Pide turno en ' + reglages['salon.nom'] + ' desde el móvil, sigue tu posición en directo y llega en el momento justo. Sin cuenta y sin instalar nada.',
     corps,
     base: ctx.base,
     chemin: '/',
@@ -122,18 +185,18 @@ siteRoutes.get('/', async (ctx) => {
 const MOTIF_TELEPHONE = '[0-9+()./ -]{8,25}';
 
 const CHAMPS = [
-  { nom: 'prenom', libelle: 'Prénom', autocomplete: 'given-name', type: 'text', inputmode: 'text', max: 40, exemple: 'Ahmed' },
-  { nom: 'nom', libelle: 'Nom', autocomplete: 'family-name', type: 'text', inputmode: 'text', max: 40, exemple: 'Benali' },
+  { nom: 'prenom', libelle: 'Nombre', autocomplete: 'given-name', type: 'text', inputmode: 'text', max: 40, exemple: 'Ahmed' },
+  { nom: 'nom', libelle: 'Apellido', autocomplete: 'family-name', type: 'text', inputmode: 'text', max: 40, exemple: 'Benali' },
   {
     nom: 'telephone',
-    libelle: 'Numéro WhatsApp',
+    libelle: 'Número de WhatsApp',
     autocomplete: 'tel',
     type: 'tel',
     inputmode: 'tel',
     max: 25,
     exemple: '612 345 678',
     motif: MOTIF_TELEPHONE,
-    aide: 'Chiffres uniquement. Numéro espagnol par défaut : inutile d’écrire +34. Depuis l’étranger, commencez par « + ».',
+    aide: 'Solo cifras. Número español por defecto: no hace falta escribir +34. Desde el extranjero, empieza por « + ».',
   },
 ];
 
@@ -154,9 +217,9 @@ function choixDuCoiffeur(coiffeurs, choisi) {
       + '<span class="coiffeur__nom">' + escapeHtml(c.nom) + '</span>'
       + '<span class="coiffeur__attente">'
       + (c.enAttente === 0
-        ? 'Libre tout de suite'
-        : c.enAttente + ' personne' + (c.enAttente > 1 ? 's' : '') + ' · ≈ '
-          + escapeHtml(attenteLisible(c.attenteEstimeeMinutes).replace(/^environ /, '')))
+        ? 'Libre ahora mismo'
+        : c.enAttente + ' persona' + (c.enAttente > 1 ? 's' : '') + ' · ≈ '
+          + escapeHtml(attenteLisible(c.attenteEstimeeMinutes).replace(/^unos /, '').replace(/^alrededor de /, '')))
       + '</span>'
       + '</label>';
   }).join('');
@@ -166,7 +229,7 @@ function choixDuCoiffeur(coiffeurs, choisi) {
   // libelle et au bouton radio, et donneraient un radio de la taille d'un
   // champ de texte.
   return '<fieldset class="bloc-coiffeurs">'
-    + '<legend class="bloc-coiffeurs__titre">Votre coiffeur</legend>'
+    + '<legend class="bloc-coiffeurs__titre">Tu peluquero</legend>'
     + '<div class="coiffeurs">' + cartes + '</div>'
     + '</fieldset>';
 }
@@ -199,11 +262,11 @@ function formulaire({
     + (erreurs.posteId ? '<p class="champ__erreur" role="alert">' + escapeHtml(erreurs.posteId) + '</p>' : '')
     + (coiffeurs.length ? choixDuCoiffeur(coiffeurs, posteId) : '')
     + champs
-    + '<button class="bouton bouton--principal bouton--geant" type="submit">Prendre mon tour</button>'
+    + '<button class="bouton bouton--principal bouton--geant" type="submit">Pedir mi turno</button>'
     + '<p class="formulaire__note">'
     + (config.whatsapp.actif
-      ? 'Votre numéro ne sert qu’à vous prévenir. Il n’est jamais affiché publiquement.'
-      : 'Votre numéro sert au salon à vous joindre si besoin. Il n’est jamais affiché publiquement.')
+      ? 'Tu número solo sirve para avisarte. Nunca se muestra en público.'
+      : 'Tu número sirve al salón para localizarte si hace falta. Nunca se muestra en público.')
     + '</p>'
     + '</form>';
 }
@@ -214,25 +277,25 @@ function pageJoin(ctx, reglages, options) {
   // formulaire qu'on remplit pour se voir refuser à la validation.
   const contenu = prise && !prise.ouverte
     ? '<section class="carte carte--centree">'
-      + '<p class="pastille pastille--neutre">' + escapeHtml(prise.code === 'SALON_EN_CONGES' ? 'Congés' : 'Fermé') + '</p>'
-      + '<h1 class="titre-page">' + escapeHtml(prise.code === 'SALON_EN_CONGES' ? 'Le salon est fermé' : 'Prise de tour arrêtée') + '</h1>'
+      + '<p class="pastille pastille--neutre">' + escapeHtml(prise.code === 'SALON_EN_CONGES' ? 'Vacaciones' : 'Cerrado') + '</p>'
+      + '<h1 class="titre-page">' + escapeHtml(prise.code === 'SALON_EN_CONGES' ? 'El salón está cerrado' : 'No damos más turnos') + '</h1>'
       + '<p class="texte-doux">' + escapeHtml(prise.message) + '</p>'
       + (reglages['salon.telephone']
-        ? '<a class="bouton bouton--discret" href="tel:' + escapeHtml(reglages['salon.telephone'].replace(/[^+0-9]/g, '')) + '">Appeler le salon</a>'
+        ? '<a class="bouton bouton--discret" href="tel:' + escapeHtml(reglages['salon.telephone'].replace(/[^+0-9]/g, '')) + '">Llamar al salón</a>'
         : '')
-      + '<a class="bouton bouton--principal" href="/">Revenir à l’accueil</a>'
+      + '<a class="bouton bouton--principal" href="/">Volver al inicio</a>'
       + '</section>'
-    : '<h1 class="titre-page">Prendre mon tour</h1>'
-      + '<p class="texte-doux">Trois informations, moins d’une minute, et vous suivez votre position en direct.</p>'
+    : '<h1 class="titre-page">Pedir mi turno</h1>'
+      + '<p class="texte-doux">Tres datos, menos de un minuto, y sigues tu posición en directo.</p>'
       + '<section class="carte">' + formulaire(options) + '</section>';
 
-  const corps = entete({ retour: { href: '/', texte: 'Accueil' } })
+  const corps = entete({ retour: { href: '/', texte: 'Inicio' } })
     + '<main class="enveloppe page-etroite" id="principal">'
     + contenu
     + '</main>';
   return page({
-    titre: 'Prendre mon tour — ' + reglages['salon.nom'],
-    description: 'Rejoignez la file de ' + reglages['salon.nom'] + ' en moins d’une minute.',
+    titre: 'Pedir mi turno — ' + reglages['salon.nom'],
+    description: 'Entra en la fila de ' + reglages['salon.nom'] + ' en menos de un minuto.',
     corps,
     base: ctx.base,
     chemin: '/join',
@@ -345,20 +408,20 @@ const TONS = { tour: 'tour', proche: 'proche', attente: 'attente', fini: 'fini' 
 function blocTicket(vue) {
   const ton = TONS[vue.ton] || 'attente';
   return '<section class="ticket ticket--' + ton + '" data-ticket>'
-    + '<p class="ticket__label">Votre tour</p>'
+    + '<p class="ticket__label">Tu turno</p>'
     + '<p class="ticket__prenom" data-prenom>' + escapeHtml(vue.prenom) + '</p>'
     + '<p class="ticket__numero" data-numero>' + escapeHtml(vue.numero) + '</p>'
-    + (vue.coiffeur ? '<p class="ticket__coiffeur" data-coiffeur>chez ' + escapeHtml(vue.coiffeur) + '</p>' : '')
+    + (vue.coiffeur ? '<p class="ticket__coiffeur" data-coiffeur>con ' + escapeHtml(vue.coiffeur) + '</p>' : '')
     + '<div class="ticket__etat" data-etat>'
     + '<p class="ticket__titre" data-titre>' + escapeHtml(vue.titre) + '</p>'
     + '<p class="ticket__detail" data-detail>' + escapeHtml(vue.detail) + '</p>'
     + '</div>'
     + '<dl class="ticket__chiffres">'
-    + '<div><dt>Personnes devant vous</dt><dd data-devant>' + vue.devant + '</dd></div>'
-    + '<div><dt>Estimation</dt><dd data-estimation>' + escapeHtml(vue.estimationCourte) + '</dd></div>'
+    + '<div><dt>Personas delante de ti</dt><dd data-devant>' + vue.devant + '</dd></div>'
+    + '<div><dt>Estimación</dt><dd data-estimation>' + escapeHtml(vue.estimationCourte) + '</dd></div>'
     + '</dl>'
     + (vue.retards > 0
-      ? '<p class="ticket__note">Vous avez été replacé en fin de file après une absence. Restez à proximité cette fois-ci.</p>'
+      ? '<p class="ticket__note">Te hemos puesto al final de la fila porque no estabas. Esta vez quédate cerca.</p>'
       : '')
     + '</section>';
 }
@@ -372,8 +435,8 @@ siteRoutes.get('/ticket/:jeton', async (ctx) => {
     ctx.res.setHeader('Retry-After', String(limite.retryAfterSeconds));
     ctx.html(429, pageErreur({
       base: ctx.base, statut: 429,
-      titre: 'Trop de demandes',
-      message: 'Patientez quelques instants avant de recharger cette page.',
+      titre: 'Demasiadas peticiones',
+      message: 'Espera unos instantes antes de recargar esta página.',
     }));
     return;
   }
@@ -382,13 +445,13 @@ siteRoutes.get('/ticket/:jeton', async (ctx) => {
   if (!ticket) {
     ctx.html(404, pageErreur({
       base: ctx.base, statut: 404,
-      titre: 'Lien de suivi introuvable',
+      titre: 'Enlace de seguimiento no válido',
       // Ne renvoyer le client vers WhatsApp que si des messages partent
       // vraiment : sinon on l'envoie chercher quelque chose qui n'existe pas.
-      message: 'Ce lien n’est plus valable. Si votre tour est toujours en cours, '
+      message: 'Este enlace ya no sirve. Si tu turno sigue en curso, '
         + (config.whatsapp.actif
-          ? 'retrouvez le lien reçu sur WhatsApp, ou demandez-le au salon.'
-          : 'demandez votre lien au salon : il peut vous le retrouver avec votre numéro de ticket.'),
+          ? 'busca el enlace que recibiste por WhatsApp, o pídelo en el salón.'
+          : 'pide tu enlace en el salón: pueden encontrarlo con tu número de turno.'),
     }));
     return;
   }
@@ -407,41 +470,41 @@ siteRoutes.get('/ticket/:jeton', async (ctx) => {
 
   const blocLien = vue.actif
     ? '<section class="lien' + (nouveau ? ' lien--neuf' : '') + '" data-bloc-lien>'
-      + '<p class="lien__titre">' + (nouveau ? 'Gardez ce lien' : 'Votre lien de suivi') + '</p>'
-      + '<p class="lien__texte">Il ouvre cette page à tout moment et montre combien de personnes restent avant vous. '
-      + 'Envoyez-le-vous, ou ajoutez-le à vos favoris.</p>'
+      + '<p class="lien__titre">' + (nouveau ? 'Guarda este enlace' : 'Tu enlace de seguimiento') + '</p>'
+      + '<p class="lien__texte">Abre esta página cuando quieras y te dice cuántas personas te faltan. '
+      + 'Envíatelo a ti mismo, o guárdalo en favoritos.</p>'
       + '<p class="lien__adresse" data-lien>' + escapeHtml(lien) + '</p>'
       + '<div class="lien__actions">'
-      + '<button class="bouton bouton--principal" type="button" data-copier data-valeur="' + escapeHtml(lien) + '">Copier le lien</button>'
+      + '<button class="bouton bouton--principal" type="button" data-copier data-valeur="' + escapeHtml(lien) + '">Copiar el enlace</button>'
       // « Envoyer » ouvre le partage du systeme, qui propose WhatsApp parmi
       // d'autres. Annoncer WhatsApp serait inexact sur un appareil qui ne l'a
       // pas installe.
-      + '<button class="bouton bouton--discret" type="button" data-partager hidden>Envoyer le lien</button>'
+      + '<button class="bouton bouton--discret" type="button" data-partager hidden>Enviar el enlace</button>'
       + '</div>'
-      + '<p class="lien__retour" role="status" hidden data-copie>Lien copié.</p>'
+      + '<p class="lien__retour" role="status" hidden data-copie>Enlace copiado.</p>'
       + '</section>'
     : '';
 
   const corps = entete()
     + '<main class="enveloppe page-etroite" id="principal">'
-    + (dateDuJour ? '<p class="pastille pastille--neutre">Tour du ' + escapeHtml(dateDuJour) + '</p>' : '')
+    + (dateDuJour ? '<p class="pastille pastille--neutre">Turno del ' + escapeHtml(dateDuJour) + '</p>' : '')
     + blocTicket(vue)
     + blocLien
     + (vue.actif
       ? '<section class="carte carte--discrete">'
-        + '<p class="texte-doux">Cette page se met à jour toute seule. Gardez-la ouverte, ou revenez-y par votre lien.</p>'
+        + '<p class="texte-doux">Esta página se actualiza sola. Déjala abierta, o vuelve con tu enlace.</p>'
         + (vue.adresseSalon ? '<p class="texte-doux">' + escapeHtml(vue.adresseSalon) + '</p>' : '')
-        + '<button class="bouton bouton--discret" type="button" data-annuler>Je ne viendrai pas, libérer ma place</button>'
+        + '<button class="bouton bouton--discret" type="button" data-annuler>No voy a venir, liberar mi sitio</button>'
         + '<p class="alerte alerte--refus" role="alert" hidden data-annuler-erreur></p>'
         + '</section>'
       : '<section class="carte carte--discrete">'
-        + '<a class="bouton bouton--principal" href="/join">Prendre un nouveau tour</a>'
+        + '<a class="bouton bouton--principal" href="/join">Pedir un turno nuevo</a>'
         + '</section>')
     + '</main>';
 
   ctx.html(200, page({
-    titre: 'Ticket ' + vue.numero + ' — ' + reglages['salon.nom'],
-    description: 'Suivez votre tour chez ' + reglages['salon.nom'] + ' en direct.',
+    titre: 'Turno ' + vue.numero + ' — ' + reglages['salon.nom'],
+    description: 'Sigue tu turno en ' + reglages['salon.nom'] + ' en directo.',
     corps,
     base: ctx.base,
     chemin: '/ticket/' + jeton,
@@ -482,7 +545,7 @@ const CACHE_QR = 'public, max-age=60';
 
 siteRoutes.get('/qr.svg', async (ctx) => {
   const qr = encoder(await adresseDuQr(ctx), { niveau: 'Q' });
-  ctx.file(Buffer.from(versSvg(qr, { titre: 'Scannez pour prendre votre tour' }), 'utf8'), {
+  ctx.file(Buffer.from(versSvg(qr, { titre: 'Escanea para pedir tu turno' }), 'utf8'), {
     filename: 'haron-qr.svg',
     mimeType: 'image/svg+xml',
     download: ctx.queryBool('telecharger'),
@@ -515,21 +578,21 @@ siteRoutes.get('/affiche', async (ctx) => {
   const corps = '<main class="affiche" id="principal">'
     + '<div class="affiche__feuille">'
     + marque({ taille: 'grand', lien: false })
-    + '<p class="affiche__titre">Vous êtes arrivé ?</p>'
-    + '<p class="affiche__sous-titre">Scannez pour prendre votre tour</p>'
-    + '<div class="affiche__qr">' + versSvg(qr, { titre: 'Scanner pour prendre son tour', marge: 2 }) + '</div>'
-    + '<p class="affiche__mention">Pas besoin de télécharger d’application</p>'
+    + '<p class="affiche__titre">¿Ya estás aquí?</p>'
+    + '<p class="affiche__sous-titre">Escanea para pedir tu turno</p>'
+    + '<div class="affiche__qr">' + versSvg(qr, { titre: 'Escanear para pedir turno', marge: 2 }) + '</div>'
+    + '<p class="affiche__mention">No hace falta instalar ninguna aplicación</p>'
     + '<p class="affiche__adresse">' + escapeHtml(adresse.replace(/^https?:\/\//, '')) + '</p>'
     + '</div>'
     + '<div class="affiche__outils">'
-    + '<a class="bouton bouton--discret" href="/qr.svg?telecharger=1" download>Télécharger le QR (SVG)</a>'
-    + '<a class="bouton bouton--discret" href="/qr.png?telecharger=1" download>Télécharger le QR (PNG)</a>'
-    + '<button class="bouton bouton--principal" type="button" data-imprimer>Imprimer l’affiche</button>'
+    + '<a class="bouton bouton--discret" href="/qr.svg?telecharger=1" download>Descargar el QR (SVG)</a>'
+    + '<a class="bouton bouton--discret" href="/qr.png?telecharger=1" download>Descargar el QR (PNG)</a>'
+    + '<button class="bouton bouton--principal" type="button" data-imprimer>Imprimir el cartel</button>'
     + '</div>'
     + '</main>';
 
   ctx.html(200, page({
-    titre: 'Affiche QR Code — ' + reglages['salon.nom'],
+    titre: 'Cartel con código QR — ' + reglages['salon.nom'],
     description: 'L’affiche à imprimer pour la vitrine du salon.',
     corps,
     base: ctx.base,

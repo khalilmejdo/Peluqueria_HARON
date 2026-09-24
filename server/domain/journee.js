@@ -77,7 +77,7 @@ export async function verrouillerJournee(tx, jour) {
  * @param {{ par?: string, motif?: string }} [opts]
  * @returns {Promise<{ jour:string, annules:number }|null>} null si deja close
  */
-export async function cloturer(tx, jour, { par = 'clôture automatique', motif = 'Journée terminée : ce tour n’a pas été servi.' } = {}) {
+export async function cloturer(tx, jour, { par = 'cierre automático', motif = 'Jornada terminada: este turno no se ha atendido.' } = {}) {
   const ligne = await verrouillerJournee(tx, jour);
   if (!ligne || !ligne.ouverte) return null;
 
@@ -100,7 +100,7 @@ export async function cloturer(tx, jour, { par = 'clôture automatique', motif =
   // pire que de ne rien envoyer.
   await tx.execute(
     `UPDATE envois_whatsapp SET statut = 'DESACTIVE', contenu_enc = NULL,
-            derniere_erreur = 'Journée close avant l’envoi.'
+            derniere_erreur = 'Jornada cerrada antes del envío.'
       WHERE statut = 'EN_ATTENTE'
         AND ticket_id IN (SELECT id FROM tickets WHERE jour = $1)`,
     [jour],
@@ -117,7 +117,7 @@ export async function cloturer(tx, jour, { par = 'clôture automatique', motif =
  * Clot toutes les journees ouvertes anterieures a `jour`.
  * @returns {Promise<Array<{jour:string, annules:number}>>}
  */
-export async function cloturerJourneesAnterieures(tx, jour, { par = 'nouvelle journée' } = {}) {
+export async function cloturerJourneesAnterieures(tx, jour, { par = 'nueva jornada' } = {}) {
   const ouvertes = await tx.all(
     'SELECT jour FROM journees WHERE ouverte AND jour < $1 ORDER BY jour',
     [jour],

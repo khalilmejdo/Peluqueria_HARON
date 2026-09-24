@@ -34,34 +34,34 @@ const NOM_RE = /^[\p{L}\p{M}][\p{L}\p{M} '’.-]*$/u;
 
 const CONVERTERS = {
   string(value, rule) {
-    if (typeof value === 'object') return { error: 'Un texte est attendu.' };
+    if (typeof value === 'object') return { error: 'Se espera un texto.' };
     let text = String(value);
     if (rule.trim !== false) text = cleanSpaces(text);
     if (rule.upper) text = text.toUpperCase();
     if (rule.lower) text = text.toLowerCase();
-    if (rule.min !== undefined && text.length < rule.min) return { error: 'Ce champ doit comporter au moins ' + rule.min + ' caractères.' };
-    if (rule.max !== undefined && text.length > rule.max) return { error: 'Ce champ ne peut pas dépasser ' + rule.max + ' caractères.' };
-    if (rule.pattern && !rule.pattern.test(text)) return { error: rule.patternMessage || 'Le format saisi n’est pas valide.' };
+    if (rule.min !== undefined && text.length < rule.min) return { error: 'Este campo debe tener al menos ' + rule.min + ' caracteres.' };
+    if (rule.max !== undefined && text.length > rule.max) return { error: 'Este campo no puede pasar de ' + rule.max + ' caracteres.' };
+    if (rule.pattern && !rule.pattern.test(text)) return { error: rule.patternMessage || 'El formato no es válido.' };
     return { value: text };
   },
 
   text(value, rule) {
-    if (typeof value === 'object') return { error: 'Un texte est attendu.' };
+    if (typeof value === 'object') return { error: 'Se espera un texto.' };
     const text = String(value).replace(/\r\n/g, '\n').trim();
-    if (rule.min !== undefined && text.length < rule.min) return { error: 'Ce texte doit comporter au moins ' + rule.min + ' caractères.' };
-    if (rule.max !== undefined && text.length > rule.max) return { error: 'Ce texte ne peut pas dépasser ' + rule.max + ' caractères.' };
+    if (rule.min !== undefined && text.length < rule.min) return { error: 'Este texto debe tener al menos ' + rule.min + ' caracteres.' };
+    if (rule.max !== undefined && text.length > rule.max) return { error: 'Este texto no puede pasar de ' + rule.max + ' caracteres.' };
     return { value: text };
   },
 
   /** Prenom ou nom de famille, remis en forme « Ahmed Benali ». */
   nom(value, rule) {
-    if (typeof value === 'object') return { error: 'Un texte est attendu.' };
+    if (typeof value === 'object') return { error: 'Se espera un texto.' };
     const brut = cleanSpaces(value);
     const min = rule.min ?? 2;
     const max = rule.max ?? 40;
-    if (brut.length < min) return { error: 'Ce champ doit comporter au moins ' + min + ' caractères.' };
-    if (brut.length > max) return { error: 'Ce champ ne peut pas dépasser ' + max + ' caractères.' };
-    if (!NOM_RE.test(brut)) return { error: 'Seules les lettres, l’espace, l’apostrophe et le trait d’union sont acceptés.' };
+    if (brut.length < min) return { error: 'Este campo debe tener al menos ' + min + ' caracteres.' };
+    if (brut.length > max) return { error: 'Este campo no puede pasar de ' + max + ' caracteres.' };
+    if (!NOM_RE.test(brut)) return { error: 'Solo se aceptan letras, espacio, apóstrofo y guion.' };
     return { value: capitaliserNom(brut) };
   },
 
@@ -71,19 +71,19 @@ const CONVERTERS = {
    * laquelle l'index aveugle est calcule. La saisie du client reste libre.
    */
   whatsapp(value) {
-    if (typeof value === 'object') return { error: 'Un numéro est attendu.' };
+    if (typeof value === 'object') return { error: 'Se espera un número.' };
     const numero = telephoneInternational(value, config.indicatifDefaut);
     if (!numero) {
-      return { error: 'Numéro WhatsApp invalide. Exemple : 612 345 678, ou +34 612 345 678 depuis l’étranger.' };
+      return { error: 'Número de WhatsApp no válido. Ejemplo: 612 345 678, o +34 612 345 678 desde el extranjero.' };
     }
     return { value: numero };
   },
 
   int(value, rule) {
     const n = entierStrict(value);
-    if (!Number.isSafeInteger(n)) return { error: 'Un nombre entier est attendu.' };
-    if (rule.min !== undefined && n < rule.min) return { error: 'La valeur doit être supérieure ou égale à ' + rule.min + '.' };
-    if (rule.max !== undefined && n > rule.max) return { error: 'La valeur doit être inférieure ou égale à ' + rule.max + '.' };
+    if (!Number.isSafeInteger(n)) return { error: 'Se espera un número entero.' };
+    if (rule.min !== undefined && n < rule.min) return { error: 'El valor debe ser mayor o igual que ' + rule.min + '.' };
+    if (rule.max !== undefined && n > rule.max) return { error: 'El valor debe ser menor o igual que ' + rule.max + '.' };
     return { value: n };
   },
 
@@ -92,12 +92,12 @@ const CONVERTERS = {
     const text = String(value).trim().toLowerCase();
     if (['1', 'true', 'oui', 'yes', 'on'].includes(text)) return { value: true };
     if (['0', 'false', 'non', 'no', 'off'].includes(text)) return { value: false };
-    return { error: 'Valeur oui/non attendue.' };
+    return { error: 'Se espera sí o no.' };
   },
 
   uuid(value) {
     const text = String(value).trim();
-    if (!isUuid(text)) return { error: 'Identifiant invalide.' };
+    if (!isUuid(text)) return { error: 'Identificador no válido.' };
     return { value: text.toLowerCase() };
   },
 
@@ -105,43 +105,43 @@ const CONVERTERS = {
     const brut = String(value).trim();
     const ISO = /^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/;
     const text = ISO.test(brut) ? brut.slice(0, 10) : brut;
-    if (!isValidIsoDate(text)) return { error: 'Date invalide. Format attendu : AAAA-MM-JJ' };
-    if (rule.min && text < rule.min) return { error: 'La date ne peut pas être antérieure au ' + rule.min + '.' };
-    if (rule.max && text > rule.max) return { error: 'La date ne peut pas être postérieure au ' + rule.max + '.' };
+    if (!isValidIsoDate(text)) return { error: 'Fecha no válida. Formato esperado: AAAA-MM-DD' };
+    if (rule.min && text < rule.min) return { error: 'La fecha no puede ser anterior al ' + rule.min + '.' };
+    if (rule.max && text > rule.max) return { error: 'La fecha no puede ser posterior al ' + rule.max + '.' };
     return { value: text };
   },
 
   time(value) {
     const brut = String(value).trim();
     const text = /^\d{2}:\d{2}(:\d{2})?$/.test(brut) ? brut.slice(0, 5) : brut;
-    if (!heureValide(text)) return { error: 'Heure invalide. Format attendu : HH:MM' };
+    if (!heureValide(text)) return { error: 'Hora no válida. Formato esperado: HH:MM' };
     return { value: text };
   },
 
   /** Adresse publique du salon (PUBLIC_URL, page de suivi partagee). */
   url(value, rule) {
     const text = String(value).trim().replace(/\/+$/, '');
-    if (text.length > (rule.max ?? 300)) return { error: 'Adresse trop longue.' };
+    if (text.length > (rule.max ?? 300)) return { error: 'Dirección demasiado larga.' };
     try {
       const u = new URL(text);
-      if (u.protocol !== 'http:' && u.protocol !== 'https:') return { error: 'L’adresse doit commencer par http:// ou https://' };
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return { error: 'La dirección debe empezar por http:// o https://' };
       return { value: text };
     } catch {
-      return { error: 'Adresse invalide. Exemple : https://file.peluqueria-haron.com' };
+      return { error: 'Dirección no válida. Ejemplo: https://file.peluqueria-haron.com' };
     }
   },
 
   enum(value, rule) {
     let text = String(value).trim();
     if (rule.upper) text = text.toUpperCase();
-    if (!rule.values.includes(text)) return { error: 'Valeur attendue parmi : ' + rule.values.join(', ') + '.' };
+    if (!rule.values.includes(text)) return { error: 'Valor esperado entre: ' + rule.values.join(', ') + '.' };
     return { value: text };
   },
 
   array(value, rule, path) {
-    if (!Array.isArray(value)) return { error: 'Une liste est attendue.' };
-    if (rule.min !== undefined && value.length < rule.min) return { error: 'Au moins ' + rule.min + ' élément(s) sont requis.' };
-    if (rule.max !== undefined && value.length > rule.max) return { error: 'Pas plus de ' + rule.max + ' élément(s) sont autorisés.' };
+    if (!Array.isArray(value)) return { error: 'Se espera una lista.' };
+    if (rule.min !== undefined && value.length < rule.min) return { error: 'Se requiere(n) al menos ' + rule.min + ' elemento(s).' };
+    if (rule.max !== undefined && value.length > rule.max) return { error: 'No se permiten más de ' + rule.max + ' elemento(s).' };
     const items = [];
     const errors = {};
     value.forEach((item, index) => {
@@ -168,7 +168,7 @@ const CONVERTERS = {
   },
 
   object(value, rule, path) {
-    if (value === null || typeof value !== 'object' || Array.isArray(value)) return { error: 'Un objet est attendu.' };
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return { error: 'Se espera un objeto.' };
     if (!rule.of) return { value };
     try {
       return { value: validate(value, rule.of, { path }) };
@@ -207,7 +207,7 @@ export function validate(input, schema, opts = {}) {
     if (EMPTY(raw)) {
       if (partial && !present) continue;
       if (rule.required) {
-        errors[fieldPath] = rule.requiredMessage || 'Ce champ est obligatoire.';
+        errors[fieldPath] = rule.requiredMessage || 'Este campo es obligatorio.';
         continue;
       }
       if (rule.default !== undefined) {
@@ -233,8 +233,8 @@ export const validatePartial = (input, schema) => validate(input, schema, { part
 /** Regles reutilisables. */
 export const rules = {
   id: { type: 'uuid', required: true },
-  prenom: { type: 'nom', required: true, max: 40, requiredMessage: 'Votre prénom est obligatoire.' },
-  nomFamille: { type: 'nom', required: true, max: 40, requiredMessage: 'Votre nom est obligatoire.' },
-  whatsapp: { type: 'whatsapp', required: true, requiredMessage: 'Votre numéro WhatsApp est obligatoire : c’est là que vous recevrez votre lien de suivi.' },
+  prenom: { type: 'nom', required: true, max: 40, requiredMessage: 'Tu nombre es obligatorio.' },
+  nomFamille: { type: 'nom', required: true, max: 40, requiredMessage: 'Tu apellido es obligatorio.' },
+  whatsapp: { type: 'whatsapp', required: true, requiredMessage: 'Tu número de WhatsApp es obligatorio: es donde recibirás tu enlace de seguimiento.' },
   motif: { type: 'text', max: 300 },
 };

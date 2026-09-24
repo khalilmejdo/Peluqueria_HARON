@@ -48,15 +48,15 @@ export async function loadSession(token) {
   if (!row) return null;
 
   if (Date.now() - new Date(row.last_seen_at).getTime() > config.security.sessionIdleMs) {
-    await revokeSession(row.session_id, 'expiration par inactivité');
+    await revokeSession(row.session_id, 'caducada por inactividad');
     return null;
   }
   if (!row.actif) {
-    await revokeSession(row.session_id, 'compte désactivé');
+    await revokeSession(row.session_id, 'cuenta desactivada');
     return null;
   }
   if (row.verrouille_jusqu_a && new Date(row.verrouille_jusqu_a).getTime() > Date.now()) {
-    await revokeSession(row.session_id, 'compte verrouillé');
+    await revokeSession(row.session_id, 'cuenta bloqueada');
     return null;
   }
 
@@ -89,7 +89,7 @@ export async function touchSession(sessionId, lastSeenAt) {
   }
 }
 
-export async function revokeSession(sessionId, reason = 'déconnexion') {
+export async function revokeSession(sessionId, reason = 'cierre de sesión') {
   await execute('UPDATE sessions SET revoked_at = now(), revoked_reason = $2 WHERE id = $1 AND revoked_at IS NULL', [sessionId, reason]);
 }
 

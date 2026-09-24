@@ -385,6 +385,165 @@ main { flex: 1; }
   text-wrap: balance;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Sections de la vitrine                                             */
+/* ------------------------------------------------------------------ */
+
+.seccion { padding-block: clamp(2.5rem, 8vw, 4.5rem); }
+
+.seccion__tete {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: clamp(1.25rem, 4vw, 2rem);
+}
+
+/*
+ * Le titre de section porte un petit filet de laiton au-dessus : c'est le
+ * rappel du mât de barbier, et cela découpe la page sans y ajouter de trait
+ * gris de tableau de bord.
+ */
+.seccion__titulo {
+  margin: 0;
+  font-family: var(--police-titre);
+  font-weight: 800;
+  font-size: clamp(1.6rem, 5.5vw, 2.2rem);
+  letter-spacing: -0.015em;
+}
+.seccion__titulo::before {
+  content: '';
+  display: block;
+  width: 2.5rem;
+  height: 3px;
+  margin-bottom: 0.9rem;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.seccion__intro {
+  margin: 0;
+  color: var(--texte-doux);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Fiche de prix                                                      */
+/* ------------------------------------------------------------------ */
+
+/*
+ * La forme d'une carte de salon : nom à gauche, prix à droite, un filet de
+ * pointillés entre les deux. Le regard suit le pointillé sans jamais se
+ * tromper de ligne — ce qu'un simple `justify-content: space-between` ne
+ * donne pas dès que les noms sont de longueurs très différentes.
+ *
+ * Le filet est un élément à part, en `flex: 1`, plutôt qu'une bordure : il
+ * s'arrête ainsi exactement où le prix commence, et la note éventuelle passe
+ * proprement à la ligne dessous.
+ */
+.tarifas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.tarifa {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.8rem 0.25rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--bordure) 60%, transparent);
+}
+.tarifa:last-child { border-bottom: 0; }
+
+.tarifa__nombre {
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: clamp(1rem, 3.4vw, 1.1rem);
+}
+
+.tarifa__filete {
+  flex: 1 1 2rem;
+  min-width: 1.5rem;
+  align-self: flex-end;
+  margin-bottom: 0.32em;
+  border-bottom: 2px dotted color-mix(in srgb, var(--texte-doux) 45%, transparent);
+}
+
+.tarifa__precio {
+  flex: none;
+  font-family: var(--police-titre);
+  font-weight: 800;
+  font-size: clamp(1.05rem, 3.6vw, 1.2rem);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* La note occupe toute la ligne suivante : elle ne pousse jamais le prix. */
+.tarifa__nota {
+  flex: 1 0 100%;
+  margin-top: 0.15rem;
+  font-size: 0.82rem;
+  color: var(--texte-doux);
+}
+
+.tarifas__nota {
+  margin: 1.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--texte-doux);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Comment ça marche                                                  */
+/* ------------------------------------------------------------------ */
+
+.pasos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 46rem) {
+  .pasos { grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+}
+
+.paso {
+  padding: 1.4rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--r);
+  background: var(--fond-carte);
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+}
+
+.paso__num {
+  font-family: var(--police-titre);
+  font-weight: 800;
+  font-size: 1.05rem;
+  width: 2.1rem;
+  height: 2.1rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+}
+
+.paso__titulo {
+  margin: 0;
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.paso__texto {
+  margin: 0;
+  color: var(--texte-doux);
+  font-size: 0.92rem;
+}
+
 .bandeau-qr {
   padding-block: clamp(2rem, 6vw, 3rem);
   text-align: center;

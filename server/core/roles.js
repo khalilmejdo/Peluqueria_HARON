@@ -13,13 +13,13 @@
 export const ROLES = {
   COIFFEUR: {
     code: 'COIFFEUR',
-    libelle: 'Coiffeur',
-    description: 'Tient la file du jour : appeler, servir, marquer absent, annuler.',
+    libelle: 'Peluquero',
+    description: 'Lleva la fila del día: llamar, atender, marcar ausente, anular.',
   },
   GERANT: {
     code: 'GERANT',
-    libelle: 'Gérant',
-    description: 'Tout ce que fait le coiffeur, plus les réglages, les comptes et l’historique.',
+    libelle: 'Gerente',
+    description: 'Todo lo que hace el peluquero, más los ajustes, las cuentas y el historial.',
   },
 };
 

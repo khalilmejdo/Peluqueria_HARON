@@ -37,13 +37,13 @@ function httpCodeName(status) {
   })[status] || 'ERREUR';
 }
 
-export const badRequest = (msg = 'Requête invalide.', details) => new AppError(400, msg, { details });
-export const unauthorized = (msg = 'Authentification requise.') => new AppError(401, msg);
-export const forbidden = (msg = 'Vous n’avez pas les droits nécessaires pour cette action.') => new AppError(403, msg);
-export const notFound = (msg = 'Élément introuvable.') => new AppError(404, msg);
-export const conflict = (msg = 'Conflit avec l’état actuel de la donnée.', details) => new AppError(409, msg, { details });
-export const tooLarge = (msg = 'Contenu trop volumineux.') => new AppError(413, msg);
-export const unsupportedMedia = (msg = 'Type de contenu non autorisé.') => new AppError(415, msg);
+export const badRequest = (msg = 'Petición no válida.', details) => new AppError(400, msg, { details });
+export const unauthorized = (msg = 'Hace falta identificarse.') => new AppError(401, msg);
+export const forbidden = (msg = 'No tienes permiso para esta acción.') => new AppError(403, msg);
+export const notFound = (msg = 'No encontrado.') => new AppError(404, msg);
+export const conflict = (msg = 'Conflicto con el estado actual del dato.', details) => new AppError(409, msg, { details });
+export const tooLarge = (msg = 'Contenido demasiado grande.') => new AppError(413, msg);
+export const unsupportedMedia = (msg = 'Tipo de contenido no permitido.') => new AppError(415, msg);
 
 /**
  * Une valeur que PostgreSQL n'a pas su convertir dans le type de la colonne
@@ -51,28 +51,28 @@ export const unsupportedMedia = (msg = 'Type de contenu non autorisé.') => new 
  * formee, pas le serveur qui est en panne. Rend null hors de cette famille.
  */
 const CODES_DE_TYPE = {
-  '22P02': 'Un paramètre de la requête est mal formé : une valeur n’a pas la forme attendue.',
-  '22007': 'Un paramètre de la requête est mal formé : une date est attendue au format AAAA-MM-JJ.',
-  '22008': 'Un paramètre de la requête est mal formé : cette date ou cette heure n’existe pas.',
-  '22003': 'Une valeur dépasse la capacité du champ qui la reçoit.',
+  '22P02': 'Un parámetro de la petición está mal formado: un valor no tiene la forma esperada.',
+  '22007': 'Un parámetro de la petición está mal formado: se espera una fecha con formato AAAA-MM-DD.',
+  '22008': 'Un parámetro de la petición está mal formado: esa fecha u hora no existe.',
+  '22003': 'Un valor supera la capacidad del campo que lo recibe.',
 };
 
 export function erreurDeTypePostgres(err) {
   // HR001 : verrou metier pose par un declencheur (ticket d'une journee close).
-  if (err?.code === 'HR001') return new AppError(409, String(err.message || 'Opération refusée.'), { code: 'VERROU_METIER' });
+  if (err?.code === 'HR001') return new AppError(409, String(err.message || 'Operación rechazada.'), { code: 'VERROU_METIER' });
   if (err?.code === '23505') {
     const contrainte = String(err.constraint || '');
     // Le rang et le numero uniques par journee sont la garantie « jamais deux
     // clients a la meme position ». Un doublon signifie que deux gestes se sont
     // croises a la milliseconde : rien n'a ete ecrit, le geste se refait.
     if (contrainte.includes('tickets_journee_rang') || contrainte.includes('tickets_journee_numero')) {
-      return new AppError(409, 'Deux modifications de la file se sont croisées. Rien n’a été perdu : renouvelez le geste.', { code: 'FILE_CONCURRENTE' });
+      return new AppError(409, 'Dos cambios en la fila se han cruzado. No se ha perdido nada: repite la acción.', { code: 'FILE_CONCURRENTE' });
     }
     // Un seul client au fauteuil : deux appels simultanes, un seul passe.
     if (contrainte.includes('tickets_un_seul_en_cours')) {
-      return new AppError(409, 'Un client vient d’être appelé au même instant. Rechargez la file avant d’appeler le suivant.', { code: 'FAUTEUIL_OCCUPE' });
+      return new AppError(409, 'Se acaba de llamar a un cliente en el mismo instante. Recarga la fila antes de llamar al siguiente.', { code: 'FAUTEUIL_OCCUPE' });
     }
-    return new AppError(409, 'Cet élément existe déjà (valeur en double). Rechargez la page et vérifiez avant de recommencer.', { code: 'DOUBLON' });
+    return new AppError(409, 'Este elemento ya existe (valor duplicado). Recarga la página y comprueba antes de repetir.', { code: 'DOUBLON' });
   }
   const message = CODES_DE_TYPE[err?.code];
   if (!message) return null;
@@ -84,39 +84,39 @@ export function erreurDeTypePostgres(err) {
  * delai avant de reessayer. Rend null hors de cette famille.
  */
 const CODES_INDISPONIBLES = {
-  '42501': 'la base refuse l’écriture : droits insuffisants',
-  '42P01': 'une table attendue n’existe pas : la base n’est pas migrée',
-  '08000': 'la connexion à la base a été perdue',
-  '08001': 'la base est injoignable',
-  '08003': 'la connexion à la base a été perdue',
-  '08006': 'la connexion à la base a été perdue',
-  '57P01': 'la base s’arrête',
-  '57P03': 'la base démarre',
-  '53300': 'la base n’accepte plus de connexion',
-  '53200': 'la base manque de mémoire',
-  '53100': 'le disque de la base est plein',
-  '58030': 'le disque de la base ne répond plus',
-  '25006': 'la base est en lecture seule : aucune écriture n’est possible',
-  '55P03': 'une autre opération tenait le verrou trop longtemps',
-  '57014': 'l’opération a dépassé le temps accordé et a été interrompue',
+  '42501': 'la base de datos rechaza la escritura: permisos insuficientes',
+  '42P01': 'falta una tabla: la base de datos no está migrada',
+  '08000': 'se ha perdido la conexión con la base de datos',
+  '08001': 'la base de datos no responde',
+  '08003': 'se ha perdido la conexión con la base de datos',
+  '08006': 'se ha perdido la conexión con la base de datos',
+  '57P01': 'la base de datos se está apagando',
+  '57P03': 'la base de datos está arrancando',
+  '53300': 'la base de datos ya no acepta conexiones',
+  '53200': 'la base de datos se ha quedado sin memoria',
+  '53100': 'el disco de la base de datos está lleno',
+  '58030': 'el disco de la base de datos no responde',
+  '25006': 'la base de datos está en solo lectura: no se puede escribir',
+  '55P03': 'otra operación mantenía el bloqueo demasiado tiempo',
+  '57014': 'la operación ha superado el tiempo permitido y se ha interrumpido',
 };
 
 export function erreurBaseIndisponible(err) {
   if (!err) return null;
   let cause = CODES_INDISPONIBLES[err.code] ?? null;
   const texte = String(err.message || '');
-  if (!cause && /timeout exceeded when trying to connect/i.test(texte)) cause = 'toutes les connexions à la base sont occupées';
-  if (!cause && /Connection terminated|ECONNREFUSED|ECONNRESET/i.test(texte)) cause = 'la connexion à la base a été perdue';
+  if (!cause && /timeout exceeded when trying to connect/i.test(texte)) cause = 'todas las conexiones con la base de datos están ocupadas';
+  if (!cause && /Connection terminated|ECONNREFUSED|ECONNRESET/i.test(texte)) cause = 'se ha perdido la conexión con la base de datos';
   if (!cause) return null;
   return new AppError(503,
-    'Le service ne peut pas utiliser la base pour le moment : ' + cause + '. Rien n’a été enregistré. Réessayez dans un instant.',
+    'El servicio no puede usar la base de datos ahora mismo: ' + cause + '. No se ha guardado nada. Inténtalo en un instante.',
     { code: 'BASE_INDISPONIBLE', details: { retryAfter: 5 } });
 }
 
 /** Erreur de validation portant le detail champ par champ. */
 export class ValidationError extends AppError {
   /** @param {Record<string,string>} fields */
-  constructor(fields, msg = 'Certains champs sont invalides.') {
+  constructor(fields, msg = 'Algunos campos no son válidos.') {
     super(422, msg, { code: 'VALIDATION', details: { fields } });
     this.name = 'ValidationError';
     this.fields = fields;

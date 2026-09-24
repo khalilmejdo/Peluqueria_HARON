@@ -64,7 +64,7 @@ export async function handle(ctx) {
         const limite = consume('statique:' + ctx.ip, PROFILES.statique);
         if (!limite.allowed) {
           ctx.res.setHeader('Retry-After', String(limite.retryAfterSeconds));
-          throw new AppError(429, 'Trop de requêtes. Patientez quelques instants.', { details: { retryAfter: limite.retryAfterSeconds } });
+          throw new AppError(429, 'Demasiadas peticiones. Espere unos instantes.', { details: { retryAfter: limite.retryAfterSeconds } });
         }
       },
     });
@@ -76,7 +76,7 @@ export async function handle(ctx) {
   if (!limit.allowed) {
     ctx.res.setHeader('Retry-After', String(limit.retryAfterSeconds));
     if (premierRefusDeLaMinute(ctx.ip)) log.warn('Debit general atteint', { ip: ctx.ip, path: ctx.path });
-    throw new AppError(429, 'Trop de requêtes. Patientez quelques instants.', { details: { retryAfter: limit.retryAfterSeconds } });
+    throw new AppError(429, 'Demasiadas peticiones. Espere unos instantes.', { details: { retryAfter: limit.retryAfterSeconds } });
   }
 
   // --- 4. route
@@ -138,16 +138,16 @@ export async function handle(ctx) {
     const origin = checkOrigin(ctx.req, hostPourOrigine(ctx.req));
     if (!origin.ok) {
       log.warn('Requete mutante refusee : origine invalide', { path: ctx.path, ip: ctx.ip, reason: origin.reason });
-      throw new AppError(403, 'Requête refusée : origine non reconnue.', { code: 'ORIGINE_REFUSEE' });
+      throw new AppError(403, 'Petición rechazada: origen no reconocido.', { code: 'ORIGINE_REFUSEE' });
     }
     // Une route publique n'a pas de session a detourner : le controle d'origine
     // et la limitation de debit la protegent.
     if (!route.options.skipCsrf && !route.options.public) {
       if (!ctx.session && token) {
-        throw new AppError(401, 'Votre session a expiré ou a été fermée : reconnectez-vous.', { code: 'SESSION_INVALIDE' });
+        throw new AppError(401, 'Tu sesión ha caducado o se ha cerrado: vuelve a entrar.', { code: 'SESSION_INVALIDE' });
       }
       if (!ctx.session || !verifyCsrfToken(ctx.session, ctx.req.headers['x-csrf-token'])) {
-        throw new AppError(403, 'Jeton de sécurité absent ou invalide. Rechargez la page.', { code: 'CSRF_INVALIDE' });
+        throw new AppError(403, 'Falta el testigo de seguridad o no es válido. Recarga la página.', { code: 'CSRF_INVALIDE' });
       }
     }
   }
@@ -159,7 +159,7 @@ export async function handle(ctx) {
     const r = consume(cle, route.options.rateLimit);
     if (!r.allowed) {
       ctx.res.setHeader('Retry-After', String(r.retryAfterSeconds));
-      throw new AppError(429, 'Trop de demandes sur cette opération. Patientez un instant.', { details: { retryAfter: r.retryAfterSeconds } });
+      throw new AppError(429, 'Demasiadas peticiones en esta operación. Espere un instante.', { details: { retryAfter: r.retryAfterSeconds } });
     }
   }
 
@@ -173,7 +173,7 @@ export async function handle(ctx) {
   await route.handler(ctx);
   if (!ctx.responded) {
     log.error('Gestionnaire sans reponse', { path: ctx.path, method: ctx.method });
-    ctx.json(500, { error: { code: 'ERREUR', message: 'Réponse absente du serveur.' } });
+    ctx.json(500, { error: { code: 'ERREUR', message: 'Falta la respuesta del servidor.' } });
   }
 }
 
@@ -203,7 +203,7 @@ export async function respondWithError(ctx, err) {
       const html = pageErreur({
         base: ctx.base,
         statut: err.status,
-        titre: err.status === 404 ? 'Page introuvable' : 'Un instant',
+        titre: err.status === 404 ? 'Página no encontrada' : 'Un momento',
         message: err.message,
       });
       ctx.html(err.status, html);
@@ -218,15 +218,15 @@ export async function respondWithError(ctx, err) {
     ctx.html(500, pageErreur({
       base: ctx.base,
       statut: 500,
-      titre: 'Une erreur est survenue',
-      message: 'Réessayez dans un instant. Si le problème persiste, communiquez la référence ' + ctx.requestId + ' au salon.',
+      titre: 'Ha ocurrido un error',
+      message: 'Inténtalo en un instante. Si el problema continúa, dile al salón la referencia ' + ctx.requestId + '.',
     }));
     return;
   }
   ctx.json(500, {
     error: {
       code: 'ERREUR_SERVEUR',
-      message: 'Une erreur inattendue est survenue. Si elle persiste, communiquez la référence ' + ctx.requestId + ' à votre administrateur.',
+      message: 'Ha ocurrido un error inesperado. Si continúa, comunique la referencia ' + ctx.requestId + ' a su administrador.',
       requestId: ctx.requestId,
     },
   });

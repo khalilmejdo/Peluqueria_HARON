@@ -61,8 +61,8 @@ authRoutes.post('/login', async (ctx) => {
 
   if (ligne?.verrouille_jusqu_a && new Date(ligne.verrouille_jusqu_a).getTime() > Date.now()) {
     const minutes = Math.ceil((new Date(ligne.verrouille_jusqu_a).getTime() - Date.now()) / 60000);
-    throw new AppError(429, 'Ce compte est bloqué pendant encore ' + minutes + ' minute' + (minutes > 1 ? 's' : '')
-      + ' après plusieurs essais infructueux.', { code: 'COMPTE_VERROUILLE' });
+    throw new AppError(429, 'Esta cuenta está bloqueada ' + minutes + ' minuto' + (minutes > 1 ? 's' : '')
+      + ' más, tras varios intentos fallidos.', { code: 'COMPTE_VERROUILLE' });
   }
 
   let correct = false;
@@ -74,7 +74,7 @@ authRoutes.post('/login', async (ctx) => {
     if (err instanceof DerivationImpossible) {
       log.error('Verification du mot de passe impossible', { error: err.message });
       // Un incident machine n'est PAS une tentative ratee : ne pas verrouiller.
-      throw new AppError(503, 'Le service d’authentification est momentanément indisponible. Réessayez dans un instant.');
+      throw new AppError(503, 'El servicio de identificación no está disponible ahora mismo. Inténtelo en un instante.');
     }
     throw err;
   }
@@ -131,7 +131,7 @@ authRoutes.get('/session', async (ctx) => {
 }, { public: true });
 
 authRoutes.post('/logout', async (ctx) => {
-  if (ctx.session) await revokeSession(ctx.session.id, 'déconnexion');
+  if (ctx.session) await revokeSession(ctx.session.id, 'cierre de sesión');
   ctx.clearCookie(SESSION_COOKIE);
   ctx.noContent();
 }, { allowDuringPasswordChange: true });
@@ -144,16 +144,16 @@ authRoutes.post('/mot-de-passe', async (ctx) => {
   });
 
   if (data.nouveau.length < config.security.passwordMinLength) {
-    throw badRequest('Le nouveau mot de passe doit comporter au moins ' + config.security.passwordMinLength + ' caractères.',
-      { fields: { nouveau: 'Au moins ' + config.security.passwordMinLength + ' caractères.' } });
+    throw badRequest('La contraseña nueva debe tener al menos ' + config.security.passwordMinLength + ' caracteres.',
+      { fields: { nouveau: 'Al menos ' + config.security.passwordMinLength + ' caracteres.' } });
   }
   if (data.nouveau === data.actuel) {
-    throw badRequest('Le nouveau mot de passe doit être différent de l’ancien.', { fields: { nouveau: 'Choisissez un mot de passe différent.' } });
+    throw badRequest('La contraseña nueva debe ser distinta de la anterior.', { fields: { nouveau: 'Elija una contraseña distinta.' } });
   }
 
   const ligne = await one('SELECT mot_de_passe_hash FROM utilisateurs WHERE id = $1', [ctx.user.id]);
   if (!ligne || !(await verifyPassword(data.actuel, ligne.mot_de_passe_hash))) {
-    throw unauthorized('Le mot de passe actuel est incorrect.');
+    throw unauthorized('La contraseña actual no es correcta.');
   }
 
   const hash = await hashPassword(data.nouveau);
@@ -161,7 +161,7 @@ authRoutes.post('/mot-de-passe', async (ctx) => {
     'UPDATE utilisateurs SET mot_de_passe_hash = $2, doit_changer_mot_de_passe = FALSE WHERE id = $1',
     [ctx.user.id, hash],
   );
-  await revokeAllUserSessions(ctx.user.id, 'mot de passe changé', { exceptSessionId: ctx.session?.id ?? null });
+  await revokeAllUserSessions(ctx.user.id, 'contraseña cambiada', { exceptSessionId: ctx.session?.id ?? null });
   log.info('Mot de passe change', { identifiant: ctx.user.identifiant });
   ctx.ok({ ok: true });
 }, { allowDuringPasswordChange: true, rateLimit: PROFILES.administration });
@@ -183,6 +183,6 @@ authRoutes.get('/sessions', async (ctx) => {
 });
 
 authRoutes.post('/sessions/fermer-les-autres', async (ctx) => {
-  const n = await revokeAllUserSessions(ctx.user.id, 'fermeture demandée', { exceptSessionId: ctx.session?.id ?? null });
+  const n = await revokeAllUserSessions(ctx.user.id, 'cierre solicitado', { exceptSessionId: ctx.session?.id ?? null });
   ctx.ok({ fermees: n });
 }, { rateLimit: PROFILES.administration });

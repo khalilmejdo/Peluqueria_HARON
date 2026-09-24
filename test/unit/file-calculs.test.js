@@ -294,15 +294,19 @@ test('le mode par defaut reste la file unique', () => {
 
 test('chaque phase dit au client quoi faire', () => {
   const tour = messageDePhase('VOTRE_TOUR', { nomSalon: 'HARON' });
-  assert.match(tour.titre, /votre tour/i);
+  assert.match(tour.titre, /tu turno/i);
   assert.equal(tour.ton, 'tour');
+  // Le nom du salon entre bien dans la phrase.
+  assert.match(tour.detail, /HARON/);
 
   const approche = messageDePhase('APPROCHE', { devant: 2 });
-  assert.match(approche.detail, /2 personnes/);
+  assert.match(approche.detail, /2 personas/);
   assert.equal(approche.ton, 'proche');
 
-  // L'accord en nombre : « 1 personne », pas « 1 personnes ».
-  assert.match(messageDePhase('APPROCHE', { devant: 1 }).detail, /1 personne devant/);
+  // L'accord en nombre, qui porte en espagnol sur le VERBE autant que sur le
+  // nom : « te queda 1 persona », « te quedan 2 personas ».
+  assert.match(messageDePhase('APPROCHE', { devant: 1 }).detail, /te queda 1 persona delante/i);
+  assert.match(approche.detail, /te quedan 2 personas delante/i);
 
   assert.equal(messageDePhase('PROCHAIN').ton, 'proche');
   assert.equal(messageDePhase('ATTENTE', { estimationMinutes: 40 }).ton, 'attente');

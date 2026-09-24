@@ -32,7 +32,7 @@ export function page({
     : '';
 
   return '<!DOCTYPE html>\n'
-    + '<html lang="fr" class="' + escapeHtml(classe) + '">\n'
+    + '<html lang="es" class="' + escapeHtml(classe) + '">\n'
     + '<head>\n'
     + '<meta charset="utf-8">\n'
     + '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
@@ -46,7 +46,7 @@ export function page({
     + '<link rel="manifest" href="/haron.webmanifest' + v() + '">\n'
     + '<meta property="og:type" content="website">\n'
     + '<meta property="og:site_name" content="Peluquería HARON">\n'
-    + '<meta property="og:locale" content="fr_FR">\n'
+    + '<meta property="og:locale" content="es_ES">\n'
     + '<meta property="og:title" content="' + escapeHtml(titre) + '">\n'
     + '<meta property="og:description" content="' + escapeHtml(description) + '">\n'
     + '<meta property="og:url" content="' + escapeHtml(url) + '">\n'
@@ -58,7 +58,7 @@ export function page({
     + '<link rel="stylesheet" href="/css/site.css' + v() + '">\n'
     + '</head>\n'
     + '<body>\n'
-    + '<a class="saut" href="#principal">Aller au contenu</a>\n'
+    + '<a class="saut" href="#principal">Ir al contenido</a>\n'
     + corps
     + (pied ?? piedDePage())
     + socle
@@ -79,7 +79,7 @@ export function marque({ taille = 'grand', lien = true } = {}) {
     + '</span>';
   const classe = 'marque marque--' + taille;
   return lien
-    ? '<a class="' + classe + '" href="/"><span class="visuellement-cache">Peluquería HARON, accueil</span>' + interieur + '</a>'
+    ? '<a class="' + classe + '" href="/"><span class="visuellement-cache">Peluquería HARON, inicio</span>' + interieur + '</a>'
     : '<span class="' + classe + '">' + interieur + '</span>';
 }
 
@@ -112,13 +112,13 @@ export function piedDePage({ horaires = null, adresse = null, telephone = null }
   }
   if (horaires && horaires.length) {
     const items = horaires.map((h) => '<li><span>' + escapeHtml(h.nom) + '</span><span>'
-      + (h.ferme ? 'Fermé' : escapeHtml(h.ouverture + ' – ' + h.fermeture)) + '</span></li>').join('');
+      + (h.ferme ? 'Cerrado' : escapeHtml(h.ouverture + ' – ' + h.fermeture)) + '</span></li>').join('');
     lignes.push('<ul class="pied__horaires">' + items + '</ul>');
   }
   return '<footer class="pied">'
     + '<div class="enveloppe">'
     + (lignes.length ? '<div class="pied__infos">' + lignes.join('') + '</div>' : '')
-    + '<p class="pied__mention">Un salon. Une file. Un ticket.</p>'
+    + '<p class="pied__mention">Un salón. Una fila. Un turno.</p>'
     + '</div>'
     + '</footer>';
 }
@@ -128,10 +128,10 @@ export function pageErreur({ base, titre, message, statut = 404 }) {
   const corps = entete()
     + '<main class="enveloppe page-etroite" id="principal">'
     + '<section class="carte carte--centree">'
-    + '<p class="pastille pastille--neutre">Erreur ' + statut + '</p>'
+    + '<p class="pastille pastille--neutre">Error ' + statut + '</p>'
     + '<h1 class="titre-page">' + escapeHtml(titre) + '</h1>'
     + '<p class="texte-doux">' + escapeHtml(message) + '</p>'
-    + '<a class="bouton bouton--principal" href="/">Revenir à l’accueil</a>'
+    + '<a class="bouton bouton--principal" href="/">Volver al inicio</a>'
     + '</section>'
     + '</main>';
   return page({

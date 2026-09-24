@@ -247,7 +247,7 @@ fileRoutes.get('/:id/whatsapp', async (ctx) => {
 fileRoutes.post('/cloturer', async (ctx) => {
   const jour = jourLocal();
   const bilan = await transaction(async (tx) => {
-    const resultat = await cloturer(tx, jour, { par: ctx.user.identifiant, motif: 'Journée clôturée par le salon.' });
+    const resultat = await cloturer(tx, jour, { par: ctx.user.identifiant, motif: 'Jornada cerrada por el salón.' });
     // Les telephones encore ouverts sur un suivi doivent l'apprendre tout de
     // suite, et seulement si la cloture a bien ete validee.
     tx.apresValidation(() => annoncerChangement(jour));

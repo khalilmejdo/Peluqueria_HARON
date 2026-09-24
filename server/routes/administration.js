@@ -96,7 +96,7 @@ reglagesRoutes.get('/', async (ctx) => {
 reglagesRoutes.put('/', async (ctx) => {
   const valeurs = ctx.body && typeof ctx.body === 'object' ? ctx.body.valeurs : null;
   if (!valeurs || typeof valeurs !== 'object' || Array.isArray(valeurs)) {
-    throw badRequest('Envoyez un objet « valeurs » contenant les réglages à enregistrer.');
+    throw badRequest('Envíe un objeto « valeurs » con los ajustes que hay que guardar.');
   }
 
   // Changer l'organisation de la file en pleine journee laisserait les clients
@@ -112,9 +112,9 @@ reglagesRoutes.put('/', async (ctx) => {
         [jourLocal(), ['WAITING', 'LATE', 'CALLED', 'IN_SERVICE']],
       );
       if ((enFile?.n ?? 0) > 0) {
-        throw conflict('Impossible de changer l’organisation de la file : ' + enFile.n
-          + ' client' + (enFile.n > 1 ? 's sont' : ' est') + ' encore dans la file du jour. '
-          + 'Servez-les, ou clôturez la journée, puis changez le réglage.',
+        throw conflict('No se puede cambiar la organización de la fila: ' + enFile.n
+          + ' cliente' + (enFile.n > 1 ? 's siguen' : ' sigue') + ' en la fila de hoy. '
+          + 'Atiéndalos, o cierre la jornada, y cambie el ajuste después.',
         );
       }
     }
@@ -159,19 +159,19 @@ comptesRoutes.post('/', async (ctx) => {
     identifiant: {
       type: 'string', required: true, min: 3, max: 40, lower: true,
       pattern: /^[a-z0-9._-]+$/,
-      patternMessage: 'Lettres sans accent, chiffres, point, tiret et souligné uniquement.',
+      patternMessage: 'Solo letras sin acento, cifras, punto, guion y subrayado.',
     },
     nomComplet: { type: 'string', required: true, max: 80 },
     role: { type: 'enum', required: true, values: CODES_ROLES, upper: true },
     motDePasse: { type: 'string', required: true, max: 200, trim: false },
   });
   if (data.motDePasse.length < config.security.passwordMinLength) {
-    throw badRequest('Le mot de passe doit comporter au moins ' + config.security.passwordMinLength + ' caractères.',
-      { fields: { motDePasse: 'Au moins ' + config.security.passwordMinLength + ' caractères.' } });
+    throw badRequest('La contraseña debe tener al menos ' + config.security.passwordMinLength + ' caracteres.',
+      { fields: { motDePasse: 'Al menos ' + config.security.passwordMinLength + ' caracteres.' } });
   }
 
   const existe = await one('SELECT id FROM utilisateurs WHERE identifiant_lower = $1', [data.identifiant]);
-  if (existe) throw conflict('Un compte porte déjà cet identifiant.');
+  if (existe) throw conflict('Ya hay una cuenta con ese usuario.');
 
   const id = newId();
   await execute(
@@ -198,14 +198,14 @@ comptesRoutes.patch('/:id', async (ctx) => {
   // Un gerant ne peut ni se retirer son propre role ni se desactiver : le salon
   // se retrouverait sans personne pour changer les reglages.
   if (ligne.id === ctx.user.id && (data.actif === false || (data.role && data.role !== 'GERANT'))) {
-    throw forbidden('Vous ne pouvez pas retirer vos propres droits. Demandez à un autre gérant de le faire.');
+    throw forbidden('No puedes quitarte tus propios permisos. Pídeselo a otro gerente.');
   }
   if (ligne.role === 'GERANT' && ((data.role && data.role !== 'GERANT') || data.actif === false)) {
     const autres = await one(
       'SELECT COUNT(*)::int AS n FROM utilisateurs WHERE role = $1 AND actif AND id <> $2',
       ['GERANT', ligne.id],
     );
-    if (!autres || autres.n === 0) throw conflict('Ce compte est le dernier gérant actif : le salon doit en garder un.');
+    if (!autres || autres.n === 0) throw conflict('Esta cuenta es el último gerente activo: el salón debe conservar uno.');
   }
 
   const champs = [];
@@ -217,7 +217,7 @@ comptesRoutes.patch('/:id', async (ctx) => {
   }
   await execute('UPDATE utilisateurs SET ' + champs.join(', ') + ' WHERE id = $1', params);
   if (data.actif === false || (data.role && data.role !== ligne.role)) {
-    await revokeAllUserSessions(id, data.actif === false ? 'compte désactivé' : 'rôle modifié');
+    await revokeAllUserSessions(id, data.actif === false ? 'cuenta desactivada' : 'rol modificado');
   }
   log.info('Compte modifie', { identifiant: ligne.identifiant, par: ctx.user.identifiant, champs: Object.keys(data) });
   ctx.ok(versClient(await one('SELECT * FROM utilisateurs WHERE id = $1', [id])));
@@ -228,8 +228,8 @@ comptesRoutes.post('/:id/mot-de-passe', async (ctx) => {
   const id = idDe(ctx);
   const data = validate(ctx.body, { motDePasse: { type: 'string', required: true, max: 200, trim: false } });
   if (data.motDePasse.length < config.security.passwordMinLength) {
-    throw badRequest('Le mot de passe doit comporter au moins ' + config.security.passwordMinLength + ' caractères.',
-      { fields: { motDePasse: 'Au moins ' + config.security.passwordMinLength + ' caractères.' } });
+    throw badRequest('La contraseña debe tener al menos ' + config.security.passwordMinLength + ' caracteres.',
+      { fields: { motDePasse: 'Al menos ' + config.security.passwordMinLength + ' caracteres.' } });
   }
   const ligne = exigerTrouve(await one('SELECT identifiant FROM utilisateurs WHERE id = $1', [id]), 'Compte introuvable.');
   await execute(
@@ -237,7 +237,7 @@ comptesRoutes.post('/:id/mot-de-passe', async (ctx) => {
             tentatives_echouees = 0, verrouille_jusqu_a = NULL WHERE id = $1`,
     [id, await hashPassword(data.motDePasse)],
   );
-  await revokeAllUserSessions(id, 'mot de passe réinitialisé');
+  await revokeAllUserSessions(id, 'contraseña restablecida');
   log.info('Mot de passe reinitialise', { identifiant: ligne.identifiant, par: ctx.user.identifiant });
   ctx.ok({ ok: true });
 }, { role: 'GERANT', rateLimit: PROFILES.administration });
@@ -424,20 +424,20 @@ fermeturesRoutes.get('/', async (ctx) => {
 
 fermeturesRoutes.post('/', async (ctx) => {
   const data = validate(ctx.body, {
-    du: { type: 'date', required: true, requiredMessage: 'La date de début est obligatoire.' },
-    au: { type: 'date', required: true, requiredMessage: 'La date de fin est obligatoire.' },
+    du: { type: 'date', required: true, requiredMessage: 'La fecha de inicio es obligatoria.' },
+    au: { type: 'date', required: true, requiredMessage: 'La fecha de fin es obligatoria.' },
     motif: { type: 'string', max: 120 },
   });
   if (data.au < data.du) {
-    throw badRequest('La date de fin doit être postérieure ou égale à la date de début.',
-      { fields: { au: 'Après la date de début.' } });
+    throw badRequest('La fecha de fin debe ser posterior o igual a la de inicio.',
+      { fields: { au: 'Posterior a la fecha de inicio.' } });
   }
   // Une fermeture qui commence dans le passe ne sert a rien et embrouille
   // l'historique : on la refuse plutot que de la laisser passer en silence.
   const hier = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
   if (data.du < hier) {
-    throw badRequest('Une période de fermeture ne se déclare pas dans le passé.',
-      { fields: { du: 'À partir d’aujourd’hui.' } });
+    throw badRequest('Un periodo de cierre no se declara en el pasado.',
+      { fields: { du: 'A partir de hoy.' } });
   }
 
   const cree = await ajouter(data, { parUtilisateurId: ctx.user.id });
@@ -470,7 +470,7 @@ statistiquesRoutes.get('/jour', async (ctx) => {
 statistiquesRoutes.get('/historique', async (ctx) => {
   const du = ctx.queryDate('du') || null;
   const au = ctx.queryDate('au') || null;
-  if (du && au && du > au) throw badRequest('La date de début doit précéder la date de fin.');
+  if (du && au && du > au) throw badRequest('La fecha de inicio debe ser anterior a la de fin.');
   const limite = ctx.queryInt('limite', 60, { min: 1, max: 366 });
   ctx.ok({ items: await historique({ du, au, limite }) });
 }, { role: 'GERANT' });
@@ -501,7 +501,7 @@ serviceRoutes.get('/etat', async (ctx) => {
  */
 serviceRoutes.post('/taches/:nom', async (ctx) => {
   const nom = String(ctx.params.nom || '');
-  if (!nomsDesTaches().includes(nom)) throw notFound('Tâche inconnue.');
+  if (!nomsDesTaches().includes(nom)) throw notFound('Tarea desconocida.');
   const bilan = await executerTache(nom);
   log.info('Tache relancee a la main', { tache: nom, par: ctx.user.identifiant });
   ctx.ok({ tache: nom, bilan: bilan ?? null });
