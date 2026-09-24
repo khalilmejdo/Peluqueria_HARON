@@ -423,6 +423,104 @@ main { flex: 1; }
 .illu__tube-bord { fill: none; stroke: var(--laiton-sombre); stroke-width: 1.5; }
 .illu__bande { fill: color-mix(in srgb, var(--rouge) 78%, #7a1f1a); }
 
+/*
+ * LE MÂT TOURNE.
+ *
+ * Un vrai mât de barbier tourne, et c'est ce mouvement qui dit « ouvert » dans
+ * toutes les rues du monde. Les bandes sont espacées de 15 unités dans le
+ * dessin : les translater de 15 vers le bas ramène chacune exactement à la
+ * place de la précédente, donc la boucle est invisible.
+ *
+ * Elles sont obliques et rognées par le tube : une translation verticale se
+ * lit comme une rotation, sans qu'aucun pixel ne sorte du cylindre.
+ *
+ * Douze secondes : assez lent pour être calme dans le coin de l'œil, assez
+ * vif pour qu'on voie que ça bouge.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .illu--mat .illu__bande { animation: mat-tourne 12s linear infinite; }
+}
+
+@keyframes mat-tourne {
+  from { transform: translateY(-15px); }
+  to   { transform: translateY(0); }
+}
+
+/*
+ * Le pouls du direct : un point qui bat.
+ *
+ * Il n'est là que parce que le chiffre à côté change VRAIMENT tout seul. Une
+ * animation qui n'annonce rien n'est que du bruit.
+ */
+.affluence__pouls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0 0 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--texte-doux);
+}
+
+.pouls {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--vert);
+  flex: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pouls { animation: pouls-bat 2.4s ease-out infinite; }
+}
+
+@keyframes pouls-bat {
+  0%        { box-shadow: 0 0 0 0 color-mix(in srgb, var(--vert) 60%, transparent); }
+  55%, 100% { box-shadow: 0 0 0 0.55rem transparent; }
+}
+
+.affluence__servis {
+  margin: 0.45rem 0 0;
+  font-size: 0.78rem;
+  color: var(--texte-doux);
+}
+.affluence__servis[hidden] { display: none; }
+
+/*
+ * Un chiffre qui change doit se voir changer.
+ *
+ * Sans ça, la file passe de 3 à 2 pendant que le client regarde ailleurs, et
+ * il ne saura jamais que la page est vivante. Une seule pulsation, très brève.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .vient-de-changer { animation: chiffre-change 620ms cubic-bezier(0.32, 0.72, 0, 1); }
+}
+
+@keyframes chiffre-change {
+  0%   { opacity: 0.25; transform: translateY(-0.25rem); }
+  100% { opacity: 1;    transform: none; }
+}
+
+/*
+ * L'arrivée des sections au défilement.
+ *
+ * La classe de départ `a-arriver` est posée PAR LE SCRIPT, jamais dans le HTML :
+ * si le JavaScript n'arrive pas, rien n'est masqué. Une page dont le contenu
+ * reste invisible faute de script serait bien pire que pas d'animation.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .a-arriver {
+    opacity: 0;
+    transform: translateY(1.25rem);
+    transition: opacity 620ms cubic-bezier(0.32, 0.72, 0, 1),
+                transform 620ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .est-arrivee { opacity: 1; transform: none; }
+}
+
 .illu--etape { width: 1.7rem; height: 1.7rem; color: var(--accent); }
 
 /* Le rasoir du séparateur : sous 4,5rem il ne se lit plus comme un rasoir,

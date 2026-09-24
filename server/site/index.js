@@ -138,10 +138,20 @@ siteRoutes.get('/', async (ctx) => {
   const devant = etat.compteurs.enAttente + etat.compteurs.enCours;
   const attente = devant * etat.dureeMoyenneMinutes;
 
-  const affluence = etat.compteurs.enAttente === 0
-    ? '<p class="affluence__forte">Sin espera</p><p class="affluence__detail">El sillón te está esperando.</p>'
-    : '<p class="affluence__forte">' + etat.compteurs.enAttente + ' persona' + (etat.compteurs.enAttente > 1 ? 's' : '') + ' en la fila</p>'
-      + '<p class="affluence__detail">Espera estimada: ' + escapeHtml(attenteLisible(attente).replace(/^unos /, '≈ ').replace(/^alrededor de /, '≈ ')) + '</p>';
+  // « En directo » : un point qui bat, et l'affluence qui se met a jour toute
+  // seule. C'est la seule chose de la page qui bouge parce qu'elle CHANGE
+  // vraiment — une animation qui ne dit rien est du bruit.
+  const pouls = '<p class="affluence__pouls"><span class="pouls" aria-hidden="true"></span>En directo</p>';
+
+  const affluence = pouls + (etat.compteurs.enAttente === 0
+    ? '<p class="affluence__forte" data-forte>Sin espera</p><p class="affluence__detail" data-detail>El sillón te está esperando.</p>'
+    : '<p class="affluence__forte" data-forte>' + etat.compteurs.enAttente + ' persona' + (etat.compteurs.enAttente > 1 ? 's' : '') + ' en la fila</p>'
+      + '<p class="affluence__detail" data-detail>Espera estimada: ' + escapeHtml(attenteLisible(attente).replace(/^unos /, '≈ ').replace(/^alrededor de /, '≈ ')) + '</p>')
+    // Le compteur du jour n'apparait qu'a partir de trois : « 1 atendido hoy »
+    // fait plus vide qu'un silence.
+    + (etat.compteurs.servis >= 3
+      ? '<p class="affluence__servis" data-servis>' + etat.compteurs.servis + ' atendidos hoy</p>'
+      : '<p class="affluence__servis" data-servis hidden></p>');
 
   // Congés, arrêt des tours, hors horaires : on le dit AVANT le bouton, et on
   // retire le bouton. Un client qui appuie pour se voir refuser à l'écran

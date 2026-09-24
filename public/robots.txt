@@ -1,0 +1,21 @@
+# Peluqueria HARON
+#
+# La vitrine et la page de prise de tour sont faites pour etre trouvees.
+# Le reste ne doit jamais entrer dans un index :
+#
+#   /ticket/...  est le SECRET du client. Chaque page porte deja
+#                « noindex, nofollow, noarchive », mais un robot qui lit
+#                d'abord ce fichier s'epargne la visite.
+#   /gestion     est l'espace du personnel.
+#   /api/        ne rend que du JSON.
+#   /affiche     est faite pour l'imprimante, pas pour un moteur.
+
+User-agent: *
+Allow: /$
+Allow: /join
+Disallow: /ticket/
+Disallow: /gestion
+Disallow: /api/
+Disallow: /affiche
+Disallow: /qr.svg
+Disallow: /qr.png

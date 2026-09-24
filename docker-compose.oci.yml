@@ -16,10 +16,29 @@
 #  L'image se construit directement sur la machine : pas de registre à
 #  gérer, et l'architecture (ARM ou x86) est forcément la bonne.
 # =====================================================================
+# ---------------------------------------------------------------------
+#  Journaux bornés, pour les trois conteneurs.
+#
+#  Le pilote par défaut de Docker (json-file) n'a AUCUNE limite de taille.
+#  L'application écrit une ligne par requête et Caddy une par accès : sur une
+#  machine qui tourne des mois sans qu'on la regarde, ces fichiers grossissent
+#  jusqu'à remplir le disque — et un disque plein arrête PostgreSQL, donc le
+#  salon, un matin, sans prévenir.
+#
+#  Trente méga-octets par service suffisent largement à remonter plusieurs
+#  jours en arrière quand on cherche ce qui s'est passé.
+# ---------------------------------------------------------------------
+x-journaux: &journaux
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    logging: *journaux
     ports:
       - "80:80"
       - "443:443"
@@ -37,6 +56,7 @@ services:
       - app
 
   app:
+    logging: *journaux
     build:
       context: .
       args:
@@ -94,6 +114,7 @@ services:
   base:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *journaux
     environment:
       POSTGRES_DB: haron
       POSTGRES_USER: haron

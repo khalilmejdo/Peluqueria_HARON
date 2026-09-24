@@ -10,3 +10,6 @@ coverage/
 # Sauvegardes produites sur le serveur : jamais dans le depot.
 sauvegardes/
 photos/
+
+# Planches de design publiees en Artifact : hors du depot.
+.apercu-canvas/

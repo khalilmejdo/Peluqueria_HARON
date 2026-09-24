@@ -129,6 +129,10 @@ publicRoutes.get('/file', async (ctx) => {
     ouverte: etat.ouverte,
     enAttente,
     enCours: etat.compteurs.enCours,
+    // Le nombre de tetes faites aujourd'hui. C'est un AGREGAT : il ne dit rien
+    // de personne, et il dit beaucoup du salon. Un client qui hesite devant la
+    // vitrine voit que la maison tourne.
+    servis: etat.compteurs.servis,
     dureeMoyenneMinutes: etat.dureeMoyenneMinutes,
     attenteEstimeeMinutes: (enAttente + etat.compteurs.enCours) * etat.dureeMoyenneMinutes,
     mode: etat.mode,

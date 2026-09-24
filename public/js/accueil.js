@@ -1,30 +1,67 @@
 /**
- * L'accueil : rafraichit l'affluence sans recharger la page.
+ * L'accueil : l'affluence bouge toute seule, et les sections arrivent au fil
+ * du defilement.
  *
  * Un client qui hesite devant la vitrine garde la page ouverte deux minutes. Il
- * doit voir la file bouger. Une lecture toutes les vingt secondes suffit
- * largement, et elle ne part que si l'onglet est visible.
+ * doit voir la file vivre. Une lecture toutes les vingt secondes suffit, et
+ * elle ne part que si l'onglet est visible — inutile d'interroger le serveur
+ * pour un telephone rangé dans une poche.
+ *
+ * Rien ici n'est indispensable : sans JavaScript, la page reste juste, elle ne
+ * se met simplement plus a jour d'elle-meme.
  */
 import { envoyer } from './commun.js';
 
-const bloc = document.querySelector('[data-affluence]');
 const INTERVALLE_MS = 20000;
 
+/* ------------------------------------------------------------------ */
+/*  L'affluence, en direct                                             */
+/* ------------------------------------------------------------------ */
+
+const bloc = document.querySelector('[data-affluence]');
+
 if (bloc) {
+  const forte = bloc.querySelector('[data-forte]');
+  const detail = bloc.querySelector('[data-detail]');
+  const servis = bloc.querySelector('[data-servis]');
+
+  /**
+   * Change un texte en le faisant clignoter une fois.
+   *
+   * Un chiffre qui saute de 3 a 2 sans rien dire passe inapercu ; c'est
+   * pourtant l'information la plus importante de la page. La classe est retiree
+   * a la fin de l'animation, pour que le prochain changement la rejoue.
+   */
+  const poser = (element, texte) => {
+    if (!element || element.textContent === texte) return;
+    element.textContent = texte;
+    element.classList.remove('vient-de-changer');
+    // Forcer un reflow relance l'animation meme si la classe revient aussitot.
+    void element.offsetWidth;
+    element.classList.add('vient-de-changer');
+  };
+
   const rafraichir = async () => {
     if (document.visibilityState !== 'visible') return;
     try {
       const etat = await envoyer('/api/public/file', { methode: 'GET' });
-      const forte = bloc.querySelector('.affluence__forte');
-      const detail = bloc.querySelector('.affluence__detail');
       if (!forte || !detail) return;
+
       if (etat.enAttente === 0) {
-        forte.textContent = 'Sin espera';
-        detail.textContent = 'El sillón te está esperando.';
-        return;
+        poser(forte, 'Sin espera');
+        poser(detail, 'El sillón te está esperando.');
+      } else {
+        poser(forte, etat.enAttente + ' persona' + (etat.enAttente > 1 ? 's' : '') + ' en la fila');
+        poser(detail, 'Espera estimada: ≈ ' + minutesLisibles(etat.attenteEstimeeMinutes));
       }
-      forte.textContent = etat.enAttente + ' persona' + (etat.enAttente > 1 ? 's' : '') + ' en la fila';
-      detail.textContent = 'Espera estimada: ≈ ' + minutesLisibles(etat.attenteEstimeeMinutes);
+
+      // Le compteur du jour n'apparait qu'a partir de trois : « 1 atendido hoy »
+      // fait plus vide qu'un silence.
+      if (servis) {
+        const assez = Number(etat.servis) >= 3;
+        servis.hidden = !assez;
+        if (assez) poser(servis, etat.servis + ' atendidos hoy');
+      }
     } catch {
       // Hors ligne : on garde ce qui est affiche plutot que d'inventer un chiffre.
     }
@@ -39,9 +76,47 @@ if (bloc) {
 
 function minutesLisibles(minutes) {
   const m = Math.max(0, Math.round(Number(minutes) || 0));
-  if (m <= 0) return 'quelques instants';
-  if (m < 60) return m + ' minute' + (m > 1 ? 's' : '');
+  if (m <= 0) return 'unos minutos';
+  if (m < 60) return m + ' minuto' + (m > 1 ? 's' : '');
   const h = Math.floor(m / 60);
   const reste = m % 60;
   return h + ' h' + (reste ? ' ' + String(reste).padStart(2, '0') : '');
+}
+
+/* ------------------------------------------------------------------ */
+/*  Les sections arrivent au defilement                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Apparition douce des sections.
+ *
+ * Trois precautions, sans lesquelles une animation d'arrivee fait plus de mal
+ * que de bien :
+ *
+ *   1. « prefers-reduced-motion » : on ne touche a rien. Un mouvement peut
+ *      donner la nausee a qui y est sensible, et ce n'est pas une preference
+ *      esthetique.
+ *   2. La classe de depart est posee PAR LE SCRIPT. Si le JavaScript n'arrive
+ *      jamais, rien n'est masque — sans cette precaution, une page sans script
+ *      resterait vide, ce qui serait bien pire que pas d'animation du tout.
+ *   3. Les elements sont revelees une fois, puis l'observateur les lache.
+ */
+const mouvementAccepte = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+if (mouvementAccepte && 'IntersectionObserver' in window) {
+  const cibles = document.querySelectorAll('.seccion, .bandeau-qr');
+  if (cibles.length) {
+    const observateur = new IntersectionObserver((entrees) => {
+      for (const entree of entrees) {
+        if (!entree.isIntersecting) continue;
+        entree.target.classList.add('est-arrivee');
+        observateur.unobserve(entree.target);
+      }
+    }, { rootMargin: '0px 0px -12% 0px', threshold: 0.08 });
+
+    for (const cible of cibles) {
+      cible.classList.add('a-arriver');
+      observateur.observe(cible);
+    }
+  }
 }
