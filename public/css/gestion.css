@@ -369,12 +369,48 @@
 
 .tarifa-admin {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.35rem 1rem;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.35rem 0.75rem;
   align-items: center;
   padding: 0.8rem 1rem;
   border-radius: var(--r);
   background: var(--fond-carte-2);
+}
+
+/*
+ * La poignée de déplacement.
+ *
+ * `touch-action: none` est indispensable : sans lui, le navigateur interprète
+ * le geste comme un défilement de la page et le déplacement ne démarre jamais
+ * sur un téléphone.
+ *
+ * 2,5 rem de côté : sous 44 px, une poignée se rate une fois sur trois avec le
+ * pouce.
+ */
+.tarifa-admin__poignee {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--r-petit);
+  background: transparent;
+  color: var(--texte-doux);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: grab;
+  touch-action: none;
+  transition: color var(--transition), background-color var(--transition);
+}
+.tarifa-admin__poignee:hover { color: var(--texte); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.tarifa-admin__poignee:active { cursor: grabbing; }
+.tarifa-admin__poignee:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* La ligne saisie se soulève : on voit ce qu'on déplace. */
+.tarifa-admin--saisie {
+  background: var(--fond-carte);
+  box-shadow: 0 12px 28px -14px rgb(0 0 0 / 70%);
+  outline: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 /* Une ligne masquée reste lisible mais visiblement en retrait : le gérant doit
@@ -416,8 +452,10 @@
   gap: 0.35rem;
 }
 
-@media (min-width: 40rem) {
-  .tarifa-admin { grid-template-columns: 1fr auto auto; }
+/* Quatre colonnes avec la poignée : elle prend de la place, on attend donc
+   un peu plus de largeur qu'avant pour remettre les actions sur la ligne. */
+@media (min-width: 46rem) {
+  .tarifa-admin { grid-template-columns: auto 1fr auto auto; }
   .tarifa-admin__actions { grid-column: auto; flex-wrap: nowrap; }
 }
 

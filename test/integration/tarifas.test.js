@@ -118,6 +118,48 @@ test('la fiche de prix se tient depuis l espace de gestion', { skip: IGNORE }, a
     assert.deepEqual(r.body.items.map((x) => x.nombre), avant);
   });
 
+  await t.test('le glisser-deposer envoie l ordre complet, et il est applique', async () => {
+    const avant = (await gerant.get('/api/tarifas')).body.items;
+    // On renverse la fiche : c'est ce que fait un gerant qui reorganise.
+    const inverse = [...avant].reverse().map((x) => x.id);
+
+    const r = await gerant.post('/api/tarifas/orden', { ids: inverse });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body.items.map((x) => x.id), inverse);
+
+    // Et l'ordre tient apres relecture : il est en base, pas a l'ecran.
+    const relu = (await gerant.get('/api/tarifas')).body.items.map((x) => x.id);
+    assert.deepEqual(relu, inverse);
+  });
+
+  await t.test('un ordre qui ne correspond plus a la fiche est refuse', async () => {
+    const ids = (await gerant.get('/api/tarifas')).body.items.map((x) => x.id);
+
+    // Une ligne manquante : l'ecran travaillait sur une fiche perimee.
+    const ampute = await gerant.post('/api/tarifas/orden', { ids: ids.slice(1) });
+    assert.equal(ampute.status, 409);
+    assert.equal(ampute.body.error.code, 'TARIFAS_DESFASADAS');
+
+    // Un doublon : appliquer perdrait silencieusement une ligne.
+    const double = await gerant.post('/api/tarifas/orden', { ids: [ids[0], ...ids] });
+    assert.equal(double.status, 400);
+
+    // Un identifiant inconnu.
+    const inconnu = await gerant.post('/api/tarifas/orden', {
+      ids: [...ids.slice(1), '11111111-1111-1111-1111-111111111111'],
+    });
+    assert.equal(inconnu.status, 409);
+
+    // Apres ces trois refus, la fiche n'a pas bouge d'un pouce.
+    const apres = (await gerant.get('/api/tarifas')).body.items.map((x) => x.id);
+    assert.deepEqual(apres, ids, 'un refus ne doit rien avoir ecrit');
+  });
+
+  await t.test('reordonner est reserve au gerant', async () => {
+    const ids = (await coiffeur.get('/api/tarifas')).body.items.map((x) => x.id);
+    assert.equal((await coiffeur.post('/api/tarifas/orden', { ids })).status, 403);
+  });
+
   await t.test('un sens inconnu est refuse', async () => {
     const premier = (await gerant.get('/api/tarifas')).body.items[0];
     const r = await gerant.post('/api/tarifas/' + premier.id + '/mover', { sens: 'de-travers' });

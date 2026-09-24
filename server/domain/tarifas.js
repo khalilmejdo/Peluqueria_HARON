@@ -200,6 +200,41 @@ export async function eliminar(id) {
 }
 
 /**
+ * Reordonne la fiche entiere, d'un seul geste.
+ *
+ * Le glisser-deposer envoie l'ordre COMPLET plutot qu'une suite de
+ * deplacements : douze lignes reordonnees feraient sinon douze requetes, dont
+ * une peut echouer au milieu et laisser la fiche dans un ordre que personne n'a
+ * voulu.
+ *
+ * On EXIGE que la liste recue soit exactement l'ensemble des lignes existantes.
+ * Un identifiant en trop, en moins ou en double signifie que l'ecran travaillait
+ * sur une fiche perimee — quelqu'un a ajoute ou supprime une ligne pendant ce
+ * temps. Appliquer quand meme perdrait silencieusement cette ligne.
+ */
+export async function reordenar(ids) {
+  if (!Array.isArray(ids) || !ids.length) throw badRequest('Envíe el orden completo de la lista.');
+
+  return transaction(async (tx) => {
+    const lignes = (await tx.query('SELECT id FROM tarifas ORDER BY id FOR UPDATE')).rows;
+    const connus = new Set(lignes.map((l) => l.id));
+    const recus = new Set(ids);
+
+    if (recus.size !== ids.length) throw badRequest('La lista enviada repite un servicio.');
+    if (recus.size !== connus.size || [...recus].some((id) => !connus.has(id))) {
+      throw new AppError(409,
+        'La lista ha cambiado mientras la reordenabas. Recarga la página e inténtalo de nuevo.',
+        { code: 'TARIFAS_DESFASADAS' });
+    }
+
+    for (let i = 0; i < ids.length; i += 1) {
+      await tx.query('UPDATE tarifas SET ordre = $2 WHERE id = $1', [ids[i], i]);
+    }
+    return ids.length;
+  });
+}
+
+/**
  * Deplace une prestation d'un cran vers le haut ou vers le bas.
  *
  * Toute la fiche est verrouillee dans UNE transaction, et `FOR UPDATE` prend les

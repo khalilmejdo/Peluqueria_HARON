@@ -16,6 +16,90 @@
 import { api, ErreurApi } from './api.js';
 import { el, remplacer, annoncer } from './dom.js';
 
+/**
+ * Le glisser-deposer de la fiche de prix.
+ *
+ * POINTER EVENTS, et pas le glisser-deposer HTML5 : celui-ci ne marche pas au
+ * doigt, et le gerant tient une tablette. Trois choix qui comptent :
+ *
+ *   - la poignee seule demarre le geste. Sans elle, un doigt pose sur la ligne
+ *     pour faire defiler la page deplacerait un tarif par erreur ;
+ *   - on n'attend pas la fin pour montrer le resultat : la ligne saisie change
+ *     de place en direct, des qu'elle depasse le MILIEU d'une voisine. Un
+ *     apercu qui suit le doigt sans jamais s'engager donne l'impression que
+ *     rien ne se passe ;
+ *   - au relachement, l'ordre COMPLET part en une seule requete. Le serveur
+ *     refuse si la liste ne correspond plus a la fiche : quelqu'un a ajoute ou
+ *     supprime une ligne entre-temps, et appliquer quand meme la perdrait.
+ *
+ * Les fleches restent : elles sont le chemin au clavier, et le seul qui
+ * fonctionne si ce fichier n'arrive jamais.
+ */
+function brancherGlisser(liste, dire, recharger) {
+  let saisie = null;
+  let ordreInitial = null;
+
+  const idsAffiches = () => [...liste.children].map((li) => li.dataset.id);
+
+  liste.addEventListener('pointerdown', (evenement) => {
+    const poignee = evenement.target.closest('.tarifa-admin__poignee');
+    if (!poignee || evenement.button !== 0) return;
+    evenement.preventDefault();
+
+    saisie = poignee.closest('.tarifa-admin');
+    if (!saisie) return;
+    ordreInitial = idsAffiches();
+    saisie.classList.add('tarifa-admin--saisie');
+    poignee.setPointerCapture(evenement.pointerId);
+  });
+
+  liste.addEventListener('pointermove', (evenement) => {
+    if (!saisie) return;
+    evenement.preventDefault();
+
+    for (const autre of liste.children) {
+      if (autre === saisie) continue;
+      const cadre = autre.getBoundingClientRect();
+      const milieu = cadre.top + cadre.height / 2;
+      // Au-dessus du milieu de la voisine du dessus : on passe devant elle.
+      if (evenement.clientY < milieu && autre.compareDocumentPosition(saisie)
+        & Node.DOCUMENT_POSITION_FOLLOWING) {
+        liste.insertBefore(saisie, autre);
+        return;
+      }
+      // Sous le milieu de la voisine du dessous : on passe apres elle.
+      if (evenement.clientY > milieu && autre.compareDocumentPosition(saisie)
+        & Node.DOCUMENT_POSITION_PRECEDING) {
+        liste.insertBefore(saisie, autre.nextSibling);
+        return;
+      }
+    }
+  });
+
+  const lacher = async () => {
+    if (!saisie) return;
+    saisie.classList.remove('tarifa-admin--saisie');
+    saisie = null;
+
+    const ids = idsAffiches();
+    // Rien n'a bouge : pas de requete, pas de message.
+    if (ids.join() === (ordreInitial || []).join()) return;
+
+    try {
+      await api.post('/api/tarifas/orden', { ids });
+      annoncer('Orden guardado.');
+      await recharger();
+    } catch (err) {
+      dire(err instanceof ErreurApi ? err.message : 'No se ha podido guardar el orden.');
+      // L'ecran montre un ordre que la base n'a pas : on repart du vrai.
+      await recharger();
+    }
+  };
+
+  liste.addEventListener('pointerup', lacher);
+  liste.addEventListener('pointercancel', lacher);
+}
+
 export async function vueTarifas(conteneur, { etat }) {
   const donnees = await api.get('/api/tarifas');
 
@@ -46,7 +130,20 @@ export async function vueTarifas(conteneur, { etat }) {
 
   /* ---- la liste ---- */
 
-  const lignes = donnees.items.map((t, i) => el('li.tarifa-admin' + (t.visible ? '' : '.tarifa-admin--oculta'),
+  const lignes = donnees.items.map((t, i) => el('li.tarifa-admin' + (t.visible ? '' : '.tarifa-admin--oculta'), {
+    donnees: { id: t.id },
+  },
+    // La poignée de déplacement.
+    //
+    // Pointer Events, PAS le glisser-deposer HTML5 : celui-ci ne marche pas au
+    // doigt, et le gerant tient une tablette. Les fleches restent en place —
+    // elles sont le chemin au clavier, et le seul qui marche sans JavaScript.
+    el('button.tarifa-admin__poignee', {
+      type: 'button',
+      'aria-label': 'Mover ' + t.nombre,
+      title: 'Arrastra para reordenar',
+      texte: '⠿',
+    }),
     el('div.tarifa-admin__texte',
       el('span.tarifa-admin__nombre', { texte: t.nombre }),
       t.nota ? el('span.tarifa-admin__nota', { texte: t.nota }) : null,
@@ -116,6 +213,8 @@ export async function vueTarifas(conteneur, { etat }) {
   const liste = donnees.items.length
     ? el('ul.tarifas-admin', lignes)
     : el('p.texte-doux', { texte: 'Todavía no hay ningún precio. Añade el primero abajo.' });
+
+  if (donnees.items.length > 1) brancherGlisser(liste, dire, recharger);
 
   /* ---- ajouter ---- */
 

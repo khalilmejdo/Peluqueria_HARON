@@ -27,7 +27,7 @@ import {
 } from '../domain/postes.js';
 import {
   lister as listerTarifas, crear as crearTarifa, modificar as modificarTarifa,
-  eliminar as eliminarTarifa, mover as moverTarifa, prixLegible,
+  eliminar as eliminarTarifa, mover as moverTarifa, reordenar as reordenarTarifas, prixLegible,
 } from '../domain/tarifas.js';
 import { etatBoite } from '../domain/notifications.js';
 import { executerTache, nomsDesTaches } from '../core/taches.js';
@@ -388,6 +388,29 @@ tarifasRoutes.post('/:id/mover', async (ctx) => {
   const bouge = await moverTarifa(idDe(ctx), sens);
   const items = await listerTarifas();
   ctx.ok({ bouge, items: items.map(tarifaVersClient) });
+}, { role: 'GERANT', rateLimit: PROFILES.administration });
+
+/**
+ * Reordonner la fiche entiere : le glisser-deposer envoie l'ordre complet.
+ *
+ * Douze lignes reordonnees feraient sinon douze requetes, dont une peut echouer
+ * au milieu et laisser la fiche dans un ordre que personne n'a voulu.
+ *
+ * Pas de conflit de route ici : « /orden » n'a qu'un segment, la ou
+ * « /:id/mover » en a deux — mais le routeur prend la PREMIERE route qui
+ * correspond, sans preferer un segment fixe. Toute future route a un seul
+ * segment devra donc etre declaree avant un eventuel « POST /:id ».
+ */
+tarifasRoutes.post('/orden', async (ctx) => {
+  const brut = ctx.body?.ids;
+  if (!Array.isArray(brut)) throw badRequest('Envíe « ids » con el orden completo.');
+  if (brut.length > 500) throw badRequest('Lista demasiado larga.');
+  const ids = brut.map((v) => String(v));
+
+  const n = await reordenarTarifas(ids);
+  log.info('Fiche de prix reordonnee', { lignes: n, par: ctx.user.identifiant });
+  const items = await listerTarifas();
+  ctx.ok({ items: items.map(tarifaVersClient) });
 }, { role: 'GERANT', rateLimit: PROFILES.administration });
 
 tarifasRoutes.delete('/:id', async (ctx) => {
