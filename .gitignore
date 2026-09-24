@@ -13,3 +13,9 @@ photos/
 
 # Planches de design publiees en Artifact : hors du depot.
 .apercu-canvas/
+
+# Scripts crees sur le serveur et qui portent un SECRET.
+#
+# duckdns.sh contient le jeton qui permet de detourner le nom de domaine du
+# salon. Sans cette ligne, un « git add -A » le publierait sur un depot PUBLIC.
+duckdns.sh
