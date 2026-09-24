@@ -20,7 +20,7 @@ import { AppError, notFound, badRequest } from '../core/errors.js';
 import { normalize, cleanSpaces } from '../core/text.js';
 import { ICONES } from '../site/icones-tarifas.js';
 
-const COLONNES = 'id, nombre, precio_cts, nota, icono, ordre, visible, created_at, updated_at';
+const COLONNES = 'id, nombre, precio_cts, nota, icono, duracion_min, ordre, visible, created_at, updated_at';
 
 /** Au-dela, ce n'est plus un prix de coiffure mais une faute de frappe. */
 const PRIX_MAX_CTS = 100000;
@@ -104,6 +104,7 @@ export async function pourVitrine() {
     icono: l.icono || null,
     precioCts: l.precio_cts,
     precio: prixLegible(l.precio_cts),
+    duracionMin: l.duracion_min,
   }));
 }
 
@@ -157,21 +158,41 @@ function traduireErreur(err) {
   return err;
 }
 
+/**
+ * La duree d'une prestation, en minutes.
+ *
+ * Elle sert a annoncer l'attente : une valeur absurde ferait mentir toute la
+ * file, pas seulement sa ligne. On borne donc a quatre heures, et on refuse
+ * zero — un service qui ne prend aucun temps n'occupe pas un fauteuil.
+ */
+export function dureeValide(valeur) {
+  const texte = String(valeur ?? '').trim();
+  if (!/^d{1,3}$/.test(texte)) {
+    throw new ValidationError({ duracion: 'Indique los minutos, en números enteros.' });
+  }
+  const n = Number(texte);
+  if (n < 1 || n > 240) {
+    throw new ValidationError({ duracion: 'Entre 1 y 240 minutos.' });
+  }
+  return n;
+}
+
 /** Ajoute une prestation en fin de fiche. */
-export async function crear({ nombre, precio, nota, icono } = {}) {
+export async function crear({ nombre, precio, nota, icono, duracion } = {}) {
   const nom = nomValide(nombre);
   const cts = prixValide(precio);
   const note = notaValide(nota);
   const icone = iconeValide(icono);
+  const minutos = duracion === undefined || duracion === null || duracion === '' ? 15 : dureeValide(duracion);
   const id = newId();
 
   // « ordre » suit le maximum existant : une nouvelle ligne arrive en bas, la
   // ou le gerant vient de la taper. Elle ne se glisse jamais au milieu.
   try {
     await execute(
-      'INSERT INTO tarifas (id, nombre, nombre_lower, precio_cts, nota, icono, ordre, visible) '
-      + 'VALUES ($1, $2, $3, $4, $5, $6, COALESCE((SELECT MAX(ordre) + 1 FROM tarifas), 0), TRUE)',
-      [id, nom, normalize(nom), cts, note || null, icone],
+      'INSERT INTO tarifas (id, nombre, nombre_lower, precio_cts, nota, icono, duracion_min, ordre, visible) '
+      + 'VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE((SELECT MAX(ordre) + 1 FROM tarifas), 0), TRUE)',
+      [id, nom, normalize(nom), cts, note || null, icone, minutos],
     );
   } catch (err) {
     throw traduireErreur(err);
@@ -189,11 +210,12 @@ export async function modificar(id, champs = {}) {
   const note = champs.nota === undefined ? (actuel.nota || '') : notaValide(champs.nota);
   const visible = champs.visible === undefined ? actuel.visible : Boolean(champs.visible);
   const icone = champs.icono === undefined ? actuel.icono : iconeValide(champs.icono);
+  const minutos = champs.duracion === undefined ? actuel.duracion_min : dureeValide(champs.duracion);
 
   try {
     await execute(
-      'UPDATE tarifas SET nombre = $2, nombre_lower = $3, precio_cts = $4, nota = $5, visible = $6, icono = $7 WHERE id = $1',
-      [id, nom, normalize(nom), cts, note || null, visible, icone],
+      'UPDATE tarifas SET nombre = $2, nombre_lower = $3, precio_cts = $4, nota = $5, visible = $6, icono = $7, duracion_min = $8 WHERE id = $1',
+      [id, nom, normalize(nom), cts, note || null, visible, icone, minutos],
     );
   } catch (err) {
     throw traduireErreur(err);

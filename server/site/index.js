@@ -582,9 +582,55 @@ function choixDuCoiffeur(coiffeurs, choisi) {
     + '</fieldset>';
 }
 
+/**
+ * LE CHOIX DES PRESTATIONS.
+ *
+ * Il ne sert pas a facturer — le salon encaisse au comptoir — mais a ANNONCER
+ * UNE ATTENTE JUSTE. Une file de six barbes et une file de six queratinas ne
+ * durent pas la meme chose ; sans cette question, la seconde mentait d'une
+ * heure et demie a tout le monde.
+ *
+ * DES CASES, PAS UNE LISTE DEROULANTE. On en coche souvent deux (« corte » et
+ * « barba »), et une liste deroulante interdirait le cas le plus frequent du
+ * salon. Chaque case est une cible de quarante-quatre pixels : on coche au
+ * pouce, debout, sans viser.
+ *
+ * FACULTATIF, ET DIT COMME TEL. Un client presse doit pouvoir passer outre ;
+ * son tour est alors compte a la duree moyenne du salon, comme avant. Un champ
+ * obligatoire de plus, c'est un client qui renonce.
+ *
+ * Le total est calcule par le serveur au chargement, puis tenu a jour par le
+ * script. Sans JavaScript, les cases fonctionnent quand meme : c'est un
+ * formulaire ordinaire, et le serveur recalcule tout de toute facon.
+ */
+function choixDesPrestations(prestations, choisies) {
+  if (!prestations.length) return '';
+  const cochees = new Set(choisies || []);
+
+  const lignes = prestations.map((p) => {
+    const id = 'presta-' + p.id;
+    return '<li>'
+      + '<input class="presta__case" type="checkbox" id="' + escapeHtml(id) + '" name="tarifaIds" '
+      + 'value="' + escapeHtml(p.id) + '" data-minutos="' + p.duracionMin + '" '
+      + 'data-precio="' + p.precioCts + '"' + (cochees.has(p.id) ? ' checked' : '') + '>'
+      + '<label class="presta" for="' + escapeHtml(id) + '">'
+      + '<span class="presta__nombre">' + escapeHtml(p.nombre) + '</span>'
+      + '<span class="presta__meta">' + p.duracionMin + ' min · ' + escapeHtml(p.precio) + '</span>'
+      + '</label>'
+      + '</li>';
+  }).join('');
+
+  return '<fieldset class="prestas">'
+    + '<legend class="prestas__titre">¿Qué te vas a hacer? <span class="prestas__facultatif">opcional</span></legend>'
+    + '<p class="prestas__aide">Nos ayuda a calcular mejor tu espera. Puedes elegir varios.</p>'
+    + '<ul class="prestas__liste">' + lignes + '</ul>'
+    + '<p class="prestas__total" data-presta-total hidden></p>'
+    + '</fieldset>';
+}
+
 function formulaire({
   valeurs = {}, erreurs = {}, source = 'ONLINE', messageGlobal = null,
-  coiffeurs = [], posteId = null,
+  coiffeurs = [], posteId = null, prestations = [], tarifaIds = [],
 }) {
   const champs = CHAMPS.map((c) => {
     const erreur = erreurs[c.nom];
@@ -609,6 +655,7 @@ function formulaire({
     + (messageGlobal ? '<p class="alerte alerte--refus" role="alert">' + escapeHtml(messageGlobal) + '</p>' : '')
     + (erreurs.posteId ? '<p class="champ__erreur" role="alert">' + escapeHtml(erreurs.posteId) + '</p>' : '')
     + (coiffeurs.length ? choixDuCoiffeur(coiffeurs, posteId) : '')
+    + choixDesPrestations(prestations, tarifaIds)
     + champs
     + '<button class="bouton bouton--principal bouton--geant" type="submit">Pedir mi turno</button>'
     + '<p class="formulaire__note">'
@@ -680,7 +727,8 @@ siteRoutes.get('/join', async (ctx) => {
   // meme, seule l'origine enregistree change.
   const source = ctx.queryBool('qr') ? 'QR' : 'ONLINE';
   const coiffeurs = prise.ouverte ? await coiffeursProposes(reglages) : [];
-  ctx.html(prise.ouverte ? 200 : 409, pageJoin(ctx, reglages, { source, prise, coiffeurs }));
+  const prestations = prise.ouverte ? await pourVitrine() : [];
+  ctx.html(prise.ouverte ? 200 : 409, pageJoin(ctx, reglages, { source, prise, coiffeurs, prestations }));
 }, { public: true });
 
 /**
@@ -698,19 +746,26 @@ siteRoutes.post('/join', async (ctx) => {
 
   const posteId = String(ctx.body.posteId ?? '') || null;
   const coiffeurs = await coiffeursProposes(reglages);
+  const prestations = await pourVitrine();
+  // Une seule case cochee arrive comme une chaine, plusieurs comme un tableau :
+  // c'est ainsi qu'un formulaire HTML poste des cases du meme nom.
+  const brutTarifas = ctx.body.tarifaIds;
+  const tarifaIds = (Array.isArray(brutTarifas) ? brutTarifas : [brutTarifas])
+    .map((v) => String(v ?? '').trim()).filter(Boolean).slice(0, 6);
 
   let data;
   try {
-    data = validate({ ...brut, source, posteId }, {
+    data = validate({ ...brut, source, posteId, tarifaIds }, {
       prenom: rules.prenom,
       nom: rules.nomFamille,
       telephone: rules.whatsapp,
       source: { type: 'enum', values: ['ONLINE', 'QR'], upper: true, default: 'ONLINE' },
       posteId: { type: 'uuid' },
+      tarifaIds: { type: 'array', max: 6, of: { type: 'uuid' } },
     });
   } catch (err) {
     if (!(err instanceof ValidationError)) throw err;
-    ctx.html(422, pageJoin(ctx, reglages, { valeurs: brut, erreurs: err.fields, source, coiffeurs, posteId }));
+    ctx.html(422, pageJoin(ctx, reglages, { valeurs: brut, erreurs: err.fields, source, coiffeurs, posteId, prestations, tarifaIds }));
     return;
   }
 
@@ -720,22 +775,22 @@ siteRoutes.post('/join', async (ctx) => {
   );
   if (!debit.allowed) {
     ctx.res.setHeader('Retry-After', String(debit.retryAfterSeconds));
-    ctx.html(429, pageJoin(ctx, reglages, { valeurs: brut, source, coiffeurs, posteId, messageGlobal: debit.message }));
+    ctx.html(429, pageJoin(ctx, reglages, { valeurs: brut, source, coiffeurs, posteId, prestations, tarifaIds, messageGlobal: debit.message }));
     return;
   }
 
   let resultat;
   try {
-    resultat = await prendreTour(data);
+    resultat = await prendreTour({ ...data, tarifaIds: data.tarifaIds || [] });
   } catch (err) {
     if (err instanceof ValidationError) {
       ctx.html(422, pageJoin(ctx, reglages, {
-        valeurs: brut, erreurs: err.fields, source, coiffeurs, posteId, messageGlobal: err.message,
+        valeurs: brut, erreurs: err.fields, source, coiffeurs, posteId, prestations, tarifaIds, messageGlobal: err.message,
       }));
       return;
     }
     if (err instanceof AppError && err.status === 409) {
-      ctx.html(409, pageJoin(ctx, reglages, { valeurs: brut, source, coiffeurs, posteId, messageGlobal: err.message }));
+      ctx.html(409, pageJoin(ctx, reglages, { valeurs: brut, source, coiffeurs, posteId, prestations, tarifaIds, messageGlobal: err.message }));
       return;
     }
     throw err;

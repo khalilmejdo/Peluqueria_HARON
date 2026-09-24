@@ -34,7 +34,7 @@ test('la configuration du salon survit a la purge', () => {
 });
 
 test('l historique des tours part en entier', () => {
-  for (const table of ['tickets', 'ticket_evenements', 'envois_whatsapp', 'journees']) {
+  for (const table of ['tickets', 'ticket_evenements', 'ticket_tarifas', 'envois_whatsapp', 'journees']) {
     assert.ok(effacees().includes(table), table + ' survivrait a la purge');
   }
 });
@@ -49,6 +49,7 @@ test('les tables sont effacees dans un ordre qui respecte les cles etrangeres', 
   const ordre = effacees();
   assert.ok(ordre.indexOf('ticket_evenements') < ordre.indexOf('tickets'));
   assert.ok(ordre.indexOf('envois_whatsapp') < ordre.indexOf('tickets'));
+  assert.ok(ordre.indexOf('ticket_tarifas') < ordre.indexOf('tickets'));
   assert.ok(ordre.indexOf('tickets') < ordre.indexOf('journees'));
 });
 

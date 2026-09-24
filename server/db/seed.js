@@ -28,22 +28,30 @@ import { CATALOGUE } from '../core/reglages.js';
  * `npm run tarifas` qui la charge, et lui seul — le seed ne doit jamais
  * ecraser les prix que le gerant a saisis.
  */
+/**
+ * La fiche du salon : nom, prix en CENTIMES, icone, note, DUREE en minutes.
+ *
+ * La duree est ce qui rend l attente annoncee juste. Quand une fourchette a
+ * ete donnee (10-15 min), on retient la BORNE HAUTE : mieux vaut un client
+ * qui passe plus tot que prevu qu un client qui attend au-dela de ce qu on
+ * lui a promis.
+ */
 export const TARIFS_DE_DEPART = [
-  ['Corte normal', 700, 'tijeras', ''],
-  ['Barba', 500, 'barba', ''],
-  ['Corte + barba', 1200, 'navaja', 'El más pedido'],
-  ['Mascarilla', 300, 'mascarilla', ''],
-  ['Dark', 800, 'bote', ''],
-  ['Queratina', 4000, 'gota', ''],
-  ['Mechas', 2000, 'mechas', ''],
-  ['Mechas blancas', 4000, 'mechas', ''],
-  ['Peinado', 300, 'peine', ''],
-  ['Cejas', 300, 'cejas', ''],
-  ['Cejas con cera', 300, 'cera', ''],
-  ['Tinte normal', 500, 'tinte', ''],
-  ['Tinte de pelo', 1000, 'tinte', ''],
-  ['Tinte barba', 300, 'barba', ''],
-  ['Lavado de pelo', 200, 'lavado', ''],
+  ['Corte normal', 700, 'tijeras', '', 15],
+  ['Barba', 500, 'barba', '', 15],
+  ['Corte + barba', 1200, 'navaja', 'El más pedido', 25],
+  ['Mascarilla', 300, 'mascarilla', '', 3],
+  ['Dark', 800, 'bote', '', 10],
+  ['Queratina', 4000, 'gota', '', 30],
+  ['Mechas', 2000, 'mechas', '', 25],
+  ['Mechas blancas', 4000, 'mechas', '', 25],
+  ['Peinado', 300, 'peine', '', 5],
+  ['Cejas', 300, 'cejas', '', 5],
+  ['Cejas con cera', 300, 'cera', '', 5],
+  ['Tinte normal', 500, 'tinte', '', 5],
+  ['Tinte de pelo', 1000, 'tinte', '', 5],
+  ['Tinte barba', 300, 'barba', '', 5],
+  ['Lavado de pelo', 200, 'lavado', '', 1],
 ];
 
 export async function seed({ silencieux = false } = {}) {
@@ -80,10 +88,10 @@ export async function seed({ silencieux = false } = {}) {
   const tarifs = await one('SELECT COUNT(*)::int AS n FROM tarifas');
   if (tarifs.n === 0) {
     for (let i = 0; i < TARIFS_DE_DEPART.length; i += 1) {
-      const [nombre, cts, icono, nota] = TARIFS_DE_DEPART[i];
+      const [nombre, cts, icono, nota, duracion] = TARIFS_DE_DEPART[i];
       await execute(
-        'INSERT INTO tarifas (id, nombre, nombre_lower, precio_cts, nota, icono, ordre) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-        [newId(), nombre, normalize(nombre), cts, nota || null, icono || null, i],
+        'INSERT INTO tarifas (id, nombre, nombre_lower, precio_cts, nota, icono, ordre, duracion_min) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+        [newId(), nombre, normalize(nombre), cts, nota || null, icono || null, i, duracion || 15],
       );
     }
     dire('  Fiche de prix : ' + TARIFS_DE_DEPART.length + ' ligne(s) de depart creee(s).');

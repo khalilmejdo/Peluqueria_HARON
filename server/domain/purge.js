@@ -41,7 +41,7 @@ import { STATUTS_ACTIFS } from './journee.js';
  * parties de chaque table. Un chiffre qu'on peut lire vaut mieux qu'une
  * cascade silencieuse.
  */
-const TABLES = ['ticket_evenements', 'envois_whatsapp', 'tickets', 'journees', 'fermetures'];
+const TABLES = ['ticket_evenements', 'ticket_tarifas', 'envois_whatsapp', 'tickets', 'journees', 'fermetures'];
 
 /** Ce que la purge ne touche pas. Sert a l'ecran de confirmation. */
 export const PRESERVE = ['utilisateurs', 'reglages', 'postes', 'tarifas', 'abonnements_push'];

@@ -228,7 +228,20 @@ CREATE TABLE IF NOT EXISTS tarifas (
 -- pas. Une valeur inconnue s'affiche sans icone plutot que cassee.
 ALTER TABLE tarifas ADD COLUMN IF NOT EXISTS icono text;
 
-DO $$ BEGIN
+-- La DUREE de la prestation, en minutes. C'est elle qui rend l'attente
+-- annoncee juste : une coupe et une barbe ne prennent pas le meme temps, et
+-- une file de six barbes n'a rien a voir avec une file de six queratinas.
+--
+-- Quinze par defaut : la valeur qui etait implicite avant cette colonne, donc
+-- une base existante ne change pas de comportement en la recevant.
+ALTER TABLE tarifas ADD COLUMN IF NOT EXISTS duracion_min integer NOT NULL DEFAULT 15;
+
+DO $ BEGIN
+  ALTER TABLE tarifas ADD CONSTRAINT tarifas_duracion_plausible
+    CHECK (duracion_min >= 1 AND duracion_min <= 240);
+EXCEPTION WHEN duplicate_object THEN NULL; END $;
+
+DO $ BEGIN
   ALTER TABLE tarifas ADD CONSTRAINT tarifas_prix_plausible
     CHECK (precio_cts >= 0 AND precio_cts <= 100000);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -461,6 +474,40 @@ CREATE TRIGGER tickets_journee_close
 -- met les tickets a jour AVANT de passer la journee a « close », donc le
 -- declencheur ne la gene pas. Voir server/domain/journee.js (cloturer).
 
+
+-- ---------------------------------------------------------------------
+--  Les prestations choisies par un client
+--
+--  TOUT EST FIGE A LA PRISE DE TOUR : le nom, la duree et le prix sont
+--  RECOPIES ici, pas seulement references. Une tarifa renommee, renumerotee
+--  ou supprimee le mois prochain ne doit pas reecrire ce qu'un client a
+--  demande hier -- ni les chiffres du salon, qui s'appuient dessus.
+--
+--  La colonne tarifa_id reste pour relier les deux quand c'est possible, mais
+--  elle s'efface toute seule si la ligne de prix disparait : la prestation,
+--  elle, reste lisible.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ticket_tarifas (
+  id           uuid PRIMARY KEY,
+  ticket_id    uuid NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+  tarifa_id    uuid REFERENCES tarifas(id) ON DELETE SET NULL,
+  nombre       text NOT NULL,
+  duracion_min integer NOT NULL,
+  precio_cts   integer NOT NULL,
+  ordre        integer NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS ticket_tarifas_ticket ON ticket_tarifas (ticket_id, ordre);
+
+-- La duree totale du ticket, en minutes : la somme de ses prestations, figee
+-- elle aussi. NULL = le client n'a rien choisi ; l'attente retombe alors sur
+-- la duree moyenne du salon, comme avant.
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS duree_min integer;
+
+DO $ BEGIN
+  ALTER TABLE tickets ADD CONSTRAINT tickets_duree_plausible
+    CHECK (duree_min IS NULL OR (duree_min >= 1 AND duree_min <= 480));
+EXCEPTION WHEN duplicate_object THEN NULL; END $;
 
 -- ---------------------------------------------------------------------
 --  Abonnements aux notifications du personnel

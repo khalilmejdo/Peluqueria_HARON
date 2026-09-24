@@ -115,3 +115,48 @@ if (formulaire) {
     }
   });
 }
+
+/* ------------------------------------------------------------------ */
+/*  Le total des prestations choisies                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Le temps et le prix de ce qu'on vient de cocher.
+ *
+ * POURQUOI LE MONTRER. Cocher trois cases sans rien voir revient a remplir un
+ * formulaire les yeux fermes : le client ne sait pas s'il vient de demander
+ * dix minutes ou une heure. La ligne apparait des la premiere case et disparait
+ * quand on decoche tout — un total a zero n'apprend rien.
+ *
+ * Le prix est indicatif, et c'est ecrit : le salon encaisse au comptoir, et
+ * une remise ou un service ajoute sur place ne passeront jamais par ici.
+ *
+ * Les durees viennent du SERVEUR, posees sur chaque case. Rien n'est calcule a
+ * partir de ce que le navigateur croit savoir — et de toute facon le serveur
+ * recalcule tout : ce total ne sert qu'a informer.
+ */
+const totalPrestations = document.querySelector('[data-presta-total]');
+
+if (totalPrestations) {
+  const cases = [...document.querySelectorAll('.presta__case')];
+
+  const enEuros = (centimes) => (centimes % 100 === 0
+    ? Math.floor(centimes / 100) + ' €'
+    : (centimes / 100).toFixed(2).replace('.', ',') + ' €');
+
+  const recompter = () => {
+    const cochees = cases.filter((c) => c.checked);
+    if (!cochees.length) {
+      totalPrestations.hidden = true;
+      return;
+    }
+    const minutes = cochees.reduce((n, c) => n + Number(c.dataset.minutos || 0), 0);
+    const centimes = cochees.reduce((n, c) => n + Number(c.dataset.precio || 0), 0);
+    totalPrestations.textContent = cochees.length + ' servicio' + (cochees.length > 1 ? 's' : '')
+      + ' · ' + minutes + ' min · ' + enEuros(centimes) + ' aprox.';
+    totalPrestations.hidden = false;
+  };
+
+  for (const c of cases) c.addEventListener('change', recompter);
+  recompter();
+}

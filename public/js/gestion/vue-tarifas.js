@@ -149,7 +149,9 @@ export async function vueTarifas(conteneur, { etat }) {
       t.nota ? el('span.tarifa-admin__nota', { texte: t.nota }) : null,
       t.visible ? null : el('span.tarifa-admin__badge', { texte: 'oculta' })),
 
-    el('span.tarifa-admin__precio', { texte: t.precio }),
+    el('div.tarifa-admin__chiffres',
+      el('span.tarifa-admin__precio', { texte: t.precio }),
+      el('span.tarifa-admin__duree', { texte: (t.duracionMin ?? 15) + ' min' })),
 
     el('div.tarifa-admin__actions',
       // Les fleches sont desactivees en bout de liste plutot que cachees : la
@@ -202,10 +204,12 @@ export async function vueTarifas(conteneur, { etat }) {
     if (nombre === null) return;
     const precio = window.prompt('Precio (por ejemplo 14 o 14,90):', t.precio.replace(' €', ''));
     if (precio === null) return;
+    const duracion = window.prompt('Duración en minutos (sirve para calcular la espera):', String(t.duracionMin ?? 15));
+    if (duracion === null) return;
     const nota = window.prompt('Nota (puede quedar vacía):', t.nota);
     if (nota === null) return;
     agir(
-      () => api.patch('/api/tarifas/' + t.id, { nombre, precio, nota }),
+      () => api.patch('/api/tarifas/' + t.id, { nombre, precio, duracion, nota }),
       'Guardado.',
     );
   };
@@ -220,6 +224,7 @@ export async function vueTarifas(conteneur, { etat }) {
 
   const champNombre = el('input', { id: 'tf-nombre', type: 'text', maxlength: '60', required: true, placeholder: 'Corte de pelo' });
   const champPrecio = el('input', { id: 'tf-precio', type: 'text', maxlength: '12', required: true, inputmode: 'decimal', placeholder: '14,90' });
+  const champDuracion = el('input', { id: 'tf-duracion', type: 'number', min: '1', max: '240', inputmode: 'numeric', value: '15' });
   const champNota = el('input', { id: 'tf-nota', type: 'text', maxlength: '80', placeholder: 'Incluye lavado (opcional)' });
   const bouton = el('button.bouton.bouton--principal', { type: 'submit', texte: 'Añadir' });
 
@@ -231,6 +236,7 @@ export async function vueTarifas(conteneur, { etat }) {
         await api.post('/api/tarifas', {
           nombre: champNombre.value.trim(),
           precio: champPrecio.value.trim(),
+          duracion: champDuracion.value.trim(),
           nota: champNota.value.trim(),
         });
         annoncer(champNombre.value.trim() + ' añadido.');
@@ -245,6 +251,8 @@ export async function vueTarifas(conteneur, { etat }) {
   el('div.champ', el('label', { for: 'tf-nombre', texte: 'Servicio' }), champNombre),
   el('div.champ', el('label', { for: 'tf-precio', texte: 'Precio' }), champPrecio,
     el('p.champ__aide', { texte: 'Como lo escribes: 14, 14,90 o 14.90. El símbolo € se añade solo.' })),
+  el('div.champ', el('label', { for: 'tf-duracion', texte: 'Duración (minutos)' }), champDuracion,
+    el('p.champ__aide', { texte: 'Es lo que sirve para calcular la espera que se anuncia al cliente. Si dudas, pon el tiempo más largo: vale más pasar antes de lo prometido que después.' })),
   el('div.champ', el('label', { for: 'tf-nota', texte: 'Nota' }), champNota),
   bouton);
 

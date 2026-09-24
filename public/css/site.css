@@ -2375,3 +2375,113 @@ main { flex: 1; }
 }
 .champ__oeil[aria-pressed='true'] { color: var(--laiton); }
 .champ__oeil[aria-pressed='true']::after { opacity: 1; }
+
+/* ------------------------------------------------------------------ */
+/*  Le choix des prestations                                           */
+/* ------------------------------------------------------------------ */
+
+/*
+ * DES CASES, PAS UNE LISTE DÉROULANTE. On en coche souvent deux — « corte » et
+ * « barba » — et une liste déroulante interdirait le cas le plus fréquent du
+ * salon.
+ *
+ * La case native est masquée (jamais `display: none`, qui la sortirait de
+ * l'ordre de tabulation) et c'est l'étiquette qui devient la cible : quarante-
+ * quatre pixels de haut, cochée au pouce, debout, sans viser.
+ */
+.prestas {
+  margin: 0 0 0.35rem;
+  padding: 0;
+  border: 0;
+}
+
+.prestas__titre {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.prestas__facultatif {
+  padding: 0.15em 0.55em;
+  border-radius: 999px;
+  border: 1px solid var(--bordure);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--texte-doux);
+}
+
+.prestas__aide {
+  margin: 0.3rem 0 0.6rem;
+  font-size: 0.8rem;
+  color: var(--texte-doux);
+}
+
+.prestas__liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* La case reste focalisable : masquée par `display: none`, elle disparaîtrait
+   de l'ordre de tabulation et le formulaire deviendrait inutilisable au
+   clavier. */
+.presta__case {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.presta {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.1rem;
+  min-height: 2.75rem;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--r);
+  background: var(--fond-carte-2);
+  cursor: pointer;
+  transition: border-color var(--transition), background-color var(--transition);
+}
+.presta:hover { border-color: color-mix(in srgb, var(--laiton) 50%, var(--bordure)); }
+
+.presta__nombre { font-weight: 600; font-size: 0.92rem; }
+.presta__meta { font-size: 0.74rem; color: var(--texte-doux); font-variant-numeric: tabular-nums; }
+
+/* Coché : le laiton, et rien d'autre — pas de coche dessinée qui volerait de
+   la place au nom. L'état se lit au fond et à la bordure. */
+.presta__case:checked + .presta {
+  border-color: var(--laiton);
+  background: color-mix(in srgb, var(--laiton) 16%, var(--fond-carte-2));
+}
+.presta__case:checked + .presta .presta__meta { color: var(--laiton-clair); }
+
+/* Le focus doit se voir sur l'ÉTIQUETTE, puisque la case est invisible. */
+.presta__case:focus-visible + .presta {
+  outline: 3px solid var(--laiton);
+  outline-offset: 3px;
+}
+
+.prestas__total {
+  margin: 0.7rem 0 0;
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--r);
+  background: color-mix(in srgb, var(--laiton) 10%, transparent);
+  color: var(--laiton-clair);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

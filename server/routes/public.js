@@ -70,6 +70,10 @@ publicRoutes.post('/tickets', async (ctx) => {
     // Le coiffeur choisi. Ignore en file unique, obligatoire en file par
     // coiffeur — c'est prendreTour() qui tranche, selon le reglage du salon.
     posteId: { type: 'uuid' },
+    // Les prestations demandees. Six au plus : au-dela ce n'est plus un passage
+    // chez le coiffeur, c'est une matinee -- et une liste sans borne est une
+    // invitation a remplir la base.
+    tarifaIds: { type: 'array', max: 6, of: { type: 'uuid' } },
   });
 
   // Le debit se mesure APRES la validation : le numero est alors connu, et
@@ -85,7 +89,7 @@ publicRoutes.post('/tickets', async (ctx) => {
     throw new AppError(429, debit.message, { code: 'TROP_DE_DEMANDES', details: { retryAfter: debit.retryAfterSeconds } });
   }
 
-  const { ticket, jeton, position } = await prendreTour(data);
+  const { ticket, jeton, position } = await prendreTour({ ...data, tarifaIds: data.tarifaIds || [] });
   const base = adressePublique(reglages, ctx.base);
 
   ctx.created({

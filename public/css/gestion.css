@@ -1109,3 +1109,35 @@
 /* Le retour à la vitrine, sous le formulaire de connexion. Centré et discret :
    c'est une sortie, pas l'action de la page. */
 .connexion__sortie { display: flex; justify-content: center; margin-top: 1rem; }
+
+/* Le prix et la durée, l'un sous l'autre : deux chiffres qui se lisent en
+   colonne, sans que la ligne s'allonge. */
+.tarifa-admin__chiffres { display: grid; justify-items: end; gap: 0.1rem; }
+.tarifa-admin__duree {
+  font-size: 0.74rem;
+  color: var(--texte-doux);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Ce que le client a demandé, sous son nom : le coiffeur le lit avant de
+   l'installer, pas en le lui demandant une fois assis. */
+.carte-file__prestas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.35rem 0 0;
+}
+
+.presta-puce {
+  padding: 0.15em 0.6em;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--bordure));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.presta-duree { font-size: 0.75rem; color: var(--texte-doux); font-variant-numeric: tabular-nums; }
+
+.actuel .carte-file__prestas { justify-content: center; }

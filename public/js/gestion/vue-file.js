@@ -11,6 +11,21 @@ import { api, ErreurApi } from './api.js';
 import { el, remplacer, annoncer, heure, depuis, minutesLisibles, LIBELLE_SOURCE, LIBELLE_STATUT } from './dom.js';
 import { carteAvisos } from './avisos.js';
 
+/**
+ * Ce que le client a demande.
+ *
+ * Le coiffeur doit le savoir AVANT de l'installer, pas en le lui demandant une
+ * fois assis. Rien de coche : rien d'affiche — la ligne resterait vide pour la
+ * moitie des clients du comptoir, a qui on ne demande pas.
+ */
+function prestationsDe(ticket) {
+  const liste = ticket.prestations || [];
+  if (!liste.length) return null;
+  return el('p.carte-file__prestas',
+    ...liste.map((s) => el('span.presta-puce', { texte: s.nombre })),
+    ticket.dureeMin ? el('span.presta-duree', { texte: '≈ ' + ticket.dureeMin + ' min' }) : null);
+}
+
 let flux = null;
 let conteneurCourant = null;
 let derniereFile = null;
@@ -124,6 +139,7 @@ function carteFauteuil(poste, file, seul) {
     enTete,
     el('p.actuel__numero', { texte: actuel.numero }),
     el('h1.actuel__nom', { texte: actuel.prenom + ' ' + actuel.nom }),
+    prestationsDe(actuel),
     el('p.actuel__etat', { texte: appele ? 'Llamado ' + depuis(actuel.appeleA) : 'En el sillón ' + depuis(actuel.serviA) }),
     actuel.retards > 0
       ? el('p.actuel__retard', { texte: 'Ya ha estado ausente ' + actuel.retards + ' vez/veces hoy.' })
@@ -234,6 +250,7 @@ function carteAttente(ticket, index, file = null) {
       el('span.carte-file__numero', { texte: ticket.numero }),
       el('span.carte-file__source', { texte: LIBELLE_SOURCE[ticket.source] || ticket.source })),
     el('p.carte-file__nom', { texte: ticket.prenom + ' ' + ticket.nom }),
+    prestationsDe(ticket),
     el('p.carte-file__meta',
       el('span', { texte: 'Llegó a las ' + heure(ticket.arriveA) }),
       el('span', { texte: '·' }),

@@ -341,6 +341,7 @@ const tarifaVersClient = (t) => ({
   icono: t.icono || null,
   precioCts: t.precio_cts,
   precio: prixLegible(t.precio_cts),
+  duracionMin: t.duracion_min,
   ordre: t.ordre,
   visible: t.visible,
 });
@@ -365,6 +366,9 @@ tarifasRoutes.post('/', async (ctx) => {
     precio: { type: 'string', required: true, max: 12, requiredMessage: 'Indique el precio.' },
     nota: { type: 'string', max: 80 },
     icono: { type: 'string', max: 20 },
+    // La duree reste une chaine ici aussi : le domaine la valide, et il est le
+    // seul a savoir ce qu'est une duree plausible pour un fauteuil.
+    duracion: { type: 'string', max: 4 },
   });
   const cree = await crearTarifa(data);
   log.info('Tarif cree', { nombre: cree.nombre, par: ctx.user.identifiant });
@@ -377,6 +381,7 @@ tarifasRoutes.patch('/:id', async (ctx) => {
     precio: { type: 'string', max: 12 },
     nota: { type: 'string', max: 80 },
     icono: { type: 'string', max: 20 },
+    duracion: { type: 'string', max: 4 },
     visible: { type: 'bool' },
   });
   // Une note effacee arrive en chaine vide, que validate() rend en null : le

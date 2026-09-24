@@ -50,7 +50,7 @@ export const MODE_UNIQUE = 'UNIQUE';
 export const MODE_PAR_FAUTEUIL = 'PAR_FAUTEUIL';
 
 const COLONNES = `id, jour, numero, numero_affiche, rang, prenom, nom, telephone_enc, telephone_fin,
-                  source, statut, retards, poste_choisi_id, poste_id, jeton_enc, arrive_at, file_depuis_at, statut_at,
+                  source, statut, retards, duree_min, poste_choisi_id, poste_id, jeton_enc, arrive_at, file_depuis_at, statut_at,
                   appele_at, service_at, termine_at, motif, version`;
 
 /* ================================================================== */
@@ -79,8 +79,29 @@ const COLONNES = `id, jour, numero, numero_affiche, rang, prenom, nom, telephone
  * @returns {Map<string, { position:number, devant:number, tours:number,
  *                         estimationMinutes:number, phase:string }>}
  */
+/**
+ * Ce qu'il reste a faire sur un ticket, en minutes.
+ *
+ * Sa duree si personne ne l'a encore commence. S'il est DEJA AU FAUTEUIL, sa
+ * duree moins le temps ecoule : quelqu'un a vingt minutes d'une coupe de
+ * vingt-cinq ne fait plus attendre vingt-cinq minutes la salle entiere. On ne
+ * descend jamais sous une minute — un fauteuil occupe n'est pas un fauteuil
+ * libre, meme quand le client a depasse le temps prevu.
+ *
+ * Sans duree connue, la moyenne du salon : un salon qui n'a pas saisi ses
+ * durees garde exactement le comportement d'avant.
+ */
+function resteAFaire(ticket, dureeMoyenneMinutes, instant) {
+  const duree = Number(ticket.duree_min) > 0 ? Number(ticket.duree_min) : dureeMoyenneMinutes;
+  if (ticket.statut !== 'IN_SERVICE' || !ticket.service_at) return duree;
+  const ecoulees = (instant - new Date(ticket.service_at).getTime()) / 60000;
+  if (!Number.isFinite(ecoulees) || ecoulees <= 0) return duree;
+  return Math.max(1, duree - ecoulees);
+}
+
 export function calculerPositions(tickets, {
   dureeMoyenneMinutes, seuilPrevenir, postesActifs = 1, mode = MODE_UNIQUE,
+  instant = Date.now(),
 }) {
   const fauteuils = Math.max(1, Math.trunc(postesActifs) || 1);
   const parFauteuil = mode === MODE_PAR_FAUTEUIL;
@@ -99,17 +120,52 @@ export function calculerPositions(tickets, {
   const sortie = new Map();
   const rangsDuCouloir = new Map();
 
+  /*
+   * L'ATTENTE SE SIMULE, ELLE NE SE MULTIPLIE PLUS.
+   *
+   * Avant, tout le monde durait la meme chose : « position / fauteuils » fois
+   * la duree moyenne. Une file de six barbes (10 min) et une file de six
+   * queratinas (30 min) annoncaient donc la meme attente — la seconde en
+   * mentait d'une heure et demie.
+   *
+   * Maintenant chaque prestation porte sa duree, et on fait tourner la file :
+   * un fauteuil prend le suivant des qu'il se libere. `libres` garde, par
+   * couloir, l'instant ou chaque fauteuil redevient disponible ; le client
+   * attend le PLUS PROCHE de ces instants, puis occupe ce fauteuil pour sa
+   * propre duree.
+   *
+   * La formule d'avant en est le cas particulier : a durees egales, le k-ieme
+   * client demarre bien a `floor(k / fauteuils) x duree`. Rien ne change donc
+   * pour un salon qui n'a pas saisi ses durees.
+   */
+  const libresParCouloir = new Map();
+
   for (const ticket of actifs) {
     const couloir = couloirDe(ticket);
     const devant = rangsDuCouloir.get(couloir) ?? 0;
     rangsDuCouloir.set(couloir, devant + 1);
 
+    if (!libresParCouloir.has(couloir)) libresParCouloir.set(couloir, new Array(serveurs).fill(0));
+    const libres = libresParCouloir.get(couloir);
+
+    // Le fauteuil qui se libere le premier. Avec un seul fauteuil par couloir
+    // — la file par coiffeur — c'est toujours le meme, et la simulation se
+    // reduit a une addition.
+    let premier = 0;
+    for (let i = 1; i < libres.length; i += 1) if (libres[i] < libres[premier]) premier = i;
+
+    const estimationMinutes = Math.round(libres[premier]);
+    libres[premier] += resteAFaire(ticket, dureeMoyenneMinutes, instant);
+
     // Personnes devant : tous les actifs de SON couloir situes avant lui, y
     // compris celui qui est deja au fauteuil. C'est le compte qu'attend un
     // client, pas une subtilite — et c'est ce chiffre-la qui part dans le
     // message WhatsApp.
+    //
+    // Les TOURS restent comptes en personnes, pas en minutes : le seuil de
+    // prevenance du salon se regle en « nombre de personnes devant », et le
+    // traduire en minutes changerait le sens d'un reglage deja pose.
     const tours = Math.floor(devant / serveurs);
-    const estimationMinutes = tours * dureeMoyenneMinutes;
     let phase;
     if (ticket.statut === 'IN_SERVICE') phase = 'EN_COURS';
     else if (ticket.statut === 'CALLED') phase = 'VOTRE_TOUR';
@@ -262,6 +318,35 @@ export async function chargerEtat(jour) {
     listerPostes(),
   ]);
 
+  /*
+   * Ce que chaque client a demande.
+   *
+   * UNE SEULE REQUETE POUR TOUTE LA JOURNEE, pas une par ticket : cet etat est
+   * recalcule a chaque geste du coiffeur et rediffuse a tous les ecrans
+   * connectes. Une requete par ticket ferait trente allers-retours a chaque
+   * fois qu'on appuie sur « client servi ».
+   */
+  const prestationsParTicket = new Map();
+  if (tickets.length) {
+    const lignes = await all(
+      `SELECT tt.ticket_id, tt.nombre, tt.duracion_min, tt.precio_cts
+         FROM ticket_tarifas tt
+         JOIN tickets t ON t.id = tt.ticket_id
+        WHERE t.jour = $1
+        ORDER BY tt.ticket_id, tt.ordre`,
+      [jour],
+    );
+    for (const l of lignes) {
+      if (!prestationsParTicket.has(l.ticket_id)) prestationsParTicket.set(l.ticket_id, []);
+      prestationsParTicket.get(l.ticket_id).push({
+        nombre: l.nombre,
+        duracionMin: l.duracion_min,
+        precioCts: l.precio_cts,
+      });
+    }
+  }
+  for (const t of tickets) t.prestations = prestationsParTicket.get(t.id) || [];
+
   const postesActifs = postes.filter((p) => p.actif);
   const dureeMoyenneMinutes = journee?.duree_moyenne_minutes ?? reglages['file.dureeMoyenneMinutes'];
   const seuilPrevenir = reglages['file.seuilPrevenir'];
@@ -330,6 +415,10 @@ export function pourSalon(etat) {
       telephone: decrypt(t.telephone_enc),
       source: t.source,
       statut: t.statut,
+      // Ce que le client a demande : le coiffeur doit le savoir AVANT de
+      // l'installer, pas en le lui demandant une fois assis.
+      prestations: t.prestations || [],
+      dureeMin: t.duree_min ?? null,
       phase: p?.phase ?? 'ATTENTE',
       position: p?.position ?? 0,
       devant: p?.devant ?? 0,
@@ -608,7 +697,31 @@ async function tracer(tx, ticket, { statut, rang, user = null, detail = null }) 
  * @param {{ user?:object|null }} [contexte]
  * @returns {Promise<{ ticket:object, jeton:string, position:object }>}
  */
-export async function prendreTour({ prenom, nom, telephone, source = 'ONLINE', posteId = null }, { user = null } = {}) {
+/**
+ * Les prestations demandees, relues DEPUIS LA BASE.
+ *
+ * On ne fait jamais confiance aux durees ni aux prix envoyes par le navigateur :
+ * ils ne servent qu'a afficher. Un client qui bricolerait sa requete ne peut ni
+ * se donner une coupe a un euro, ni raccourcir l'attente annoncee aux autres.
+ *
+ * Une ligne inconnue ou masquee est ignoree en silence — elle vient d'une page
+ * restee ouverte depuis que le gerant a modifie sa fiche, et refuser le tour
+ * pour ca serait renvoyer un client pour une faute qui n'est pas la sienne.
+ */
+async function tarifasPourTicket(tx, ids) {
+  const lignes = await tx.all(
+    'SELECT id, nombre, duracion_min, precio_cts FROM tarifas WHERE id = ANY($1::uuid[]) AND visible',
+    [ids],
+  );
+  // L'ordre demande est conserve : c'est celui que le client a coche, et c'est
+  // celui qu'il relira sur son ticket.
+  const parId = new Map(lignes.map((l) => [l.id, l]));
+  return ids.map((id) => parId.get(id)).filter(Boolean);
+}
+
+export async function prendreTour({
+  prenom, nom, telephone, source = 'ONLINE', posteId = null, tarifaIds = [],
+}, { user = null } = {}) {
   const reglages = await lireTous();
   const maintenant = new Date();
   const jour = jourLocal(maintenant);
@@ -677,16 +790,41 @@ export async function prendreTour({ prenom, nom, telephone, source = 'ONLINE', p
     const id = newId();
     const affiche = numeroAffiche(numero);
 
+    /*
+     * LES PRESTATIONS CHOISIES, FIGEES ICI.
+     *
+     * Le nom, la duree et le prix sont RECOPIES, pas seulement references : une
+     * tarifa renommee ou supprimee le mois prochain ne doit pas reecrire ce
+     * qu'un client a demande aujourd'hui.
+     *
+     * La duree du ticket est leur somme. Aucune prestation choisie : on laisse
+     * NULL, et l'attente retombe sur la duree moyenne du salon — exactement le
+     * comportement d'avant, pour le client du comptoir a qui on ne demande rien.
+     */
+    const choisies = tarifaIds.length ? await tarifasPourTicket(tx, tarifaIds) : [];
+    const dureeTotale = choisies.length
+      ? choisies.reduce((n, t) => n + t.duracion_min, 0)
+      : null;
+
     const ticket = await tx.one(
       `INSERT INTO tickets (id, jour, numero, numero_affiche, rang, prenom, nom,
                             telephone_enc, telephone_idx, telephone_fin, source, statut, jeton_hash,
-                            jeton_enc, poste_choisi_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'WAITING',$12,$13,$14)
+                            jeton_enc, poste_choisi_id, duree_min)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'WAITING',$12,$13,$14,$15)
        RETURNING ` + COLONNES,
       [id, jour, numero, affiche, rang, prenom, nom,
         encrypt(telephone), blindIndex(telephone), telephone.slice(-4), source,
-        hashToken(jeton), encrypt(jeton), poste ? poste.id : null],
+        hashToken(jeton), encrypt(jeton), poste ? poste.id : null, dureeTotale],
     );
+
+    for (let i = 0; i < choisies.length; i += 1) {
+      const t = choisies[i];
+      await tx.execute(
+        `INSERT INTO ticket_tarifas (id, ticket_id, tarifa_id, nombre, duracion_min, precio_cts, ordre)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [newId(), id, t.id, t.nombre, t.duracion_min, t.precio_cts, i],
+      );
+    }
 
     await tracer(tx, ticket, {
       statut: 'WAITING',
