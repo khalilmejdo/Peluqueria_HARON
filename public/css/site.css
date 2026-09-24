@@ -95,6 +95,97 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/*
+ * L'AMBIANCE DU FOND.
+ *
+ * Un aplat noir sur toute la hauteur donne l'impression d'une page qui n'a pas
+ * fini de charger. Deux calques fixes derrière le contenu y mettent de la
+ * profondeur : des halos chauds qui dérivent, et les raies du mât de barbier
+ * qui glissent lentement en travers de la page.
+ *
+ * DEUX RÈGLES TENUES ICI, ET ELLES NE SONT PAS NÉGOCIABLES.
+ *
+ * 1. On n'anime QUE `transform`. Animer une position de dégradé forcerait le
+ *    navigateur à repeindre tout l'écran soixante fois par seconde ; sur un
+ *    téléphone d'entrée de gamme la page devient collante et la batterie
+ *    fond. Une transformation reste au compositeur : rien n'est repeint.
+ *
+ * 2. Les calques sont `fixed` et `pointer-events: none`. Ils ne participent ni
+ *    au défilement, ni à la hauteur du document, ni au clic. Un fond décoratif
+ *    qui intercepte un appui est un bogue qu'on met des jours à trouver.
+ *
+ * Le fond de `body` se propage au canevas de la page ; un pseudo-élément en
+ * `z-index: -1` se pose donc DEVANT lui et DERRIÈRE tout le contenu.
+ *
+ * Le mouvement disparaît de lui-même si le système demande moins d'animation
+ * (règle générale en bas de fichier), à l'impression, et sur le thème clair —
+ * l'affiche est faite pour être imprimée, pas pour scintiller.
+ */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Les halos : trois foyers chauds, très étalés, qui respirent. */
+body::before {
+  inset: -25%;
+  background:
+    radial-gradient(38rem 30rem at 14% 10%,
+      color-mix(in srgb, var(--laiton) 13%, transparent), transparent 62%),
+    radial-gradient(32rem 26rem at 86% 28%,
+      color-mix(in srgb, var(--rouge) 8%, transparent), transparent 64%),
+    radial-gradient(40rem 32rem at 56% 88%,
+      color-mix(in srgb, var(--laiton) 9%, transparent), transparent 66%);
+}
+
+/*
+ * Les raies. Une TEXTURE, pas des rayures : à 2,5 % sur un fond d'encre, elles
+ * se devinent et ne se comptent pas. Une première version à 4 % sur des bandes
+ * larges donnait un papier peint qui passait devant le texte — un fond qu'on
+ * remarque a déjà échoué.
+ *
+ * Le pas du motif est de 40 px le long de l'axe du dégradé ; à -55°, cet axe
+ * avance de 0,819 px pour chaque pixel horizontal. Un décalage de
+ * 40 / 0,819 ≈ 48,8 px boucle donc EXACTEMENT sur le motif suivant, et la
+ * boucle est invisible. Une valeur ronde ferait un saut toutes les vingt
+ * secondes — le genre de défaut qu'on voit sans savoir le nommer.
+ */
+body::after {
+  inset: -40%;
+  background: repeating-linear-gradient(
+    -55deg,
+    color-mix(in srgb, var(--laiton) 2.5%, transparent) 0 7px,
+    transparent 7px 40px
+  );
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  body::before { animation: fond-halos 46s ease-in-out infinite alternate; }
+  body::after { animation: fond-raies 14s linear infinite; }
+}
+
+@keyframes fond-halos {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(-3%, 2%, 0) scale(1.12); }
+}
+
+@keyframes fond-raies {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(48.8px, 0, 0); }
+}
+
+/* La classe de thème est portée par <html>, pas par <body>. */
+.theme-clair body::before,
+.theme-clair body::after { display: none; }
+
+@media print {
+  body::before,
+  body::after { display: none; }
+}
+
 h1, h2, h3 {
   font-family: var(--police-titre);
   font-weight: 700;
@@ -1064,6 +1155,93 @@ main { flex: 1; }
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Cómo llegar                                                        */
+/* ------------------------------------------------------------------ */
+
+.ubicacion {
+  display: grid;
+  gap: 1.1rem;
+  align-items: center;
+}
+
+@media (min-width: 46rem) {
+  /* Le plan à gauche, les mots à droite : on regarde, puis on lit, puis on
+     appuie. Dans l'autre sens, le bouton passe sous la ligne de flottaison. */
+  .ubicacion { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 1.6rem; }
+}
+
+.ubicacion__plan {
+  border: 1px solid var(--bordure);
+  border-radius: var(--r);
+  background: var(--fond-carte-2);
+  overflow: hidden;
+  color: var(--texte-doux);
+}
+
+.ubicacion__infos { display: grid; gap: 0.8rem; }
+
+.ubicacion__direccion {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: var(--police-titre);
+  font-weight: 700;
+  font-size: clamp(1.15rem, 4vw, 1.5rem);
+  line-height: 1.25;
+}
+
+.ubicacion__icone { flex: none; width: 1.5rem; color: var(--laiton); }
+.ubicacion__icone .illu { width: 100%; }
+
+.ubicacion__texto {
+  color: var(--texte-doux);
+  max-width: 44ch;
+}
+
+.ubicacion__botones { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.2rem; }
+
+/* Le plan lui-même. */
+.plan__ilot { fill: color-mix(in srgb, var(--texte-doux) 9%, transparent); stroke: none; }
+
+.plan__rue {
+  stroke: color-mix(in srgb, var(--texte-doux) 22%, transparent);
+  stroke-width: 7;
+  stroke-linecap: round;
+  fill: none;
+}
+
+.plan__rue--notre {
+  stroke: color-mix(in srgb, var(--laiton) 50%, transparent);
+  stroke-width: 8;
+}
+
+.plan__pin { fill: var(--laiton); stroke: none; }
+.plan__pin-oeil { fill: var(--fond-carte-2); }
+
+/*
+ * L'onde part de l'épingle. Elle n'annonce rien — pas un rayon, pas une
+ * distance — elle pose l'œil sur le point. `transform-origin` est donné dans
+ * les unités du viewBox, sans quoi l'onde grandit depuis le coin de l'image.
+ */
+.plan__onde {
+  fill: none;
+  stroke: var(--laiton);
+  stroke-width: 2;
+  transform-origin: 163px 94px;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .plan__onde { animation: plan-onde 3.2s ease-out infinite; }
+}
+
+@keyframes plan-onde {
+  0% { transform: scale(0.35); opacity: 0.55; }
+  70% { opacity: 0; }
+  100% { transform: scale(1.9); opacity: 0; }
 }
 
 /*

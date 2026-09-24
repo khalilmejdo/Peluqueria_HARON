@@ -161,6 +161,10 @@ export async function vueReglages(conteneur) {
       entree = el('input', { id, type: 'url', inputmode: 'url', value: String(valeur ?? '') });
     } else if (regle.type === 'telephone') {
       entree = el('input', { id, type: 'tel', inputmode: 'tel', value: String(valeur ?? '') });
+    } else if ((regle.maxLongueur ?? 0) > 200) {
+      // Un texte de plusieurs phrases dans une ligne d'une seule hauteur ne se
+      // relit pas : on n'en voit jamais que la fin.
+      entree = el('textarea', { id, rows: 3, maxlength: regle.maxLongueur, texte: String(valeur ?? '') });
     } else {
       entree = el('input', { id, type: 'text', maxlength: regle.maxLongueur ?? 200, value: String(valeur ?? '') });
     }
@@ -168,7 +172,8 @@ export async function vueReglages(conteneur) {
     champs.set(regle.cle, { regle, entree });
     const erreur = el('p.champ__erreur', { hidden: true, donnees: { erreur: regle.cle } });
 
-    return el('div.champ' + (regle.type === 'booleen' ? '.champ--case' : '') + (regle.type === 'choix' ? '.champ--large' : ''),
+    const large = regle.type === 'choix' || (regle.maxLongueur ?? 0) > 200;
+    return el('div.champ' + (regle.type === 'booleen' ? '.champ--case' : '') + (large ? '.champ--large' : ''),
       el('label', { for: id, texte: regle.libelle }),
       entree,
       regle.aide ? el('p.champ__aide', { texte: regle.aide }) : null,

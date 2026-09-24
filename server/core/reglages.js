@@ -107,6 +107,16 @@ export const CATALOGUE = {
     libelle: 'Nota debajo de las tarifas',
     aide: 'Por ejemplo: « Efectivo y tarjeta. » Se deja vacío si no hace falta.',
   },
+  'salon.coordenadas': {
+    type: 'coordenadas', defaut: '', maxLongueur: 44,
+    libelle: 'Coordenadas del salón (latitud, longitud)',
+    aide: 'En Google Maps: pulsación larga sobre la puerta del salón y se copian « 40.416775, -3.703790 ». Con ellas, el botón « Cómo llegar » lleva a la puerta y no a mitad de la calle.',
+  },
+  'salon.comoLlegar': {
+    type: 'texte', defaut: '', maxLongueur: 400,
+    libelle: 'Cómo llegar',
+    aide: 'Referencias, transporte y aparcamiento. Por ejemplo: « Frente a la farmacia, metro Sol a 3 minutos, aparcamiento en la plaza. »',
+  },
   'public.url': {
     type: 'url', defaut: '', maxLongueur: 300,
     libelle: 'Dirección pública del salón',
@@ -128,6 +138,43 @@ for (let j = 0; j < 7; j += 1) {
 }
 
 export const CLES = Object.keys(CATALOGUE);
+
+/* ------------------------------------------------------------------ */
+/*  Coordonnees                                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * « 40.416775, -3.703790 » — ce que Google Maps met dans le presse-papier.
+ *
+ * On accepte la virgule ET le point-virgule comme separateur, et on tolere les
+ * espaces : c'est ce qui sort d'un copier-coller sur telephone. On refuse en
+ * revanche la virgule DECIMALE, pourtant l'usage espagnol : « 40,41 , -3,70 »
+ * est indechiffrable sans deviner, et deviner la position d'un salon est la
+ * derniere chose a faire. Le gerant voit alors un message qui montre la forme
+ * attendue.
+ *
+ * @returns {string|null} la forme normalisee « lat,lon », ou null si illisible.
+ */
+export function normaliserCoordonnees(brut) {
+  const texte = String(brut ?? '').trim();
+  if (!texte) return null;
+  const parts = texte.split(/\s*[;,]\s*/);
+  if (parts.length !== 2) return null;
+
+  const nombres = parts.map((p) => {
+    const t = p.trim();
+    return /^[-+]?\d{1,3}(\.\d{1,8})?$/.test(t) ? Number(t) : Number.NaN;
+  });
+  const [lat, lon] = nombres;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+
+  // Le point (0, 0) est au large du golfe de Guinee : c'est ce que rend un
+  // champ a moitie rempli, jamais un salon.
+  if (lat === 0 && lon === 0) return null;
+
+  return lat + ',' + lon;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Conversion                                                         */
@@ -152,6 +199,8 @@ function depuisTexte(cle, brut) {
       return heureValide(brut) ? brut : '';
     case 'choix':
       return regle.options.some((o) => o.valeur === brut) ? brut : regle.defaut;
+    case 'coordenadas':
+      return normaliserCoordonnees(brut) || '';
     default:
       return String(brut);
   }
@@ -202,6 +251,16 @@ export function versTexte(cle, valeur) {
       }
       if (texte.length > (regle.maxLongueur ?? 300)) throw new ValidationError({ [cle]: 'Dirección demasiado larga.' });
       return texte;
+    }
+    case 'coordenadas': {
+      if (vide) return '';
+      const normalisees = normaliserCoordonnees(valeur);
+      if (!normalisees) {
+        throw new ValidationError({
+          [cle]: 'Se esperan dos números con punto decimal, separados por una coma. Ejemplo: 40.416775, -3.703790',
+        });
+      }
+      return normalisees;
     }
     case 'telephone': {
       if (vide) return '';

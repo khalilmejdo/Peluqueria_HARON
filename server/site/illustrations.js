@@ -327,3 +327,52 @@ const SCENES = [
 export function scenesDuSalon() {
   return SCENES.map(([legende, dessin]) => ({ legende, dessin }));
 }
+
+/* ------------------------------------------------------------------ */
+/*  Le plan                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Le plan de la section « Cómo llegar ».
+ *
+ * IL NE PRETEND PAS ETRE UNE CARTE. Aucune rue n'y porte de nom, aucune forme
+ * ne reprend le quartier : c'est un motif, comme le fauteuil ou les ciseaux.
+ * Une carte dessinee a la main qui ressemblerait a la vraie serait le pire des
+ * deux mondes — assez juste pour qu'on la suive, assez fausse pour qu'on se
+ * perde. L'adresse exacte et le bouton qui ouvre l'application de cartes du
+ * telephone sont juste a cote ; c'est eux qui font le travail.
+ *
+ * Une rue est mise en valeur et porte l'epingle : l'oeil sait ou regarder.
+ */
+export function planStylise() {
+  return '<svg class="illu illu--plan" viewBox="0 0 320 220" fill="none" aria-hidden="true" focusable="false">'
+    // Les ilots. Des rectangles arrondis tres pales : ils donnent la matiere
+    // du quartier sans rien affirmer.
+    + '<g class="plan__ilot">'
+    + '<rect x="18" y="18" width="92" height="64" rx="6"/>'
+    + '<rect x="128" y="18" width="70" height="64" rx="6"/>'
+    + '<rect x="216" y="18" width="86" height="42" rx="6"/>'
+    + '<rect x="18" y="106" width="92" height="46" rx="6"/>'
+    + '<rect x="216" y="86" width="86" height="66" rx="6"/>'
+    + '<rect x="18" y="176" width="130" height="26" rx="6"/>'
+    + '<rect x="168" y="176" width="134" height="26" rx="6"/>'
+    + '</g>'
+    // Les rues.
+    + '<g class="plan__rue">'
+    + '<path d="M0 94 H320"/>'
+    + '<path d="M0 164 H320"/>'
+    + '<path d="M119 0 V220"/>'
+    + '<path d="M207 0 V220"/>'
+    + '<path d="M216 72 H302"/>'
+    + '</g>'
+    // La notre, en laiton : celle que l'epingle designe.
+    + '<path class="plan__rue plan__rue--notre" d="M119 94 H207"/>'
+    // L'epingle, et l'onde qui en part. L'onde est purement decorative : elle
+    // attire l'oeil sur le point, elle ne mesure rien.
+    + '<circle class="plan__onde" cx="163" cy="94" r="12"/>'
+    + '<g class="plan__pin">'
+    + '<path d="M163 108 s-13-11.6-13-20.4a13 13 0 1 1 26 0c0 8.8-13 20.4-13 20.4Z"/>'
+    + '<circle cx="163" cy="87" r="4.6" class="plan__pin-oeil"/>'
+    + '</g>'
+    + '</svg>';
+}

@@ -732,6 +732,25 @@
 .champ--case { flex-direction: row; grid-template-columns: auto 1fr; align-items: center; }
 .champ--case input { width: 1.4rem; height: 1.4rem; min-height: 0; accent-color: var(--accent); }
 
+/* Une liste de choix ou un texte de plusieurs phrases tiennent toute la rangée :
+   dans une colonne de quatorze rem, on ne relit jamais ce qu'on a écrit. */
+.champ--large { grid-column: 1 / -1; }
+
+.champ textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: var(--r);
+  border: 1px solid var(--bordure);
+  background: var(--fond-carte-2);
+  color: var(--texte);
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+.champ textarea:focus { border-color: var(--laiton); }
+.champ--erreur textarea { border-color: var(--rouge); }
+
 .champ select {
   min-height: 3rem;
   padding: 0.6rem 0.9rem;

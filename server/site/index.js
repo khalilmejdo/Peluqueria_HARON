@@ -30,7 +30,7 @@ import { page, marque, entete, piedDePage, pageErreur } from './mise-en-page.js'
 import {
   matDeBarbier, fauteuil, ciseauxEtPeigne, iconeEtape, separateur,
   emblemeRond, ciseauxPetits, iconeLieu, iconeTelephone, iconeConversation,
-  scenesDuSalon,
+  scenesDuSalon, planStylise,
 } from './illustrations.js';
 import { iconeTarifa } from './icones-tarifas.js';
 import { photosDuSalon } from './galerie.js';
@@ -95,32 +95,26 @@ function ficheDePrix(lignes, nota) {
  * Le contact : ou venir, comment appeler.
  *
  * Chaque ligne n'apparait QUE si le reglage correspondant est rempli. Un salon
- * qui n'a pas encore saisi son adresse n'affiche pas un cadre vide — la
+ * qui n'a pas encore saisi son telephone n'affiche pas un cadre vide — la
  * section entiere disparait si rien n'est renseigne.
  *
- * L'adresse ouvre une carte, le telephone compose, le WhatsApp ouvre la
- * conversation : sur un telephone, ce sont trois gestes d'un seul appui. C'est
- * tout ce qu'on demande a un contact.
+ * Le telephone compose, le WhatsApp ouvre la conversation : sur un telephone,
+ * ce sont deux gestes d'un seul appui. C'est tout ce qu'on demande a un
+ * contact. L'adresse, elle, a sa propre section.
  */
 function contact(reglages, horaires) {
-  const adresse = reglages['salon.adresse'];
   const telephone = reglages['salon.telephone'];
   const whatsapp = reglages['salon.whatsapp'];
-  if (!adresse && !telephone && !whatsapp && !horaires) return '';
+  if (!telephone && !whatsapp && !horaires) return '';
 
   const numero = (v) => String(v).replace(/[^+0-9]/g, '');
 
   const cartes = [];
 
-  if (adresse) {
-    cartes.push('<a class="contacto" href="https://www.google.com/maps/search/?api=1&amp;query='
-      + encodeURIComponent(adresse) + '" target="_blank" rel="noopener noreferrer">'
-      + '<span class="contacto__icone" aria-hidden="true">' + iconeLieu() + '</span>'
-      + '<span class="contacto__quoi">Dónde estamos</span>'
-      + '<span class="contacto__valeur">' + escapeHtml(adresse) + '</span>'
-      + '<span class="contacto__action">Abrir en el mapa</span>'
-      + '</a>');
-  }
+  // L'adresse n'est PAS ici : elle a sa propre section, « Cómo llegar », avec
+  // le plan et le bouton qui ouvre l'application de cartes. La montrer aux deux
+  // endroits obligeait le client a choisir entre deux boutons qui font la meme
+  // chose — et un choix inutile est un temps d'arret.
 
   if (telephone) {
     cartes.push('<a class="contacto" href="tel:' + escapeHtml(numero(telephone)) + '">'
@@ -185,6 +179,64 @@ function galerie(photos) {
     + '<p class="seccion__intro">Así es la casa.</p>'
     + '</div>'
     + '<div class="galeria">' + vignettes + '</div>'
+    + '</section>';
+}
+
+/**
+ * « Cómo llegar » — ou est le salon, et comment y aller.
+ *
+ * LE BOUTON FAIT LE TRAVAIL, PAS LE DESSIN. Le plan a cote est un motif, il ne
+ * represente aucun quartier reel ; ce qui amene vraiment le client, c'est le
+ * bouton qui ouvre SON application de cartes, celle qu'il sait deja utiliser,
+ * avec la navigation, le trafic et les transports qu'elle connait.
+ *
+ * AUCUNE CARTE N'EST EMBARQUEE DANS LA PAGE. Un plan tiers charge dans un cadre
+ * verrait passer l'adresse IP de chaque visiteur avant meme qu'il ait clique,
+ * et il faudrait ouvrir « frame-src » dans la politique de securite du contenu
+ * pour tout le site. Ici, rien ne part tant que le client ne l'a pas demande.
+ *
+ * Les coordonnees, quand elles sont saisies, menent a LA PORTE du salon. Sans
+ * elles on retombe sur l'adresse en toutes lettres, qui atterrit souvent au
+ * milieu de la rue — d'ou l'aide du reglage, qui explique comment les relever.
+ */
+function localizacion(reglages) {
+  const adresse = reglages['salon.adresse'];
+  const coordonnees = reglages['salon.coordenadas'];
+  const commentVenir = reglages['salon.comoLlegar'];
+  if (!adresse && !coordonnees) return '';
+
+  const cible = coordonnees || adresse;
+  const itineraire = 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(cible);
+  const carte = coordonnees
+    ? 'https://www.openstreetmap.org/?mlat=' + encodeURIComponent(coordonnees.split(',')[0])
+      + '&mlon=' + encodeURIComponent(coordonnees.split(',')[1])
+      + '#map=18/' + coordonnees.split(',').join('/')
+    : 'https://www.openstreetmap.org/search?query=' + encodeURIComponent(adresse);
+
+  return '<section class="enveloppe seccion" id="como-llegar">'
+    + '<div class="seccion__tete">'
+    + '<h2 class="seccion__titulo">Cómo llegar</h2>'
+    + '<p class="seccion__intro">Estamos aquí.</p>'
+    + '</div>'
+    + '<div class="ubicacion">'
+    + '<div class="ubicacion__plan" aria-hidden="true">' + planStylise() + '</div>'
+    + '<div class="ubicacion__infos">'
+    + (adresse
+      ? '<p class="ubicacion__direccion">'
+        + '<span class="ubicacion__icone" aria-hidden="true">' + iconeLieu() + '</span>'
+        + escapeHtml(adresse) + '</p>'
+      : '')
+    + (commentVenir
+      ? '<p class="ubicacion__texto">' + escapeHtml(commentVenir) + '</p>'
+      : '')
+    + '<div class="ubicacion__botones">'
+    + '<a class="bouton bouton--principal" href="' + escapeHtml(itineraire) + '"'
+    + ' target="_blank" rel="noopener noreferrer">Cómo llegar</a>'
+    + '<a class="bouton bouton--discret" href="' + escapeHtml(carte) + '"'
+    + ' target="_blank" rel="noopener noreferrer">Ver en el mapa</a>'
+    + '</div>'
+    + '</div>'
+    + '</div>'
     + '</section>';
 }
 
@@ -319,6 +371,7 @@ siteRoutes.get('/', async (ctx) => {
     + separateur()
     + commentCaMarche()
     + contact(reglages, reglages['horaires.actifs'] ? horairesLisibles(reglages) : null)
+    + localizacion(reglages)
     + '<section class="enveloppe bandeau-qr">'
     + '<div class="bandeau-qr__illu" aria-hidden="true">' + fauteuil() + '</div>'
     + '<div class="bandeau-qr__texte-bloc">'
