@@ -236,12 +236,12 @@ ALTER TABLE tarifas ADD COLUMN IF NOT EXISTS icono text;
 -- une base existante ne change pas de comportement en la recevant.
 ALTER TABLE tarifas ADD COLUMN IF NOT EXISTS duracion_min integer NOT NULL DEFAULT 15;
 
-DO $ BEGIN
+DO $$ BEGIN
   ALTER TABLE tarifas ADD CONSTRAINT tarifas_duracion_plausible
     CHECK (duracion_min >= 1 AND duracion_min <= 240);
-EXCEPTION WHEN duplicate_object THEN NULL; END $;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-DO $ BEGIN
+DO $$ BEGIN
   ALTER TABLE tarifas ADD CONSTRAINT tarifas_prix_plausible
     CHECK (precio_cts >= 0 AND precio_cts <= 100000);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -504,10 +504,10 @@ CREATE INDEX IF NOT EXISTS ticket_tarifas_ticket ON ticket_tarifas (ticket_id, o
 -- la duree moyenne du salon, comme avant.
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS duree_min integer;
 
-DO $ BEGIN
+DO $$ BEGIN
   ALTER TABLE tickets ADD CONSTRAINT tickets_duree_plausible
     CHECK (duree_min IS NULL OR (duree_min >= 1 AND duree_min <= 480));
-EXCEPTION WHEN duplicate_object THEN NULL; END $;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ---------------------------------------------------------------------
 --  Abonnements aux notifications du personnel
