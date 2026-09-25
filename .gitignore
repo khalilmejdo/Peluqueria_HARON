@@ -19,3 +19,14 @@ photos/
 # duckdns.sh contient le jeton qui permet de detourner le nom de domaine du
 # salon. Sans cette ligne, un « git add -A » le publierait sur un depot PUBLIC.
 duckdns.sh
+
+# Ce qui n'est propre qu'a UNE machine, et qui ne doit jamais bloquer un
+# deploiement du salon.
+#
+# caddy.d/                 les autres sites heberges sur le meme serveur
+# docker-compose.local.yml reseaux, volumes ou services propres a la machine
+#
+# Les deux sont lus automatiquement : le Caddyfile importe caddy.d/*.caddy,
+# et deployer.sh ajoute docker-compose.local.yml s'il le trouve.
+caddy.d/
+docker-compose.local.yml

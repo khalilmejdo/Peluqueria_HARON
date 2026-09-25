@@ -630,6 +630,71 @@ restaurée n'est pas une sauvegarde.
 
 ---
 
+## 9 bis. Héberger une seconde application sur la même machine
+
+La machine peut servir plusieurs sites : le salon tient sur une fraction de ses
+cœurs. Mais **la configuration de l'autre application ne doit jamais vivre dans
+les fichiers suivis par git** — sinon chaque mise à jour du salon se retrouve
+bloquée par elle, avec un message qui ne dit pas pourquoi.
+
+Deux emplacements sont prévus pour ça. Tous deux sont ignorés par git : ce qu'on
+y met reste sur la machine et ne part jamais dans le dépôt, qui est public.
+
+### `caddy.d/*.caddy` — les autres sites
+
+Le `Caddyfile` les importe tout seul. Un dossier vide est le cas normal d'une
+installation qui n'héberge que le salon.
+
+```bash
+mkdir -p /opt/haron/caddy.d
+nano /opt/haron/caddy.d/mon-autre-site.caddy
+```
+
+```caddyfile
+mon-autre-site.example.org {
+	encode zstd gzip
+	reverse_proxy autre-app:3000
+}
+```
+
+Caddy demandera son certificat exactement comme pour le salon.
+
+### `docker-compose.local.yml` — ce qui n'appartient qu'à cette machine
+
+Un réseau partagé avec l'autre application, un volume, un service de plus.
+`deployer.sh` l'ajoute automatiquement s'il le trouve, en plus du fichier
+principal.
+
+```yaml
+services:
+  caddy:
+    networks:
+      - default
+      - proxy
+
+networks:
+  proxy:
+    external: true
+```
+
+> **Le nom du conteneur compte.** Sur un réseau partagé, deux services nommés
+> `app` se résolvent au hasard : donnez à l'autre application un alias qui lui
+> est propre — `location-app`, par exemple — et employez-le dans son bloc Caddy.
+
+> **Un port ne se partage pas.** Ce sont les ports 80 et 443 du Caddy du salon
+> qui servent tout le monde ; l'autre application ne les publie pas, elle est
+> jointe par le réseau interne. Deux conteneurs qui réclament le 443 ne
+> démarrent pas tous les deux, et le second échoue au lancement.
+
+> **Pourquoi ces deux fichiers existent.** Le 25 septembre 2026, la
+> configuration d'une seconde application avait été écrite directement dans le
+> `Caddyfile` et dans `docker-compose.oci.yml`. Les deux sont suivis par git :
+> le dossier est donc resté « sale » en permanence, et `deployer.sh` a refusé
+> toutes les mises à jour du salon jusqu'à ce qu'on comprenne pourquoi. Jeter
+> les modifications aurait mis l'autre application hors ligne.
+
+---
+
 ## 10. Mettre à jour
 
 ```bash

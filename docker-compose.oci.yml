@@ -54,6 +54,10 @@ services:
       COURRIEL_TLS: ${COURRIEL_TLS:?COURRIEL_TLS requis (avis d expiration Let s Encrypt)}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Les autres sites de la machine (voir la fin du Caddyfile). Le dossier
+      # est ignore par git : sa configuration reste ici et ne bloque plus les
+      # mises a jour du salon.
+      - ./caddy.d:/etc/caddy/conf.d:ro
       # Les certificats survivent aux redémarrages : sans ce volume, Caddy en
       # redemanderait à chaque fois et se ferait limiter par Let's Encrypt.
       - caddy_donnees:/data

@@ -36,7 +36,15 @@
 # =====================================================================
 set -eu
 
+# Le fichier de composition, plus celui qui n'appartient qu'a cette machine.
+#
+# `docker-compose.local.yml` est ignore par git. Il sert a ce qui ne peut pas
+# vivre dans le depot : un reseau partage avec une autre application, un volume
+# propre au serveur, un service de plus. Sans ce mecanisme, la seule facon
+# d'ajouter ces lignes etait de modifier le fichier suivi — et le dossier
+# devenait « sale », ce qui bloquait tous les deploiements suivants.
 COMPOSE="${COMPOSE:-docker compose -f docker-compose.oci.yml}"
+[ -f docker-compose.local.yml ] && COMPOSE="$COMPOSE -f docker-compose.local.yml"
 IMAGE="${IMAGE:-haron-app}"
 ATTENTE="${ATTENTE_SECONDES:-90}"
 

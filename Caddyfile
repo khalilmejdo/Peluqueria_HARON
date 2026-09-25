@@ -68,3 +68,24 @@
 		-Server
 	}
 }
+
+# =====================================================================
+#  CE QUI N'EST PROPRE QU'A CETTE MACHINE
+#
+#  Tout fichier `.caddy` depose dans `caddy.d/` est lu ici. C'est la que
+#  vivent les autres sites heberges sur le meme serveur — une seconde
+#  application, une redirection, un sous-domaine d'essai.
+#
+#  POURQUOI PAS DIRECTEMENT DANS CE FICHIER. Parce qu'il est suivi par git.
+#  Une ligne ajoutee a la main ici rend le dossier « sale », et
+#  `deployer.sh` refuse alors de partir : la mise a jour du salon se
+#  retrouve bloquee par la configuration d'une application qui n'a rien a
+#  voir. C'est exactement ce qui est arrive le 25 septembre.
+#
+#  `caddy.d/` est ignore par git : ce qu'on y met reste sur la machine, et
+#  ne part jamais dans un depot public.
+#
+#  Le motif n'a pas besoin de correspondre a quelque chose : un dossier
+#  vide est le cas normal d'une installation qui n'heberge que le salon.
+# =====================================================================
+import /etc/caddy/conf.d/*.caddy
