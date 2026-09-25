@@ -141,6 +141,19 @@ services:
     # Aucun port publié : l'application n'est joignable que par Caddy.
     expose:
       - "3000"
+    # Un nom qui n'appartient qu'au salon.
+    #
+    # Sur une machine qui heberge une seconde application, le nom de service
+    # « app » est presque toujours pris deux fois. Les deux conteneurs se
+    # retrouvent alors sous le meme nom sur le reseau partage, et Docker en
+    # designe un AU HASARD : le salon sert les pages de l autre site une fois
+    # sur deux, sans la moindre erreur nulle part.
+    #
+    # C'est arrive le 25 septembre 2026. Le Caddyfile vise donc « haron-app ».
+    networks:
+      default:
+        aliases:
+          - haron-app
 
   base:
     image: postgres:16-alpine

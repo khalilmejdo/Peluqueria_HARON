@@ -58,7 +58,12 @@
 {$DOMAINES} {
 	encode zstd gzip
 
-	reverse_proxy app:3000
+	# « haron-app », jamais « app ». Sur une machine qui heberge une seconde
+	# application, « app » designe souvent DEUX conteneurs : Docker en choisit
+	# alors un au hasard, et le salon sert les pages de l autre site une fois
+	# sur deux. L alias est declare dans docker-compose.oci.yml et il est
+	# unique ; sur une installation qui n heberge que le salon, rien ne change.
+	reverse_proxy haron-app:3000
 
 	# L'application pose déjà ses propres en-têtes de sécurité (CSP stricte,
 	# nosniff, frame-ancestors, Referrer-Policy). On n'ajoute ici que ce que

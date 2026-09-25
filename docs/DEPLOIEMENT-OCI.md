@@ -677,9 +677,16 @@ networks:
     external: true
 ```
 
-> **Le nom du conteneur compte.** Sur un réseau partagé, deux services nommés
-> `app` se résolvent au hasard : donnez à l'autre application un alias qui lui
-> est propre — `location-app`, par exemple — et employez-le dans son bloc Caddy.
+> **Le nom du conteneur compte, et ça se paie cher.** Sur un réseau partagé,
+> deux conteneurs nommés `app` se résolvent **au hasard** : le salon sert alors
+> les pages de l'autre site une fois sur deux, sans la moindre erreur nulle
+> part. C'est arrivé le 25 septembre 2026, et il a fallu regarder le titre de
+> la page servie pour le voir.
+>
+> Le salon vise donc `haron-app`, un alias qui n'appartient qu'à lui (déclaré
+> dans `docker-compose.oci.yml`). Donnez de même à l'autre application un alias
+> qui lui est propre — `location-app`, par exemple — et employez-le dans son
+> bloc Caddy. **Ne laissez jamais `app` des deux côtés.**
 
 > **Un port ne se partage pas.** Ce sont les ports 80 et 443 du Caddy du salon
 > qui servent tout le monde ; l'autre application ne les publie pas, elle est
