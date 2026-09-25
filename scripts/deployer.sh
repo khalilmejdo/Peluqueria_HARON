@@ -116,6 +116,29 @@ retour="${deployee:-$avant}"
 dire "construction et demarrage..."
 SOURCE_COMMIT="$apres" $COMPOSE up -d --build || echec "la construction a echoue. Le salon tourne toujours sur ${retour}."
 
+# CADDY NE RELIT PAS SON FICHIER TOUT SEUL.
+#
+# `up -d` recree l'application quand son image change, mais laisse Caddy en
+# place : son image est la meme, et Compose ne regarde pas le CONTENU d'un
+# fichier monte. Une modification du Caddyfile n'avait donc aucun effet, et le
+# conteneur continuait de servir la configuration chargee a son dernier
+# demarrage -- parfois des heures plus tot.
+#
+# C'est ce qui a fait servir, le 25 septembre 2026, les pages d'une autre
+# application sur les adresses du salon : le fichier etait corrige, Caddy ne
+# l'avait pas relu. Et rien ne le disait, puisque tout repondait 200.
+#
+# Un rechargement, pas un redemarrage : Caddy remplace sa configuration sans
+# fermer une seule connexion, et les flux temps reel ouverts chez les clients
+# ne sont pas coupes. S'il echoue, la configuration precedente reste en place —
+# on le dit, sans interrompre le deploiement, qui a deja reussi par ailleurs.
+dire "rechargement de la configuration de Caddy..."
+if ! $COMPOSE exec -T caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1; then
+  echo "  Le rechargement de Caddy a echoue : il garde sa configuration actuelle." >&2
+  echo "  Si le salon ne repond pas, recreez-le :" >&2
+  echo "    ${COMPOSE} up -d --force-recreate caddy" >&2
+fi
+
 # --- 4. attendre que le salon reponde ---------------------------------
 dire "attente de la reponse du salon (${ATTENTE} s au plus)..."
 reste="$ATTENTE"
