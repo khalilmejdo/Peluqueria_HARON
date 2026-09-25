@@ -126,8 +126,30 @@ while [ "$reste" -gt 0 ]; do
       | sed -n 's/.*"version" *: *"\([^"]*\)".*/\1/p' | head -n 1 || true)
     echo ""
     dire "EN LIGNE. Le salon sert ${servie:-?} (attendu ${apres})."
-    if [ -n "${servie:-}" ] && [ "$servie" != "$apres" ]; then
-      echo ""
+
+    # UN « 200 » NE PROUVE RIEN : IL FAUT SAVOIR QUI REPOND.
+    #
+    # Le 25 septembre 2026, une seconde application hebergee sur la meme
+    # machine repondait a la place du salon sur ses propres adresses. Son
+    # /healthz rendait 200, son format etait different, et ce script annoncait
+    # « EN LIGNE » sans sourciller. Un deploiement ne doit pas se declarer
+    # reussi parce qu'un serveur — n'importe lequel — a repondu.
+    #
+    # La version lue DOIT etre celle qu'on vient de construire. Vide vaut
+    # echec : elle est vide quand /api/version n'existe pas chez celui qui a
+    # repondu, c'est-a-dire precisement quand ce n'est pas le salon.
+    if [ -z "${servie:-}" ]; then
+      echo "" >&2
+      echo "  ATTENTION : quelque chose repond a cette adresse, mais ce n'est PAS" >&2
+      echo "  le salon — /api/version n'a rien rendu de lisible." >&2
+      echo "" >&2
+      echo "  Une autre application de la machine sert-elle ce nom ? Verifiez :" >&2
+      echo "    curl -s ${adresse%/healthz}/ | grep -o '<title>[^<]*</title>'" >&2
+      echo "    docker ps --format 'table {{.Names}}\\t{{.Ports}}'" >&2
+      exit 1
+    fi
+    if [ "$servie" != "$apres" ]; then
+      echo "" >&2
       echo "  ATTENTION : la version servie n'est pas celle qui vient d'etre" >&2
       echo "  construite. L'image n'a probablement pas ete reconstruite :" >&2
       echo "    ${COMPOSE} up -d --build --force-recreate app" >&2
