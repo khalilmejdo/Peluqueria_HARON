@@ -17,6 +17,7 @@
  * Toutes les formes utilisent `currentColor` ou les classes du theme : aucune
  * couleur n'est ecrite deux fois, ici et dans la feuille de style.
  */
+import { t } from '../core/langue.js';
 
 /**
  * Le mat de barbier — l'objet qui dit « barbier » sans un mot.
@@ -234,7 +235,7 @@ export function separateur() {
  * profondeur, et c'est le seul endroit du dessin ou une forme est pleine.
  */
 const SCENES = [
-  ['Nuestro salón', '<svg class="illu illu--scene" viewBox="0 0 320 200" fill="none" aria-hidden="true" focusable="false">'
+  ['scene.salon', '<svg class="illu illu--scene" viewBox="0 0 320 200" fill="none" aria-hidden="true" focusable="false">'
     + '<g class="illu__trait-fin">'
     // Le fond : le sol, les deux miroirs, le plan de travail continu.
     + '<path d="M18 176 H302"/>'
@@ -262,7 +263,7 @@ const SCENES = [
     + '<path d="M234 162 v14"/><path d="M218 176 H250"/>'
     + '</g></svg>'],
 
-  ['El sillón', '<svg class="illu illu--scene" viewBox="0 0 320 200" fill="none" aria-hidden="true" focusable="false">'
+  ['scene.fauteuil', '<svg class="illu illu--scene" viewBox="0 0 320 200" fill="none" aria-hidden="true" focusable="false">'
     + '<g class="illu__trait-fin">'
     + '<path d="M18 180 H302"/>'
     // Le grand miroir et sa couronne d'ampoules. Les ampoules sont DANS
@@ -293,7 +294,7 @@ const SCENES = [
     + '<path d="M124 158 h22"/><circle cx="150" cy="158" r="4"/>'
     + '</g></svg>'],
 
-  ['La entrada', '<svg class="illu illu--scene" viewBox="0 0 320 200" fill="none" aria-hidden="true" focusable="false">'
+  ['scene.entree', '<svg class="illu illu--scene" viewBox="0 0 320 200" fill="none" aria-hidden="true" focusable="false">'
     + '<g class="illu__trait-fin">'
     + '<path d="M14 186 H306"/>'
     // La facade, la vitrine, la porte.
@@ -321,11 +322,21 @@ const SCENES = [
 
 /**
  * Les scenes, sous la forme que la galerie attend : un titre et un dessin.
+ *
  * On rend une COPIE du tableau — l'appelant ne doit pas pouvoir vider la liste
  * pour tout le monde en la triant ou en la coupant.
+ *
+ * Le tableau porte des CLES, pas des legendes : les dessins sont les memes dans
+ * les deux langues, leurs titres non. La traduction se fait ici, a l'appel, et
+ * non au chargement du module — ce fichier est charge une fois, la langue peut
+ * changer apres.
+ *
+ * @param {(cle:string) => string} [tr] le traducteur de la page ; a defaut,
+ *        celui du salon.
  */
-export function scenesDuSalon() {
-  return SCENES.map(([legende, dessin]) => ({ legende, dessin }));
+export function scenesDuSalon(tr = null) {
+  const dire = tr ?? ((cle) => t(cle));
+  return SCENES.map(([cle, dessin]) => ({ legende: dire(cle), dessin }));
 }
 
 /* ------------------------------------------------------------------ */

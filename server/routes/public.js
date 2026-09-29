@@ -22,6 +22,7 @@ import { lireTous, adressePublique } from '../core/reglages.js';
 import { abonner, envoyerEtatInitial } from '../core/flux.js';
 import { jourLocal } from '../core/temps.js';
 import { prendreTour, ticketParJeton, chargerEtat, pourClient, annulerParClient, etatPriseDeTour } from '../domain/file.js';
+import { t } from '../core/langue.js';
 
 export const publicRoutes = new Router();
 
@@ -113,7 +114,7 @@ publicRoutes.get('/tickets/:jeton', async (ctx) => {
   const ticket = await chargerTicketDuJeton(ctx);
   const etat = await chargerEtat(ticket.jour);
   const vue = pourClient(etat, ticket.id);
-  if (!vue) throw notFound('Este enlace de seguimiento ya no sirve.');
+  if (!vue) throw notFound(t('req.lienPerime'));
   ctx.ok(vue);
 }, { public: true });
 
@@ -245,6 +246,6 @@ async function chargerTicketDuJeton(ctx, profil = PROFILES.suivi) {
     throw new AppError(429, 'Trop de demandes. Patientez quelques instants.', { details: { retryAfter: limite.retryAfterSeconds } });
   }
   const ticket = await ticketParJeton(jeton);
-  if (!ticket) throw notFound('Este enlace de seguimiento ya no sirve.');
+  if (!ticket) throw notFound(t('req.lienPerime'));
   return ticket;
 }

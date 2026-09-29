@@ -25,6 +25,7 @@
 import { newId } from '../core/crypto.js';
 import { jourLocal } from '../core/temps.js';
 import { log } from '../core/logger.js';
+import { t } from '../core/langue.js';
 
 /** Statuts qui occupent une place dans la file. */
 export const STATUTS_ACTIFS = ['WAITING', 'LATE', 'CALLED', 'IN_SERVICE'];
@@ -77,7 +78,7 @@ export async function verrouillerJournee(tx, jour) {
  * @param {{ par?: string, motif?: string }} [opts]
  * @returns {Promise<{ jour:string, annules:number }|null>} null si deja close
  */
-export async function cloturer(tx, jour, { par = 'cierre automático', motif = 'Jornada terminada: este turno no se ha atendido.' } = {}) {
+export async function cloturer(tx, jour, { par = t('journee.clotureAuto'), motif = t('journee.nonServi') } = {}) {
   const ligne = await verrouillerJournee(tx, jour);
   if (!ligne || !ligne.ouverte) return null;
 
@@ -98,12 +99,17 @@ export async function cloturer(tx, jour, { par = 'cierre automático', motif = '
   // Les messages WhatsApp encore en attente pour ces tickets n'ont plus lieu
   // d'etre : prevenir quelqu'un que son tour approche le lendemain matin serait
   // pire que de ne rien envoyer.
+  // Le texte passe en PARAMETRE. Une traduction interpolee dans la requete
+  // serait relue par PostgreSQL comme une expression — et c'est exactement ce
+  // qui est arrive ici : « t('journee.envoiAnnuleCloture') » a fini dans le SQL,
+  // ou aucune fonction « t » n'existe. La clotures de journee rendait un 500,
+  // donc le premier client du matin ne pouvait plus prendre son tour.
   await tx.execute(
     `UPDATE envois_whatsapp SET statut = 'DESACTIVE', contenu_enc = NULL,
-            derniere_erreur = 'Jornada cerrada antes del envío.'
+            derniere_erreur = $2
       WHERE statut = 'EN_ATTENTE'
         AND ticket_id IN (SELECT id FROM tickets WHERE jour = $1)`,
-    [jour],
+    [jour, t('journee.envoiAnnuleCloture')],
   );
 
   await tx.execute(
@@ -117,7 +123,7 @@ export async function cloturer(tx, jour, { par = 'cierre automático', motif = '
  * Clot toutes les journees ouvertes anterieures a `jour`.
  * @returns {Promise<Array<{jour:string, annules:number}>>}
  */
-export async function cloturerJourneesAnterieures(tx, jour, { par = 'nueva jornada' } = {}) {
+export async function cloturerJourneesAnterieures(tx, jour, { par = t('journee.nouvelle') } = {}) {
   const ouvertes = await tx.all(
     'SELECT jour FROM journees WHERE ouverte AND jour < $1 ORDER BY jour',
     [jour],

@@ -16,57 +16,39 @@
  */
 import { all, one, execute, transaction } from '../db/index.js';
 import { newId } from '../core/crypto.js';
-import { AppError, notFound, badRequest } from '../core/errors.js';
+// ValidationError manquait a cet import, et dureeValide() s'en sert : la duree
+// invalide ne levait donc pas un 422 qui nomme le champ, elle levait un
+// ReferenceError, c'est-a-dire une erreur 500. Deux defauts empiles au meme
+// endroit — le motif faux garantissait que le second se declenche toujours.
+import { AppError, notFound, badRequest, ValidationError } from '../core/errors.js';
 import { normalize, cleanSpaces } from '../core/text.js';
+import { t } from '../core/langue.js';
+import { montantLisible, centimesDepuisTexte, deviseActive } from '../core/devise.js';
 import { ICONES } from '../site/icones-tarifas.js';
 
 const COLONNES = 'id, nombre, precio_cts, nota, icono, duracion_min, ordre, visible, created_at, updated_at';
 
-/** Au-dela, ce n'est plus un prix de coiffure mais une faute de frappe. */
-const PRIX_MAX_CTS = 100000;
 const NOM_MAX = 60;
 const NOTA_MAX = 80;
+
+/** Une prestation prend au moins une minute, et pas plus de quatre heures. */
+const DUREE_MIN = 1;
+const DUREE_MAX = 240;
 
 /* ------------------------------------------------------------------ */
 /*  Prix : texte <-> centimes                                          */
 /* ------------------------------------------------------------------ */
 
 /**
- * Lit un prix saisi a la main et rend des CENTIMES.
+ * Le prix reste un ENTIER DE CENTIMES de bout en bout ; seule son ecriture
+ * depend de la monnaie du salon, et cette ecriture vit dans core/devise.js.
  *
- * Accepte « 14 », « 14,9 », « 14,90 », « 14.90 », « 14 € », « 14,90€ ». Refuse
- * tout le reste plutot que de deviner : un prix mal lu s'affiche au mur.
- *
- * Le calcul evite le flottant. `Math.round(14.9 * 100)` donnerait bien 1490,
- * mais `Math.round(1.005 * 100)` donne 100 et non 101 : on prefere assembler
- * les deux moities en entiers et ne jamais dependre de l'arrondi binaire.
+ * Les deux fonctions restent exportees sous leurs noms d'origine : elles sont
+ * appelees depuis les routes et les tests, et un renommage n'aurait rien apporte
+ * a un lecteur — « prixLegible » dit deja ce qu'il fait.
  */
-export function prixEnCentimes(entree) {
-  if (entree === null || entree === undefined) return null;
-  // Un entier deja en centimes (ce qu'envoie l'interface) passe tel quel.
-  if (typeof entree === 'number') {
-    return Number.isInteger(entree) && entree >= 0 && entree <= PRIX_MAX_CTS ? entree : null;
-  }
-  const texte = String(entree).trim().replace(/\s|€|EUR/gi, '').replace(',', '.');
-  if (!/^\d{1,4}(\.\d{1,2})?$/.test(texte)) return null;
-  const [euros, decimales = ''] = texte.split('.');
-  const centimes = Number(euros) * 100 + Number((decimales + '00').slice(0, 2));
-  return centimes <= PRIX_MAX_CTS ? centimes : null;
-}
-
-/**
- * Met un prix en forme a l'espagnole : virgule decimale, espace avant l'euro.
- * Les centimes a zero ne s'ecrivent pas — une fiche de prix de salon annonce
- * « 14 € », pas « 14,00 € ».
- */
-export function prixLegible(centimes) {
-  const n = Number(centimes) || 0;
-  const euros = Math.floor(n / 100);
-  const cts = n % 100;
-  return cts === 0
-    ? euros + ' €'
-    : euros + ',' + String(cts).padStart(2, '0') + ' €';
-}
+export const prixEnCentimes = centimesDepuisTexte;
+export const prixLegible = montantLisible;
 
 /* ------------------------------------------------------------------ */
 /*  Lectures                                                           */
@@ -114,14 +96,14 @@ export async function pourVitrine() {
 
 function nomValide(valeur) {
   const nom = cleanSpaces(String(valeur ?? ''));
-  if (!nom) throw badRequest('Indique el nombre del servicio.');
-  if (nom.length > NOM_MAX) throw badRequest('El nombre del servicio no puede pasar de ' + NOM_MAX + ' caracteres.');
+  if (!nom) throw badRequest(t('tarifa.nomRequis'));
+  if (nom.length > NOM_MAX) throw badRequest(t('tarifa.nomTropLong', { max: NOM_MAX }));
   return nom;
 }
 
 function notaValide(valeur) {
   const nota = cleanSpaces(String(valeur ?? ''));
-  if (nota.length > NOTA_MAX) throw badRequest('La nota no puede pasar de ' + NOTA_MAX + ' caracteres.');
+  if (nota.length > NOTA_MAX) throw badRequest(t('tarifa.notaTropLongue', { max: NOTA_MAX }));
   return nota;
 }
 
@@ -136,9 +118,21 @@ function iconeValide(valeur) {
   return ICONES.includes(nom) ? nom : null;
 }
 
+/**
+ * Les exemples du message d'erreur suivent la monnaie du salon.
+ *
+ * « Escriba un precio como « 14 » o « 14,90 » » n'aide pas un gerant marocain :
+ * une coupe a 14 dirhams n'existe pas, et l'exemple lui fait douter de l'unite
+ * plutot que de la forme. On montre donc un ordre de grandeur credible.
+ */
+const EXEMPLES_PRIX = { MAD: ['80', '99,50'], EUR: ['14', '14,90'] };
+
 function prixValide(valeur) {
   const cts = prixEnCentimes(valeur);
-  if (cts === null) throw badRequest('Escriba un precio como « 14 » o « 14,90 ».');
+  if (cts === null) {
+    const [exemple1, exemple2] = EXEMPLES_PRIX[deviseActive()] ?? EXEMPLES_PRIX.EUR;
+    throw badRequest(t('tarifa.prixInvalide', { exemple1, exemple2 }));
+  }
   return cts;
 }
 
@@ -151,10 +145,10 @@ function prixValide(valeur) {
  */
 function traduireErreur(err) {
   if (err?.constraint === 'tarifas_nom_unique' || err?.code === '23505') {
-    return new AppError(409, 'Ya existe un servicio con ese nombre.', { code: 'TARIFA_DUPLICADA' });
+    return new AppError(409, t('tarifa.dupliquee'), { code: 'TARIFA_DUPLICADA' });
   }
-  if (err?.constraint === 'tarifas_prix_plausible') return badRequest('El precio está fuera de lo razonable.');
-  if (err?.constraint === 'tarifas_nom_non_vide') return badRequest('Indique el nombre del servicio.');
+  if (err?.constraint === 'tarifas_prix_plausible') return badRequest(t('tarifa.prixDeraisonnable'));
+  if (err?.constraint === 'tarifas_nom_non_vide') return badRequest(t('tarifa.nomRequis'));
   return err;
 }
 
@@ -167,12 +161,17 @@ function traduireErreur(err) {
  */
 export function dureeValide(valeur) {
   const texte = String(valeur ?? '').trim();
-  if (!/^d{1,3}$/.test(texte)) {
-    throw new ValidationError({ duracion: 'Indique los minutos, en números enteros.' });
+  // « \d », et non « d ». L'antislash manquait : le motif exigeait la LETTRE d,
+  // donc « 15 » etait refuse et « d » accepte. Consequence, silencieuse parce
+  // que le message d'erreur restait plausible — aucune duree ne pouvait plus
+  // etre enregistree, et l'attente annoncee retombait sur la moyenne du salon
+  // pour toutes les prestations.
+  if (!/^\d{1,3}$/.test(texte)) {
+    throw new ValidationError({ duracion: t('tarifa.dureeEntiere') });
   }
   const n = Number(texte);
-  if (n < 1 || n > 240) {
-    throw new ValidationError({ duracion: 'Entre 1 y 240 minutos.' });
+  if (n < DUREE_MIN || n > DUREE_MAX) {
+    throw new ValidationError({ duracion: t('tarifa.dureeBornes', { min: DUREE_MIN, max: DUREE_MAX }) });
   }
   return n;
 }
@@ -203,7 +202,7 @@ export async function crear({ nombre, precio, nota, icono, duracion } = {}) {
 /** Modifie une prestation. Les champs absents ne bougent pas. */
 export async function modificar(id, champs = {}) {
   const actuel = await parId(id);
-  if (!actuel) throw notFound('Servicio no encontrado.');
+  if (!actuel) throw notFound(t('tarifa.introuvable'));
 
   const nom = champs.nombre === undefined ? actuel.nombre : nomValide(champs.nombre);
   const cts = champs.precio === undefined ? actuel.precio_cts : prixValide(champs.precio);
@@ -232,7 +231,7 @@ export async function modificar(id, champs = {}) {
  */
 export async function eliminar(id) {
   const n = await execute('DELETE FROM tarifas WHERE id = $1', [id]);
-  if (!n) throw notFound('Servicio no encontrado.');
+  if (!n) throw notFound(t('tarifa.introuvable'));
   return true;
 }
 
@@ -250,18 +249,16 @@ export async function eliminar(id) {
  * temps. Appliquer quand meme perdrait silencieusement cette ligne.
  */
 export async function reordenar(ids) {
-  if (!Array.isArray(ids) || !ids.length) throw badRequest('Envíe el orden completo de la lista.');
+  if (!Array.isArray(ids) || !ids.length) throw badRequest(t('tarifa.ordreIncomplet'));
 
   return transaction(async (tx) => {
     const lignes = (await tx.query('SELECT id FROM tarifas ORDER BY id FOR UPDATE')).rows;
     const connus = new Set(lignes.map((l) => l.id));
     const recus = new Set(ids);
 
-    if (recus.size !== ids.length) throw badRequest('La lista enviada repite un servicio.');
+    if (recus.size !== ids.length) throw badRequest(t('tarifa.ordreRepete'));
     if (recus.size !== connus.size || [...recus].some((id) => !connus.has(id))) {
-      throw new AppError(409,
-        'La lista ha cambiado mientras la reordenabas. Recarga la página e inténtalo de nuevo.',
-        { code: 'TARIFAS_DESFASADAS' });
+      throw new AppError(409, t('tarifa.listeDesyncro'), { code: 'TARIFAS_DESFASADAS' });
     }
 
     for (let i = 0; i < ids.length; i += 1) {
@@ -280,7 +277,7 @@ export async function reordenar(ids) {
  * de se bloquer mutuellement.
  */
 export async function mover(id, sens) {
-  if (sens !== 'arriba' && sens !== 'abajo') throw badRequest('Sentido no válido.');
+  if (sens !== 'arriba' && sens !== 'abajo') throw badRequest(t('tarifa.sensInvalide'));
 
   return transaction(async (tx) => {
     const lignes = (await tx.query(
@@ -288,7 +285,7 @@ export async function mover(id, sens) {
     )).rows;
 
     const i = lignes.findIndex((l) => l.id === id);
-    if (i < 0) throw notFound('Servicio no encontrado.');
+    if (i < 0) throw notFound(t('tarifa.introuvable'));
     const j = sens === 'arriba' ? i - 1 : i + 1;
     if (j < 0 || j >= lignes.length) return false; // deja en bout de liste
 

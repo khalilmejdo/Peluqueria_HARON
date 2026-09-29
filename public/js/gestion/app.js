@@ -10,6 +10,7 @@
  */
 import { api, poserCsrf, surSessionPerdue, ErreurApi } from './api.js';
 import { el, remplacer, annoncer } from './dom.js';
+import { t } from '../langue.js';
 import { vueFile, brancherFlux, debrancherFlux } from './vue-file.js';
 import { vueReglages } from './vue-reglages.js';
 import { vueStatistiques } from './vue-statistiques.js';
@@ -23,17 +24,40 @@ const racine = document.getElementById('application');
 export const etat = {
   utilisateur: null,
   onglet: 'file',
+  /** Declaree par le serveur avec la session ; voir motDePasseMin(). */
+  motDePasseMin: null,
 };
 
+/**
+ * Les onglets portent une CLE de texte, pas un libelle.
+ *
+ * Ce tableau est construit une fois au chargement du module ; un libelle ecrit
+ * ici aurait ete fige dans la langue du premier rendu, et la barre de navigation
+ * serait restee en espagnol apres un passage en francais — le genre
+ * d'incoherence qui fait croire que l'enregistrement a echoue.
+ *
+ * La cle de texte est distincte de la cle d'onglet : celle-ci se retrouve dans
+ * l'adresse (« /gestion#tarifas ») et ne doit jamais changer, sous peine de
+ * casser les liens que le personnel a mis en favori.
+ */
 const ONGLETS = [
-  { cle: 'file', libelle: 'La fila', rendre: vueFile },
-  { cle: 'tarifas', libelle: 'Tarifas', rendre: vueTarifas, gerant: true },
-  { cle: 'affiche', libelle: 'Código QR', rendre: vueAffiche },
-  { cle: 'statistiques', libelle: 'Cifras', rendre: vueStatistiques },
-  { cle: 'fermetures', libelle: 'Vacaciones', rendre: vueFermetures, gerant: true },
-  { cle: 'reglages', libelle: 'Ajustes', rendre: vueReglages, gerant: true },
-  { cle: 'comptes', libelle: 'Cuentas', rendre: vueComptes, gerant: true },
+  { cle: 'file', texte: 'nav.file', rendre: vueFile },
+  { cle: 'tarifas', texte: 'nav.tarifs', rendre: vueTarifas, gerant: true },
+  { cle: 'affiche', texte: 'nav.qr', rendre: vueAffiche },
+  { cle: 'statistiques', texte: 'nav.chiffres', rendre: vueStatistiques },
+  { cle: 'fermetures', texte: 'nav.conges', rendre: vueFermetures, gerant: true },
+  { cle: 'reglages', texte: 'nav.reglages', rendre: vueReglages, gerant: true },
+  { cle: 'comptes', texte: 'nav.comptes', rendre: vueComptes, gerant: true },
 ];
+
+/**
+ * La longueur minimale d'un mot de passe, telle que LE SERVEUR la declare.
+ *
+ * Elle arrive avec la session, donc elle ne peut pas mentir : c'est la meme
+ * valeur qui accepte ou refuse la saisie. Le defaut ne sert qu'a la fraction de
+ * seconde qui precede la premiere reponse du serveur.
+ */
+const motDePasseMin = () => etat.motDePasseMin || 12;
 
 const estGerant = () => etat.utilisateur?.role === 'GERANT';
 const ongletsVisibles = () => ONGLETS.filter((o) => !o.gerant || estGerant());
@@ -62,13 +86,13 @@ function champMotDePasse(entree) {
   const bouton = el('button.champ__oeil', {
     type: 'button',
     'aria-pressed': 'false',
-    'aria-label': 'Mostrar la contraseña',
-    title: 'Mostrar la contraseña',
+    'aria-label': t('connexion.montrerMotDePasse'),
+    title: t('connexion.montrerMotDePasse'),
     surClick: () => {
       const visible = entree.type === 'text';
       entree.type = visible ? 'password' : 'text';
       bouton.setAttribute('aria-pressed', visible ? 'false' : 'true');
-      const libelle = visible ? 'Mostrar la contraseña' : 'Ocultar la contraseña';
+      const libelle = t(visible ? 'connexion.montrerMotDePasse' : 'connexion.cacherMotDePasse');
       bouton.setAttribute('aria-label', libelle);
       bouton.setAttribute('title', libelle);
       // Le curseur revient dans le champ, a la fin : sans cela, continuer a
@@ -87,14 +111,14 @@ function ecranConnexion({ message = null } = {}) {
 
   const identifiant = el('input', { id: 'c-identifiant', name: 'identifiant', type: 'text', autocomplete: 'username', required: true, autocapitalize: 'none', spellcheck: 'false' });
   const motDePasse = el('input', { id: 'c-motdepasse', name: 'motDePasse', type: 'password', autocomplete: 'current-password', required: true });
-  const bouton = el('button.bouton.bouton--principal.bouton--geant', { type: 'submit', texte: 'Entrar' });
+  const bouton = el('button.bouton.bouton--principal.bouton--geant', { type: 'submit', texte: t('connexion.entrer') });
 
   const formulaire = el('form.formulaire', {
     surSubmit: async (evenement) => {
       evenement.preventDefault();
       erreur.hidden = true;
       bouton.disabled = true;
-      bouton.textContent = 'Un momento…';
+      bouton.textContent = t('commun.unMoment');
       try {
         const reponse = await api.post('/api/auth/login', {
           identifiant: identifiant.value.trim(),
@@ -102,28 +126,30 @@ function ecranConnexion({ message = null } = {}) {
         });
         poserCsrf(reponse.csrfToken);
         etat.utilisateur = reponse.utilisateur;
+        etat.motDePasseMin = reponse.motDePasseMin ?? etat.motDePasseMin;
         motDePasse.value = '';
         rendre();
       } catch (err) {
         erreur.textContent = err.message;
         erreur.hidden = false;
         bouton.disabled = false;
-        bouton.textContent = 'Entrar';
+        bouton.textContent = t('connexion.entrer');
         motDePasse.focus();
         motDePasse.select();
       }
     },
   },
   erreur,
-  el('div.champ', el('label', { for: 'c-identifiant', texte: 'Usuario' }), identifiant),
-  el('div.champ', el('label', { for: 'c-motdepasse', texte: 'Contraseña' }), champMotDePasse(motDePasse)),
+  el('div.champ', el('label', { for: 'c-identifiant', texte: t('connexion.identifiant') }), identifiant),
+  el('div.champ', el('label', { for: 'c-motdepasse', texte: t('connexion.motDePasse') }), champMotDePasse(motDePasse)),
   bouton);
 
   return el('main.enveloppe.page-etroite#principal',
     el('div.connexion',
-      el('p.pastille', { texte: 'Área del salón' }),
+      el('p.pastille', { texte: t('connexion.titre') }),
+      // Le nom de l'enseigne ne se traduit pas.
       el('h1.titre-page', { texte: 'Peluquería HARON' }),
-      el('p.texte-doux', { texte: 'Entra para llevar la fila del día.' }),
+      el('p.texte-doux', { texte: t('connexion.sousTitre') }),
       el('section.carte', formulaire),
       /*
        * LA SORTIE. Apres « Salir », on atterrit ici — et sans ce lien, le seul
@@ -135,7 +161,7 @@ function ecranConnexion({ message = null } = {}) {
        * nouvel onglet au clic du milieu, et le navigateur le montre au survol.
        */
       el('div.connexion__sortie',
-        el('a.bouton.bouton--discret', { href: '/', texte: 'Ir a la página del salón' }))));
+        el('a.bouton.bouton--discret', { href: '/', texte: t('nav.pageDuSalon') }))));
 }
 
 /* ------------------------------------------------------------------ */
@@ -145,8 +171,11 @@ function ecranConnexion({ message = null } = {}) {
 function ecranMotDePasse() {
   const erreur = el('p.alerte.alerte--refus', { role: 'alert', hidden: true });
   const actuel = el('input', { id: 'm-actuel', type: 'password', autocomplete: 'current-password', required: true });
-  const nouveau = el('input', { id: 'm-nouveau', type: 'password', autocomplete: 'new-password', required: true, minlength: '12' });
-  const bouton = el('button.bouton.bouton--principal.bouton--geant', { type: 'submit', texte: 'Guardar' });
+  const nouveau = el('input', {
+    id: 'm-nouveau', type: 'password', autocomplete: 'new-password', required: true,
+    minlength: String(motDePasseMin()),
+  });
+  const bouton = el('button.bouton.bouton--principal.bouton--geant', { type: 'submit', texte: t('commun.guardar') });
 
   const formulaire = el('form.formulaire', {
     surSubmit: async (evenement) => {
@@ -156,7 +185,7 @@ function ecranMotDePasse() {
       try {
         await api.post('/api/auth/mot-de-passe', { actuel: actuel.value, nouveau: nouveau.value });
         etat.utilisateur = { ...etat.utilisateur, doitChangerMotDePasse: false };
-        annoncer('Contraseña guardada.');
+        annoncer(t('connexion.motDePasseEnregistre'));
         rendre();
       } catch (err) {
         erreur.textContent = err.message;
@@ -166,14 +195,14 @@ function ecranMotDePasse() {
     },
   },
   erreur,
-  el('div.champ', el('label', { for: 'm-actuel', texte: 'Contraseña actual' }), champMotDePasse(actuel)),
-  el('div.champ', el('label', { for: 'm-nouveau', texte: 'Contraseña nueva' }), champMotDePasse(nouveau),
-    el('p.champ__aide', { texte: 'Al menos 12 caracteres.' })),
+  el('div.champ', el('label', { for: 'm-actuel', texte: t('connexion.motDePasseActuel') }), champMotDePasse(actuel)),
+  el('div.champ', el('label', { for: 'm-nouveau', texte: t('connexion.motDePasseNouveau') }), champMotDePasse(nouveau),
+    el('p.champ__aide', { texte: t('connexion.auMoins', { n: motDePasseMin() }) })),
   bouton);
 
   return el('main.enveloppe.page-etroite#principal',
-    el('h1.titre-page', { texte: 'Elige tu contraseña' }),
-    el('p.texte-doux', { texte: 'Esta cuenta todavía usa una contraseña provisional. Cámbiala para continuar.' }),
+    el('h1.titre-page', { texte: t('connexion.choisirMotDePasse') }),
+    el('p.texte-doux', { texte: t('connexion.motDePasseProvisoire') }),
     el('section.carte', formulaire));
 }
 
@@ -223,7 +252,7 @@ function barre() {
   const onglets = ongletsVisibles().map((o) => el('button.onglet', {
     type: 'button',
     'aria-current': etat.onglet === o.cle ? 'page' : null,
-    texte: o.libelle,
+    texte: t(o.texte),
     surClick: () => {
       fermerTiroir();
       if (etat.onglet === o.cle) return;
@@ -236,7 +265,7 @@ function barre() {
   const ouvrir = el('button.gestion__menu', {
     type: 'button',
     'aria-expanded': 'false',
-    'aria-label': 'Secciones',
+    'aria-label': t('nav.sections'),
     donnees: { ouvrirTiroir: '1' },
     surClick: ouvrirTiroir,
   }, el('span.gestion__menu-barres', { 'aria-hidden': 'true' }));
@@ -249,20 +278,20 @@ function barre() {
         el('span.marque__haron', { texte: 'HARON' })),
       el('div.tiroir__voile', { donnees: { voile: '1' }, surClick: fermerTiroir }),
       el('nav.onglets', {
-        'aria-label': 'Secciones',
+        'aria-label': t('nav.sections'),
         donnees: { tiroir: '1' },
       },
       el('div.tiroir__tete',
-        el('span.tiroir__titre', { texte: 'Secciones' }),
+        el('span.tiroir__titre', { texte: t('nav.sections') }),
         el('button.tiroir__fermer', {
-          type: 'button', 'aria-label': 'Cerrar el menú', texte: '×', surClick: fermerTiroir,
+          type: 'button', 'aria-label': t('nav.fermerMenu'), texte: '×', surClick: fermerTiroir,
         })),
       onglets),
       el('div.gestion__compte',
         el('span.gestion__qui', { texte: etat.utilisateur?.nomComplet || etat.utilisateur?.identifiant || '' }),
         el('button.bouton.bouton--discret.bouton--petit', {
           type: 'button',
-          texte: 'Salir',
+          texte: t('nav.sortir'),
           surClick: async () => {
             debrancherFlux();
             await api.post('/api/auth/logout').catch(() => {});
@@ -295,7 +324,10 @@ export function rendre() {
 
   onglet.rendre(contenu, { etat, rendre }).catch((err) => {
     remplacer(contenu, el('div.enveloppe.page-etroite',
-      el('p.alerte.alerte--refus', { role: 'alert', texte: err instanceof ErreurApi ? err.message : 'No se ha podido cargar esta pantalla.' })));
+      el('p.alerte.alerte--refus', {
+        role: 'alert',
+        texte: err instanceof ErreurApi ? err.message : t('nav.chargementEchoue'),
+      })));
   });
 
   if (onglet.cle === 'file') brancherFlux(contenu);
@@ -326,6 +358,7 @@ try {
   const session = await api.get('/api/auth/session');
   poserCsrf(session.csrfToken);
   etat.utilisateur = session.utilisateur;
+  etat.motDePasseMin = session.motDePasseMin ?? null;
 } catch {
   etat.utilisateur = null;
 }

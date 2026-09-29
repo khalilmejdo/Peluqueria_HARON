@@ -20,6 +20,7 @@
  * `createElement` et `textContent`. Un prenom contenant « <script> » n'est,
  * au pire, qu'un prenom bizarre sur un televiseur.
  */
+import { t } from './langue.js';
 
 /**
  * Le document n'existe pas quand ce fichier est importe par un test, qui ne
@@ -64,7 +65,7 @@ function carte(tour, classe) {
 
 function liste(tours, classe, carteClasse) {
   const ul = el('ul', 'tours ' + classe);
-  for (const t of tours) ul.append(carte(t, carteClasse));
+  for (const tour of tours) ul.append(carte(tour, carteClasse));
   return ul;
 }
 
@@ -85,16 +86,18 @@ export function construireCorps(vue) {
   const vedette = el('section', 'pantalla__vedette');
   if (vue.appeles.length || vue.auFauteuil.length) {
     vedette.append(el('p', 'pantalla__label', vue.appeles.length
-      ? (vue.appeles.length > 1 ? 'Es vuestro turno' : 'Es tu turno')
-      : 'En el sillón'));
+      ? t(vue.appeles.length > 1 ? 'pantalla.cestATous' : 'pantalla.cestAToi')
+      : t('pantalla.auFauteuil')));
     const ul = el('ul', 'tours tours--vedette');
-    for (const t of vue.appeles) ul.append(carte(t, 'tour--appele'));
-    for (const t of vue.auFauteuil) ul.append(carte(t, 'tour--service'));
+    // « tour » et non « t » : « t » est le traducteur, et l ombrer dans une
+    // boucle ferait qu un futur appel a t() y recevrait un ticket.
+    for (const tour of vue.appeles) ul.append(carte(tour, 'tour--appele'));
+    for (const tour of vue.auFauteuil) ul.append(carte(tour, 'tour--service'));
     vedette.append(ul);
   } else {
     vedette.classList.add('pantalla__vedette--vide');
-    vedette.append(el('p', 'pantalla__label', vue.ouverte ? 'Sillón libre' : 'Jornada cerrada'));
-    vedette.append(el('p', 'pantalla__vide', vue.ouverte ? 'Pasa cuando quieras.' : 'Hasta mañana.'));
+    vedette.append(el('p', 'pantalla__label', t(vue.ouverte ? 'pantalla.fauteuilLibre' : 'pantalla.journeeClose')));
+    vedette.append(el('p', 'pantalla__vide', t(vue.ouverte ? 'pantalla.passeQuandTuVeux' : 'pantalla.aDemain')));
   }
   fragment.append(vedette);
 
@@ -102,10 +105,10 @@ export function construireCorps(vue) {
   suite.append(el('p', 'pantalla__label', 'Siguientes'));
   if (vue.attente.length) {
     suite.append(liste(vue.attente, 'tours--suite', 'tour--attente'));
-    if (vue.deplus) suite.append(el('p', 'pantalla__deplus', 'y ' + vue.deplus + ' más'));
+    if (vue.deplus) suite.append(el('p', 'pantalla__deplus', t('pantalla.etDePlus', { n: vue.deplus })));
   } else {
     suite.classList.add('pantalla__suite--vide');
-    suite.append(el('p', 'pantalla__vide', 'Nadie esperando.'));
+    suite.append(el('p', 'pantalla__vide', t('pantalla.personneEnAttente')));
   }
   fragment.append(suite);
 

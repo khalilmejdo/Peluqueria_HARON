@@ -5,6 +5,7 @@
  * n'ajoute que le direct et le confort. Aucune donnee n'est insere en HTML,
  * uniquement par textContent : une injection n'a donc aucune prise.
  */
+import { t } from './langue.js';
 
 /* ------------------------------------------------------------------ */
 /*  Hors ligne                                                         */
@@ -55,7 +56,7 @@ export function bandeauHorsLigne() {
   bandeau.className = 'hors-ligne';
   bandeau.setAttribute('role', 'status');
   bandeau.hidden = true;
-  bandeau.textContent = 'Sin conexión — mostramos lo último que sabemos.';
+  bandeau.textContent = t('commun.horsLigne');
   document.body.prepend(bandeau);
 
   let echecs = 0;
@@ -114,7 +115,7 @@ export async function envoyer(url, { methode = 'POST', corps = null } = {}) {
     donnees = null;
   }
   if (!reponse.ok) {
-    const message = donnees?.error?.message || 'El servicio no está disponible ahora mismo. Inténtalo en un instante.';
+    const message = donnees?.error?.message || t('commun.serviceIndisponible');
     const erreur = new Error(message);
     erreur.statut = reponse.status;
     erreur.details = donnees?.error?.details ?? null;

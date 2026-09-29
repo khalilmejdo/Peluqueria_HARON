@@ -8,16 +8,7 @@
  */
 import { api, ErreurApi } from './api.js';
 import { el, remplacer, annoncer } from './dom.js';
-
-const JOURS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-const MOIS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-
-function dateLongue(iso) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
-  if (!m) return String(iso || '');
-  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
-  return JOURS[d.getUTCDay()] + ' ' + Number(m[3]) + ' de ' + MOIS[Number(m[2]) - 1] + ' de ' + m[1];
-}
+import { t, dateLongue } from '../langue.js';
 
 export async function vueFermetures(conteneur, { etat }) {
   const donnees = await api.get('/api/fermetures');
@@ -39,8 +30,8 @@ export async function vueFermetures(conteneur, { etat }) {
 
   const enCours = donnees.enCours
     ? el('section.carte.fermeture-active',
-      el('p.pastille', { texte: 'Ahora mismo' }),
-      el('h2.reglages__titre', { texte: 'El salón está cerrado' }),
+      el('p.pastille', { texte: t('conges.maintenant') }),
+      el('h2.reglages__titre', { texte: t('conges.salonFerme') }),
       el('p.texte-doux', { texte: donnees.enCours.message }))
     : null;
 
@@ -52,20 +43,20 @@ export async function vueFermetures(conteneur, { etat }) {
       el('span.fermeture__separateur', { texte: f.du === f.au ? '' : ' → ' }),
       f.du === f.au ? null : el('span.fermeture__au', { texte: dateLongue(f.au) })),
     el('p.fermeture__meta',
-      el('span', { texte: f.jours + ' día' + (f.jours > 1 ? 's' : '') }),
+      el('span', { texte: t('conges.jours', { n: f.jours }) }),
       f.motif ? el('span', { texte: '· ' + f.motif }) : null,
-      f.enCours ? el('span.fermeture__badge', { texte: 'en curso' }) : null),
+      f.enCours ? el('span.fermeture__badge', { texte: t('conges.badgeEnCours') }) : null),
     el('button.bouton.bouton--discret.bouton--petit.bouton--danger', {
       type: 'button',
-      texte: 'Borrar',
+      texte: t('commun.supprimer'),
       surClick: async () => {
-        if (!window.confirm('¿Borrar el cierre del ' + dateLongue(f.du) + '?\nLos clientes podrán volver a pedir turno en esas fechas.')) return;
+        if (!window.confirm(t('conges.confirmerSuppression', { date: dateLongue(f.du) }))) return;
         try {
           await api.supprimer('/api/fermetures/' + f.id);
-          dire('Periodo borrado.', true);
+          dire(t('conges.periodeSupprimee'), true);
           await recharger();
         } catch (err) {
-          dire(err instanceof ErreurApi ? err.message : 'No se ha podido borrar.');
+          dire(err instanceof ErreurApi ? err.message : t('conges.echecSuppression'));
         }
       },
     })));
@@ -74,7 +65,7 @@ export async function vueFermetures(conteneur, { etat }) {
 
   const du = el('input', { id: 'f-du', type: 'date', required: true, min: donnees.aujourdhui });
   const au = el('input', { id: 'f-au', type: 'date', required: true, min: donnees.aujourdhui });
-  const motif = el('input', { id: 'f-motif', type: 'text', maxlength: '120', placeholder: 'Vacaciones de agosto, festivo…' });
+  const motif = el('input', { id: 'f-motif', type: 'text', maxlength: '120', placeholder: t('conges.motifExemple') });
 
   // Choisir une date de debut sans date de fin est le cas courant (« je ferme
   // ce jour-là ») : on remplit la fin toute seule, l'utilisateur corrige s'il
@@ -93,37 +84,38 @@ export async function vueFermetures(conteneur, { etat }) {
           au: au.value || du.value,
           motif: motif.value.trim() || undefined,
         });
-        dire('Periodo guardado. Los clientes ya están informados.', true);
+        dire(t('conges.periodeEnregistree'), true);
         await recharger();
       } catch (err) {
-        dire(err instanceof ErreurApi ? err.message : 'No se ha podido guardar.');
+        dire(err instanceof ErreurApi ? err.message : t('conges.echecEnregistrement'));
       }
     },
   },
   el('div.reglages__grille',
-    el('div.champ', el('label', { for: 'f-du', texte: 'Desde' }), du),
-    el('div.champ', el('label', { for: 'f-au', texte: 'Hasta (incluido)' }), au),
-    el('div.champ', el('label', { for: 'f-motif', texte: 'Motivo (opcional)' }), motif)),
-  el('button.bouton.bouton--principal', { type: 'submit', texte: 'Declarar el cierre' }));
+    el('div.champ', el('label', { for: 'f-du', texte: t('conges.du') }), du),
+    el('div.champ', el('label', { for: 'f-au', texte: t('conges.au') }), au),
+    el('div.champ', el('label', { for: 'f-motif', texte: t('conges.motif') }), motif)),
+  el('button.bouton.bouton--principal', { type: 'submit', texte: t('conges.declarerBouton') }));
 
   remplacer(conteneur, el('div.enveloppe.page-gestion',
-    el('h1.titre-page', { texte: 'Vacaciones y cierres' }),
-    el('p.texte-doux', {
-      texte: 'Durante un periodo declarado, nadie puede pedir turno y la página de inicio anuncia la fecha de reapertura. La fila del día nunca se interrumpe: los clientes que ya están se atienden.',
-    }),
+    el('h1.titre-page', { texte: t('conges.titre') }),
+    el('p.texte-doux', { texte: t('conges.intro') }),
     alerte, succes,
     enCours,
     donnees.prochaine
       ? el('p.texte-doux.annonce-prochaine', {
-        texte: 'Próximo cierre anunciado a los clientes: del ' + dateLongue(donnees.prochaine.du) + ' al ' + dateLongue(donnees.prochaine.au) + '.',
+        texte: t('conges.prochaineAnnoncee', {
+          du: dateLongue(donnees.prochaine.du),
+          au: dateLongue(donnees.prochaine.au),
+        }),
       })
       : null,
     el('section.carte',
-      el('h2.reglages__titre', { texte: 'Declarar un periodo' }),
+      el('h2.reglages__titre', { texte: t('conges.titreDeclarer') }),
       ajout),
     el('section.carte',
-      el('h2.reglages__titre', { texte: 'Periodos guardados' }),
+      el('h2.reglages__titre', { texte: t('conges.titreListe') }),
       donnees.items.length
         ? el('ul.fermetures', lignes)
-        : el('p.texte-doux', { texte: 'No hay ningún cierre declarado.' }))));
+        : el('p.texte-doux', { texte: t('conges.aucune') }))));
 }

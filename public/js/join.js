@@ -8,6 +8,8 @@
  * La validation reste ENTIEREMENT refaite par le serveur : celle-ci ne sert
  * qu'a eviter un aller-retour inutile.
  */
+import { t, dureeCourte } from './langue.js';
+import { montant } from './devise.js';
 
 const formulaire = document.querySelector('[data-formulaire-tour]');
 
@@ -15,15 +17,15 @@ if (formulaire) {
   const NOM_RE = /^[\p{L}\p{M}][\p{L}\p{M} '’.-]*$/u;
 
   const REGLES = {
-    prenom: (v) => (v.length < 2 ? 'Tu nombre es obligatorio.'
-      : (!NOM_RE.test(v) ? 'Solo se aceptan letras, espacio, apóstrofo y guion.' : null)),
-    nom: (v) => (v.length < 2 ? 'Tu apellido es obligatorio.'
-      : (!NOM_RE.test(v) ? 'Solo se aceptan letras, espacio, apóstrofo y guion.' : null)),
+    prenom: (v) => (v.length < 2 ? t('join.prenomRequis')
+      : (!NOM_RE.test(v) ? t('join.nomLettres') : null)),
+    nom: (v) => (v.length < 2 ? t('join.nomRequis')
+      : (!NOM_RE.test(v) ? t('join.nomLettres') : null)),
     telephone: (v) => {
-      if (!v) return 'Tu número de WhatsApp es obligatorio.';
-      if (!/^\+?[0-9][0-9\s.\-()/]*$/.test(v)) return 'Número no válido: solo cifras, espacios y « + ».';
+      if (!v) return t('join.telephoneRequis');
+      if (!/^\+?[0-9][0-9\s.\-()/]*$/.test(v)) return t('join.telephoneForme');
       const chiffres = v.replace(/[^0-9]/g, '');
-      return chiffres.length >= 8 && chiffres.length <= 15 ? null : 'Este número no parece un número de teléfono.';
+      return chiffres.length >= 8 && chiffres.length <= 15 ? null : t('join.telephoneInvraisemblable');
     },
   };
 
@@ -140,10 +142,6 @@ const totalPrestations = document.querySelector('[data-presta-total]');
 if (totalPrestations) {
   const cases = [...document.querySelectorAll('.presta__case')];
 
-  const enEuros = (centimes) => (centimes % 100 === 0
-    ? Math.floor(centimes / 100) + ' €'
-    : (centimes / 100).toFixed(2).replace('.', ',') + ' €');
-
   const recompter = () => {
     const cochees = cases.filter((c) => c.checked);
     if (!cochees.length) {
@@ -152,8 +150,13 @@ if (totalPrestations) {
     }
     const minutes = cochees.reduce((n, c) => n + Number(c.dataset.minutos || 0), 0);
     const centimes = cochees.reduce((n, c) => n + Number(c.dataset.precio || 0), 0);
-    totalPrestations.textContent = cochees.length + ' servicio' + (cochees.length > 1 ? 's' : '')
-      + ' · ' + minutes + ' min · ' + enEuros(centimes) + ' aprox.';
+    // montant() et non un « + ' €' » ecrit ici : le symbole vient de la monnaie
+    // du salon, et il etait ecrit deux fois en dur a cet endroit.
+    totalPrestations.textContent = t('join.total', {
+      n: cochees.length,
+      duree: dureeCourte(minutes),
+      prix: montant(centimes),
+    });
     totalPrestations.hidden = false;
   };
 

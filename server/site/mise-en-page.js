@@ -11,18 +11,24 @@
  */
 import { escapeHtml } from '../core/text.js';
 import { config } from '../core/config.js';
+import { traduire, langueActive, LANGUES } from '../core/langue.js';
+import { deviseActive, DEVISES } from '../core/devise.js';
 
 const v = () => (config.version ? '?v=' + config.version : '');
 
 /**
  * @param {{ titre:string, description:string, corps:string, base:string,
  *           classe?:string, scripts?:string[], chemin?:string, robots?:string,
- *           donnees?:object|null, entete?:boolean, pied?:string|null }} p
+ *           donnees?:object|null, entete?:boolean, pied?:string|null,
+ *           langue?:string|null }} p
  */
 export function page({
   titre, description, corps, base, classe = '', scripts = [], chemin = '/',
-  robots = 'index, follow', donnees = null, pied = null,
+  robots = 'index, follow', donnees = null, pied = null, langue = null,
 }) {
+  const code = LANGUES[langue] ? langue : langueActive();
+  const tr = traduire(code);
+  const devise = deviseActive();
   const url = base + chemin;
   const modules = scripts.map((s) => '<script type="module" src="' + s + v() + '"></script>').join('');
   // Les donnees initiales voyagent dans un attribut de donnees, jamais dans un
@@ -31,8 +37,20 @@ export function page({
     ? '<div id="donnees" hidden data-initial="' + escapeHtml(JSON.stringify(donnees)) + '"></div>'
     : '';
 
+  // LA LANGUE ET LA MONNAIE SONT POSEES SUR <html>.
+  //
+  // C'est ainsi que les scripts les apprennent. La politique de securite du
+  // contenu interdit tout script en ligne, donc impossible de leur passer une
+  // variable ; et un second appel au serveur pour demander « quelle langue ? »
+  // serait un aller-retour de plus sur un telephone en 4G faible. Un attribut
+  // deja present dans le document ne coute rien.
+  //
+  // `lang` n'est pas decoratif : c'est lui qui dit au lecteur d'ecran quelle
+  // prononciation employer, et au navigateur quelles regles de cesure appliquer.
   return '<!DOCTYPE html>\n'
-    + '<html lang="es" class="' + escapeHtml(classe) + '">\n'
+    + '<html lang="' + escapeHtml(tr.htmlLang) + '" data-devise="' + escapeHtml(devise) + '"'
+    + ' data-symbole="' + escapeHtml(DEVISES[devise].symbole) + '"'
+    + ' class="' + escapeHtml(classe) + '">\n'
     + '<head>\n'
     + '<meta charset="utf-8">\n'
     + '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
@@ -46,7 +64,7 @@ export function page({
     + '<link rel="manifest" href="/haron.webmanifest' + v() + '">\n'
     + '<meta property="og:type" content="website">\n'
     + '<meta property="og:site_name" content="Peluquería HARON">\n'
-    + '<meta property="og:locale" content="es_ES">\n'
+    + '<meta property="og:locale" content="' + escapeHtml(tr.ogLocale) + '">\n'
     + '<meta property="og:title" content="' + escapeHtml(titre) + '">\n'
     + '<meta property="og:description" content="' + escapeHtml(description) + '">\n'
     + '<meta property="og:url" content="' + escapeHtml(url) + '">\n'
@@ -58,7 +76,7 @@ export function page({
     + '<link rel="stylesheet" href="/css/site.css' + v() + '">\n'
     + '</head>\n'
     + '<body>\n'
-    + '<a class="saut" href="#principal">Ir al contenido</a>\n'
+    + '<a class="saut" href="#principal">' + escapeHtml(tr('saut.contenu')) + '</a>\n'
     + corps
     + (pied ?? piedDePage())
     + socle
@@ -72,14 +90,19 @@ export function page({
  * depuis la meme origine.
  */
 export function marque({ taille = 'grand', lien = true } = {}) {
+  // « Peluquería HARON » est le NOM DE L'ENSEIGNE, pas un libelle : il ne se
+  // traduit pas, pas plus qu'on ne traduirait « Carrefour ». Seul le texte que
+  // lit le lecteur d'ecran suit la langue du salon — c'est une phrase, elle.
   const interieur = '<span class="marque__embleme" aria-hidden="true">' + embleme() + '</span>'
     + '<span class="marque__mots">'
     + '<span class="marque__peluqueria">Peluquería</span>'
     + '<span class="marque__haron">HARON</span>'
     + '</span>';
   const classe = 'marque marque--' + taille;
+  const tr = traduire(langueActive());
   return lien
-    ? '<a class="' + classe + '" href="/"><span class="visuellement-cache">Peluquería HARON, inicio</span>' + interieur + '</a>'
+    ? '<a class="' + classe + '" href="/"><span class="visuellement-cache">'
+      + escapeHtml(tr('marque.inicio', { nom: 'Peluquería HARON' })) + '</span>' + interieur + '</a>'
     : '<span class="' + classe + '">' + interieur + '</span>';
 }
 
@@ -105,6 +128,7 @@ export function entete({ retour = null } = {}) {
 }
 
 export function piedDePage({ horaires = null, adresse = null, telephone = null } = {}) {
+  const tr = traduire(langueActive());
   const lignes = [];
   if (adresse) lignes.push('<p class="pied__ligne">' + escapeHtml(adresse) + '</p>');
   if (telephone) {
@@ -113,7 +137,7 @@ export function piedDePage({ horaires = null, adresse = null, telephone = null }
   if (horaires && horaires.length) {
     const items = horaires.map((h) => '<li><span>' + escapeHtml(h.nom) + '</span><span>'
       + (h.ferme
-        ? 'Cerrado'
+        ? escapeHtml(tr('commun.ferme'))
         : escapeHtml(h.plages.map((p) => p.ouverture + ' – ' + p.fermeture).join(' · '))) + '</span></li>').join('');
     lignes.push('<ul class="pied__horaires">' + items + '</ul>');
   }
@@ -121,7 +145,7 @@ export function piedDePage({ horaires = null, adresse = null, telephone = null }
     + '<div class="enveloppe">'
     + (lignes.length ? '<div class="pied__infos">' + lignes.join('') + '</div>' : '')
     + '<div class="pied__bas">'
-    + '<p class="pied__mention">Un salón. Una fila. Un turno.</p>'
+    + '<p class="pied__mention">' + escapeHtml(tr('pied.devise')) + '</p>'
     // L'acces du personnel : discret, en bas, et JAMAIS un bouton.
     //
     // POURQUOI PAS CACHE. Le masquer ne protege rien : « /gestion » est un
@@ -139,7 +163,7 @@ export function piedDePage({ horaires = null, adresse = null, telephone = null }
     //
     // « nofollow » va avec le « Disallow: /gestion » de robots.txt : les deux
     // disent la meme chose, a deux robots qui ne lisent pas les memes regles.
-    + '<a class="pied__acces" href="/gestion" rel="nofollow">Acceso del personal</a>'
+    + '<a class="pied__acces" href="/gestion" rel="nofollow">' + escapeHtml(tr('pied.acces')) + '</a>'
     + '</div>'
     + '</div>'
     + '</footer>';
@@ -147,13 +171,14 @@ export function piedDePage({ horaires = null, adresse = null, telephone = null }
 
 /** Page d'erreur publique, dans la meme identite que le reste. */
 export function pageErreur({ base, titre, message, statut = 404 }) {
+  const tr = traduire(langueActive());
   const corps = entete()
     + '<main class="enveloppe page-etroite" id="principal">'
     + '<section class="carte carte--centree">'
-    + '<p class="pastille pastille--neutre">Error ' + statut + '</p>'
+    + '<p class="pastille pastille--neutre">' + escapeHtml(tr('erreur.etiquette', { statut })) + '</p>'
     + '<h1 class="titre-page">' + escapeHtml(titre) + '</h1>'
     + '<p class="texte-doux">' + escapeHtml(message) + '</p>'
-    + '<a class="bouton bouton--principal" href="/">Volver al inicio</a>'
+    + '<a class="bouton bouton--principal" href="/">' + escapeHtml(tr('commun.retourAccueil')) + '</a>'
     + '</section>'
     + '</main>';
   return page({

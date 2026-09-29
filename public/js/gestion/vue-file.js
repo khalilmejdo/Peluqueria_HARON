@@ -8,7 +8,8 @@
  * deja la file complete : meme si le flux est coupe, l'ecran reste juste.
  */
 import { api, ErreurApi } from './api.js';
-import { el, remplacer, annoncer, heure, depuis, minutesLisibles, LIBELLE_SOURCE, LIBELLE_STATUT } from './dom.js';
+import { el, remplacer, annoncer, heure, depuis, minutesLisibles, libelleSource, libelleStatut } from './dom.js';
+import { t } from '../langue.js';
 import { carteAvisos } from './avisos.js';
 
 /**
@@ -45,7 +46,7 @@ async function geste(chemin, { corps = null, annonce = null } = {}) {
     if (annonce) annoncer(annonce);
     return reponse;
   } catch (err) {
-    signaler(err instanceof ErreurApi ? err.message : 'La acción no se ha completado.');
+    signaler(err instanceof ErreurApi ? err.message : t('file.gesteEchoue'));
     // Le serveur a peut-etre change la file avant de refuser : on relit.
     await recharger();
     throw err;
@@ -100,7 +101,7 @@ function carteFauteuil(poste, file, seul) {
   const actuel = poste.client;
   const parFauteuil = file.mode === 'PAR_FAUTEUIL';
   const enTete = seul && !parFauteuil
-    ? el('p.actuel__label', { texte: 'Cliente actual' })
+    ? el('p.actuel__label', { texte: t('file.clientActuel') })
     : el('div.actuel__fauteuil',
       el('span.actuel__fauteuil-nom', { texte: poste.nom }),
       poste.coiffeur ? el('span.actuel__fauteuil-coiffeur', { texte: poste.coiffeur }) : null);
@@ -112,24 +113,26 @@ function carteFauteuil(poste, file, seul) {
     const prochain = parFauteuil ? poste.prochain : file.prochain;
     return el('section.actuel.actuel--vide',
       enTete,
-      el('p.actuel__aucun', { texte: prochain ? 'Sillón libre.' : (parFauteuil ? 'Nadie espera a este peluquero.' : 'No espera nadie.') }),
+      el('p.actuel__aucun', {
+        texte: prochain
+          ? t('file.fauteuilLibre')
+          : t(parFauteuil ? 'file.personneChezCeCoiffeur' : 'file.personneEnAttente'),
+      }),
       prochain
         ? el('div.actuel__suite',
-          el('p.actuel__prochain-label', { texte: parFauteuil ? 'Siguiente en su fila' : 'Siguiente en la fila' }),
+          el('p.actuel__prochain-label', { texte: t(parFauteuil ? 'file.suivantDansSaFile' : 'file.suivantDansLaFile') }),
           el('p.actuel__prochain', { texte: prochain.prenom + ' ' + prochain.nom }),
           el('p.actuel__prochain-numero', { texte: prochain.numero }),
           el('button.bouton.bouton--principal.bouton--geant', {
             type: 'button',
-            texte: 'Llamar a ' + prochain.prenom,
+            texte: t('file.appelerQui', { prenom: prochain.prenom }),
             surClick: () => geste('/api/file/suivant', {
               corps: { posteId: poste.id },
-              annonce: prochain.prenom + ' ha sido llamado al sillón ' + poste.nom + '.',
+              annonce: t('file.appeleAuFauteuil', { prenom: prochain.prenom, poste: poste.nom }),
             }),
           }))
         : el('p.texte-doux', {
-          texte: parFauteuil
-            ? 'Puedes coger un cliente de otra fila con « Llamar ahora ».'
-            : 'La fila se llenará en cuanto alguien pida turno.',
+          texte: t(parFauteuil ? 'file.prendreAutreFile' : 'file.seRemplira'),
         }));
   }
 
@@ -140,27 +143,33 @@ function carteFauteuil(poste, file, seul) {
     el('p.actuel__numero', { texte: actuel.numero }),
     el('h1.actuel__nom', { texte: actuel.prenom + ' ' + actuel.nom }),
     prestationsDe(actuel),
-    el('p.actuel__etat', { texte: appele ? 'Llamado ' + depuis(actuel.appeleA) : 'En el sillón ' + depuis(actuel.serviA) }),
+    el('p.actuel__etat', {
+      texte: appele
+        ? t('file.appeleDepuis', { depuis: depuis(actuel.appeleA) })
+        : t('file.auFauteuilDepuis', { depuis: depuis(actuel.serviA) }),
+    }),
     actuel.retards > 0
-      ? el('p.actuel__retard', { texte: 'Ya ha estado ausente ' + actuel.retards + ' vez/veces hoy.' })
+      ? el('p.actuel__retard', { texte: t('file.dejaAbsent', { n: actuel.retards }) })
       : null,
     el('button.bouton.bouton--servi', {
       type: 'button',
-      surClick: () => geste('/api/file/' + actuel.id + '/servi', { annonce: actuel.prenom + ' ha sido atendido.' }),
-    }, 'CLIENTE ATENDIDO ✓'),
+      surClick: () => geste('/api/file/' + actuel.id + '/servi', {
+        annonce: t('file.aEteServi', { prenom: actuel.prenom }),
+      }),
+    }, t('file.clientServi')),
     el('div.actuel__secondaires',
       appele
         ? el('button.bouton.bouton--discret', {
           type: 'button',
-          texte: 'Empezar el corte',
+          texte: t('file.commencerCoupe'),
           surClick: () => geste('/api/file/' + actuel.id + '/commencer'),
         })
         : null,
       el('button.bouton.bouton--absent', {
         type: 'button',
-        texte: 'Ausente / con retraso',
+        texte: t('file.absentRetard'),
         surClick: () => geste('/api/file/' + actuel.id + '/absent', {
-          annonce: actuel.prenom + ' pasa al final de la fila.',
+          annonce: t('file.passeEnFin', { prenom: actuel.prenom }),
         }),
       })));
 }
@@ -170,9 +179,9 @@ function blocFauteuils(file) {
   const postes = file.postes || [];
   if (!postes.length) {
     return el('section.actuel.actuel--vide',
-      el('p.actuel__label', { texte: 'Cliente actual' }),
-      el('p.actuel__aucun', { texte: 'Ningún sillón abierto.' }),
-      el('p.texte-doux', { texte: 'Abre un sillón en Ajustes para poder llamar a un cliente.' }));
+      el('p.actuel__label', { texte: t('file.clientActuel') }),
+      el('p.actuel__aucun', { texte: t('file.aucunFauteuil') }),
+      el('p.texte-doux', { texte: t('file.ouvrirUnFauteuil') }));
   }
   const seul = postes.length === 1;
   const cartes = postes.map((p) => carteFauteuil(p, file, seul));
@@ -195,19 +204,19 @@ function boutonTransfert(ticket, file) {
   if (!autres.length) return null;
 
   const choix = el('div.transfert__choix', { hidden: true },
-    el('span.transfert__invite', { texte: 'A:' }),
+    el('span.transfert__invite', { texte: t('file.transfertVers') }),
     autres.map((p) => el('button.bouton.bouton--discret.bouton--petit', {
       type: 'button',
       texte: p.coiffeur || p.nom,
       surClick: () => geste('/api/file/' + ticket.id + '/transferer', {
         corps: { posteId: p.id },
-        annonce: ticket.prenom + ' espera ahora a ' + (p.coiffeur || p.nom) + '.',
+        annonce: t('file.attendChez', { prenom: ticket.prenom, coiffeur: p.coiffeur || p.nom }),
       }).catch(() => {}),
     })));
 
   const bascule = el('button.bouton.bouton--discret.bouton--petit', {
     type: 'button',
-    texte: 'Cambiar de peluquero',
+    texte: t('file.changerCoiffeur'),
     'aria-expanded': 'false',
     surClick: () => {
       choix.hidden = !choix.hidden;
@@ -222,22 +231,26 @@ function carteAttente(ticket, index, file = null) {
   const actions = el('div.carte-file__actions',
     el('button.bouton.bouton--discret.bouton--petit', {
       type: 'button',
-      texte: index === 0 ? 'Llamar' : 'Llamar ahora',
-      surClick: () => geste('/api/file/' + ticket.id + '/appeler', { annonce: ticket.prenom + ' ha sido llamado.' }),
+      texte: t(index === 0 ? 'file.appeler' : 'file.appelerMaintenant'),
+      surClick: () => geste('/api/file/' + ticket.id + '/appeler', {
+        annonce: t('file.aEteAppele', { prenom: ticket.prenom }),
+      }),
     }),
     el('button.bouton.bouton--discret.bouton--petit', {
       type: 'button',
-      texte: 'Atendido',
-      surClick: () => geste('/api/file/' + ticket.id + '/servi', { annonce: ticket.prenom + ' ha sido atendido.' }),
+      texte: t('file.servi'),
+      surClick: () => geste('/api/file/' + ticket.id + '/servi', {
+        annonce: t('file.aEteServi', { prenom: ticket.prenom }),
+      }),
     }),
     el('button.bouton.bouton--discret.bouton--petit', {
       type: 'button',
-      texte: 'WhatsApp',
+      texte: t('file.champWhatsapp'),
       surClick: () => ouvrirWhatsapp(ticket),
     }),
     el('button.bouton.bouton--discret.bouton--petit.bouton--danger', {
       type: 'button',
-      texte: 'Anular',
+      texte: t('commun.annuler'),
       surClick: () => annulerTicket(ticket),
     }),
     // Changer de coiffeur n'a de sens qu'en file par coiffeur : en file
@@ -248,15 +261,15 @@ function carteAttente(ticket, index, file = null) {
     el('div.carte-file__tete',
       el('span.carte-file__position', { texte: '#' + (index + 1) }),
       el('span.carte-file__numero', { texte: ticket.numero }),
-      el('span.carte-file__source', { texte: LIBELLE_SOURCE[ticket.source] || ticket.source })),
+      el('span.carte-file__source', { texte: libelleSource(ticket.source) })),
     el('p.carte-file__nom', { texte: ticket.prenom + ' ' + ticket.nom }),
     prestationsDe(ticket),
     el('p.carte-file__meta',
-      el('span', { texte: 'Llegó a las ' + heure(ticket.arriveA) }),
+      el('span', { texte: t('file.arriveA', { heure: heure(ticket.arriveA) }) }),
       el('span', { texte: '·' }),
-      el('span', { texte: 'Espera ' + depuis(ticket.dansLaFileDepuis) }),
+      el('span', { texte: t('file.attendDepuis', { depuis: depuis(ticket.dansLaFileDepuis) }) }),
       ticket.retards > 0 ? el('span', { texte: '·' }) : null,
-      ticket.retards > 0 ? el('span.carte-file__retard', { texte: 'ausente ' + ticket.retards + '×' }) : null),
+      ticket.retards > 0 ? el('span.carte-file__retard', { texte: t('file.absentFois', { n: ticket.retards }) }) : null),
     actions);
 }
 
@@ -266,7 +279,7 @@ async function ouvrirWhatsapp(ticket) {
     // Ouvert dans un onglet neuf : l'ecran de la file reste tel quel derriere.
     window.open(reponse.lienWhatsapp, '_blank', 'noopener');
   } catch (err) {
-    signaler(err instanceof ErreurApi ? err.message : 'No se ha podido preparar el mensaje.');
+    signaler(err instanceof ErreurApi ? err.message : t('file.messageEchoue'));
   }
 }
 
@@ -288,11 +301,11 @@ async function prevenirLesProchains(combien = 3) {
     const reponse = await api.get('/api/file/prochains/whatsapp?combien=' + combien);
     items = reponse.items || [];
   } catch (err) {
-    signaler(err instanceof ErreurApi ? err.message : 'No se ha podido preparar los mensajes.');
+    signaler(err instanceof ErreurApi ? err.message : t('file.messagesEchoues'));
     return;
   }
   if (!items.length) {
-    annoncer('Nadie está esperando.');
+    annoncer(t('file.personneNAttend'));
     return;
   }
 
@@ -303,21 +316,22 @@ async function prevenirLesProchains(combien = 3) {
     window.open(client.lienWhatsapp, '_blank', 'noopener');
     if (restants.length) {
       // On redemande : ouvrir six onglets sans rien dire serait une surprise.
-      if (window.confirm('Mensaje preparado para ' + client.prenom + ' (' + client.numero + ').\n\n'
-        + '¿Preparar el siguiente? Quedan ' + restants.length + '.')) suivant();
+      if (window.confirm(t('file.messagePrepare', {
+        prenom: client.prenom, numero: client.numero, reste: restants.length,
+      }))) suivant();
     } else {
-      annoncer(items.length + ' mensaje(s) preparado(s).');
+      annoncer(t('file.messagesPrepares', { n: items.length }));
     }
   };
   suivant();
 }
 
 async function annulerTicket(ticket) {
-  const motif = window.prompt('¿Anular el turno de ' + ticket.prenom + ' (' + ticket.numero + ')?\nMotivo (opcional):', '');
+  const motif = window.prompt(t('file.confirmerAnnulation', { prenom: ticket.prenom, numero: ticket.numero }), '');
   if (motif === null) return;
   await geste('/api/file/' + ticket.id + '/annuler', {
     corps: { motif: motif || undefined },
-    annonce: 'Turno ' + ticket.numero + ' anulado.',
+    annonce: t('file.tourAnnule', { numero: ticket.numero }),
   }).catch(() => {});
 }
 
@@ -326,9 +340,9 @@ async function annulerTicket(ticket) {
 /* ------------------------------------------------------------------ */
 
 function blocComptoir() {
-  const prenom = el('input', { id: 'k-prenom', type: 'text', autocomplete: 'off', required: true, placeholder: 'Nombre' });
-  const nom = el('input', { id: 'k-nom', type: 'text', autocomplete: 'off', required: true, placeholder: 'Apellido' });
-  const telephone = el('input', { id: 'k-tel', type: 'tel', inputmode: 'tel', autocomplete: 'off', required: true, placeholder: 'WhatsApp' });
+  const prenom = el('input', { id: 'k-prenom', type: 'text', autocomplete: 'off', required: true, placeholder: t('file.champPrenom') });
+  const nom = el('input', { id: 'k-nom', type: 'text', autocomplete: 'off', required: true, placeholder: t('file.champNom') });
+  const telephone = el('input', { id: 'k-tel', type: 'tel', inputmode: 'tel', autocomplete: 'off', required: true, placeholder: t('file.champWhatsapp') });
   const erreur = el('p.alerte.alerte--refus', { role: 'alert', hidden: true });
 
   const formulaire = el('form.comptoir__formulaire', {
@@ -340,24 +354,24 @@ function blocComptoir() {
           prenom: prenom.value.trim(), nom: nom.value.trim(), telephone: telephone.value.trim(),
         });
         if (reponse?.file) peindre(reponse.file);
-        annoncer('Turno ' + reponse.numero + ' creado en el mostrador.');
+        annoncer(t('file.tourCreeComptoir', { numero: reponse.numero }));
         prenom.value = '';
         nom.value = '';
         telephone.value = '';
         prenom.focus();
       } catch (err) {
-        erreur.textContent = err instanceof ErreurApi ? err.message : 'No se ha podido añadir a este cliente.';
+        erreur.textContent = err instanceof ErreurApi ? err.message : t('file.ajoutEchoue');
         erreur.hidden = false;
       }
     },
   },
   erreur,
   el('div.comptoir__champs', prenom, nom, telephone),
-  el('button.bouton.bouton--discret', { type: 'submit', texte: 'Añadir a la fila' }));
+  el('button.bouton.bouton--discret', { type: 'submit', texte: t('file.ajouterALaFile') }));
 
   return el('details.comptoir',
-    el('summary', { texte: 'Añadir un cliente en el mostrador' }),
-    el('p.texte-doux', { texte: 'Para el cliente que no lleva el móvil a mano. Entra en la misma fila, a continuación.' }),
+    el('summary', { texte: t('file.ajouterAuComptoir') }),
+    el('p.texte-doux', { texte: t('file.ajouterAuComptoirAide') }),
     formulaire);
 }
 
@@ -375,13 +389,13 @@ function peindre(file) {
   const attente = file.attente || [];
   const fauteuils = file.compteurs.fauteuils ?? 1;
   const enTete = el('div.file__chiffres',
-    chiffre(attente.length, attente.length === 1 ? 'cliente esperando' : 'clientes esperando'),
-    chiffre(file.compteurs.servis, file.compteurs.servis === 1 ? 'cliente atendido' : 'clientes atendidos'),
-    chiffre(minutesLisibles(file.attenteEstimeeMinutes), 'de espera estimada'),
+    chiffre(attente.length, t('file.chiffreEnAttente', { n: attente.length })),
+    chiffre(file.compteurs.servis, t('file.chiffreServis', { n: file.compteurs.servis })),
+    chiffre(minutesLisibles(file.attenteEstimeeMinutes), t('file.chiffreAttente')),
     // Le nombre de fauteuils n'a d'interet que s'il y en a plusieurs : sinon
     // c'est une case qui dit « 1 » toute la journee.
     fauteuils > 1
-      ? chiffre(file.compteurs.fauteuilsLibres + ' / ' + fauteuils, 'sillones libres')
+      ? chiffre(file.compteurs.fauteuilsLibres + ' / ' + fauteuils, t('file.chiffreFauteuils'))
       : null);
 
   // En file par coiffeur, la file se lit coiffeur par coiffeur : une liste
@@ -394,37 +408,39 @@ function peindre(file) {
         el('h3.file-coiffeur__titre',
           el('span', { texte: p.coiffeur || p.nom }),
           el('span.file-coiffeur__compte', {
-            texte: p.attente.length + ' esperando'
+            texte: t('file.compteEnAttente', { n: p.attente.length })
               + (p.attente.length ? ' · ≈ ' + minutesLisibles(p.attenteEstimeeMinutes) : ''),
           })),
         p.attente.length
           ? el('ul.file__liste', p.attente.map((t, i) => carteAttente(t, i, file)))
-          : el('p.file__vide', { texte: 'Nadie espera a este peluquero.' }))),
+          : el('p.file__vide', { texte: t('file.personneChezCeCoiffeur') }))),
       (file.sansFauteuil || []).length
         ? el('section.file-coiffeur.file-coiffeur--orphelins',
           el('h3.file-coiffeur__titre',
-            el('span', { texte: 'Sin peluquero' }),
-            el('span.file-coiffeur__compte', { texte: file.sansFauteuil.length + ' esperando' })),
-          el('p.texte-doux', { texte: 'Estos clientes pidieron turno antes del cambio de organización. Llámalos desde el sillón que quieras.' }),
+            el('span', { texte: t('file.sansCoiffeur') }),
+            el('span.file-coiffeur__compte', { texte: t('file.compteEnAttente', { n: file.sansFauteuil.length }) })),
+          el('p.texte-doux', { texte: t('file.sansCoiffeurAide') }),
           el('ul.file__liste', file.sansFauteuil.map((t, i) => carteAttente(t, i, file))))
         : null)
     : (attente.length
       ? el('ul.file__liste', attente.map((t, i) => carteAttente(t, i, file)))
-      : el('p.file__vide', { texte: 'Ningún cliente esperando.' }));
+      : el('p.file__vide', { texte: t('file.aucunEnAttente') }));
 
   const termines = (file.termines || []).slice(0, 8);
   const historique = termines.length
     ? el('details.historique',
-      el('summary', { texte: 'Ya han pasado hoy (' + file.compteurs.servis + ')' }),
-      el('ul.historique__liste', termines.map((t) => el('li',
-        el('span.historique__numero', { texte: t.numero }),
-        el('span.historique__nom', { texte: t.prenom + ' ' + t.nom }),
-        el('span.historique__statut', { texte: LIBELLE_STATUT[t.statut] || t.statut }),
-        el('span.historique__heure', { texte: heure(t.termineA) })))))
+      el('summary', { texte: t('file.dejaPasses', { n: file.compteurs.servis }) }),
+      // `ligne` et non `t` : `t` est desormais le traducteur, et l'ombrer ici
+      // aurait donne un « t.statut is not a function » au premier client servi.
+      el('ul.historique__liste', termines.map((ligne) => el('li',
+        el('span.historique__numero', { texte: ligne.numero }),
+        el('span.historique__nom', { texte: ligne.prenom + ' ' + ligne.nom }),
+        el('span.historique__statut', { texte: libelleStatut(ligne.statut) }),
+        el('span.historique__heure', { texte: heure(ligne.termineA) })))))
     : null;
 
   remplacer(zone,
-    !file.ouverte ? el('p.alerte.alerte--refus', { texte: 'La jornada está cerrada. La fila volverá a empezar mañana en A001.' }) : null,
+    !file.ouverte ? el('p.alerte.alerte--refus', { texte: t('file.journeeClose') }) : null,
     blocPriseDeTour(file.priseDeTour),
     blocFauteuils(file),
     enTete,
@@ -432,13 +448,13 @@ function peindre(file) {
     // pas le bouton : ils vivent donc dans une enveloppe commune, et c'est le
     // TITRE SEUL que la feuille de style masque.
     el('div.file__entete',
-      el('h2.file__titre', { texte: 'Fila de espera' }),
+      el('h2.file__titre', { texte: t('file.titreAttente') }),
       // Le bouton n'a de sens qu'a partir de deux personnes : pour une seule,
       // le bouton « WhatsApp » de sa carte fait deja le travail.
       attente.length >= 2
         ? el('button.bouton.bouton--discret.bouton--petit', {
           type: 'button',
-          texte: 'Avisar a los ' + Math.min(3, attente.length) + ' siguientes',
+          texte: t('file.prevenirProchains', { n: Math.min(3, attente.length) }),
           surClick: () => prevenirLesProchains(Math.min(3, attente.length)),
         })
         : null),
@@ -474,29 +490,26 @@ function blocPriseDeTour(prise) {
 
   if (enConges) {
     return el('div.prise.prise--conges',
-      el('p.prise__etat', { texte: 'Salón cerrado (vacaciones)' }),
+      el('p.prise__etat', { texte: t('file.salonEnConges') }),
       el('p.prise__detail', { texte: prise.message }));
   }
 
   const bouton = el('button', {
     type: 'button',
     classe: 'bouton ' + (prise.ouverte ? 'bouton--absent' : 'bouton--principal'),
-    texte: prise.ouverte ? 'Dejar de dar turnos' : 'Volver a dar turnos',
+    texte: t(prise.ouverte ? 'file.arreterTours' : 'file.reprendreTours'),
     surClick: async () => {
       if (prise.ouverte) {
-        const message = window.prompt(
-          '¿Dejar de dar turnos?\n\nQuien espera será atendido con normalidad; no entrará nadie nuevo.\n\nMensaje que verán los clientes (opcional):',
-          '',
-        );
+        const message = window.prompt(t('file.confirmerArret'), '');
         if (message === null) return;
         await geste('/api/file/prise-de-tour', {
           corps: { ouverte: false, message: message || undefined },
-          annonce: 'Ya no se dan turnos.',
+          annonce: t('file.toursArretes'),
         }).catch(() => {});
       } else {
         await geste('/api/file/prise-de-tour', {
           corps: { ouverte: true },
-          annonce: 'Se vuelven a dar turnos.',
+          annonce: t('file.toursReprennent'),
         }).catch(() => {});
       }
     },
@@ -504,9 +517,9 @@ function blocPriseDeTour(prise) {
 
   return el('div.prise' + (prise.ouverte ? '.prise--ouverte' : '.prise--fermee'),
     el('div.prise__texte',
-      el('p.prise__etat', { texte: prise.ouverte ? 'Los clientes pueden pedir turno' : 'No se dan turnos' }),
+      el('p.prise__etat', { texte: t(prise.ouverte ? 'file.toursOuverts' : 'file.toursFermes') }),
       prise.message ? el('p.prise__detail', { texte: prise.message }) : null,
-      horsHoraires ? el('p.prise__detail', { texte: 'Fuera del horario de apertura configurado.' }) : null),
+      horsHoraires ? el('p.prise__detail', { texte: t('file.horsHoraires') }) : null),
     bouton);
 }
 
@@ -527,10 +540,10 @@ export async function vueFile(conteneur, { etat }) {
       ? el('div.enveloppe.file__cloture',
         el('button.bouton.bouton--discret.bouton--petit', {
           type: 'button',
-          texte: 'Cerrar la jornada',
+          texte: t('file.cloturerJournee'),
           surClick: async () => {
-            if (!window.confirm('¿Cerrar la jornada?\nLos turnos que sigan en la fila se anularán y la numeración volverá a empezar mañana en A001.')) return;
-            await geste('/api/file/cloturer', { annonce: 'Jornada cerrada.' }).catch(() => {});
+            if (!window.confirm(t('file.confirmerCloture'))) return;
+            await geste('/api/file/cloturer', { annonce: t('file.journeeCloturee') }).catch(() => {});
           },
         }))
       : null);

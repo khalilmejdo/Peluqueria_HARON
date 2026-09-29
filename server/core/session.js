@@ -13,6 +13,7 @@ import { newId, randomToken, hashToken, sign, timingSafeEqual } from './crypto.j
 import { config } from './config.js';
 import { all, one, execute } from '../db/index.js';
 import { log } from './logger.js';
+import { t } from './langue.js';
 
 export const SESSION_COOKIE = 'haron_session';
 
@@ -52,11 +53,11 @@ export async function loadSession(token) {
     return null;
   }
   if (!row.actif) {
-    await revokeSession(row.session_id, 'cuenta desactivada');
+    await revokeSession(row.session_id, t('trace.compteDesactive'));
     return null;
   }
   if (row.verrouille_jusqu_a && new Date(row.verrouille_jusqu_a).getTime() > Date.now()) {
-    await revokeSession(row.session_id, 'cuenta bloqueada');
+    await revokeSession(row.session_id, t('trace.compteBloque'));
     return null;
   }
 
@@ -89,7 +90,7 @@ export async function touchSession(sessionId, lastSeenAt) {
   }
 }
 
-export async function revokeSession(sessionId, reason = 'cierre de sesión') {
+export async function revokeSession(sessionId, reason = t('trace.deconnexion')) {
   await execute('UPDATE sessions SET revoked_at = now(), revoked_reason = $2 WHERE id = $1 AND revoked_at IS NULL', [sessionId, reason]);
 }
 

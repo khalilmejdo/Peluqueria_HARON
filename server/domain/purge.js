@@ -30,6 +30,7 @@ import { transaction } from '../db/index.js';
 import { log } from '../core/logger.js';
 import { conflict } from '../core/errors.js';
 import { STATUTS_ACTIFS } from './journee.js';
+import { t } from '../core/langue.js';
 
 /**
  * Les tables videes, dans l'ordre. L'ordre compte : les enfants avant les
@@ -61,12 +62,7 @@ export async function purgerHistorique({ user = null } = {}) {
       [STATUTS_ACTIFS],
     );
     if (actifs && actifs.n > 0) {
-      throw conflict(
-        actifs.n === 1
-          ? 'Hay 1 turno todavía en la fila. Cierra la jornada antes de borrar el historial.'
-          : 'Hay ' + actifs.n + ' turnos todavía en la fila. Cierra la jornada antes de borrar el historial.',
-        { code: 'FILE_NON_VIDE' },
-      );
+      throw conflict(t('purge.fileNonVide', { n: actifs.n }), { code: 'FILE_NON_VIDE' });
     }
 
     const bilan = {};

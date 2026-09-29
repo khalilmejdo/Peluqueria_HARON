@@ -29,15 +29,19 @@ import { log } from '../core/logger.js';
 import { all, query } from '../db/index.js';
 import { envoyerModele, ErreurWhatsapp, lienWaMe } from '../core/whatsapp.js';
 import { lireTous } from '../core/reglages.js';
+import { t } from '../core/langue.js';
 
 /** Essais avant abandon (la ligne passe alors en ECHEC, visible a l'ecran). */
 export const ESSAIS_MAX = 6;
 
-export const TYPES = {
-  CONFIRMATION: 'Turno registrado',
-  APPROCHE: 'Tu turno se acerca',
-  TOUR: 'Es tu turno',
-};
+/**
+ * L'intitule d'un type de message, tel qu'il s'affiche dans l'espace de gestion.
+ *
+ * C'est une FONCTION : un objet constant aurait fige les trois libelles dans la
+ * langue du demarrage. Les cles, elles, restent les codes stockes en base.
+ */
+export const CODES_TYPES = ['CONFIRMATION', 'APPROCHE', 'TOUR'];
+export const libelleType = (code) => t('wa.type.' + code);
 
 /* ------------------------------------------------------------------ */
 /*  Textes                                                             */
@@ -53,28 +57,15 @@ export const TYPES = {
  * ils sont ecrits ici, cote a cote.
  */
 export function texteMessage(type, { prenom, numero, devant = 0, lien = '', nomSalon = 'Peluquería HARON' }) {
-  const suivi = lien ? '\n\nSigue tu turno aquí:\n' + lien : '';
+  const suivi = lien ? t('wa.suivi', { lien }) : '';
   switch (type) {
     case 'CONFIRMATION':
-      return '¡Hola ' + prenom + '! 👋\n'
-        + 'Tu turno en ' + nomSalon + ' está registrado.\n\n'
-        + '🎟️ Número: ' + numero + '\n'
-        + '👥 Personas delante de ti: ' + devant
-        + suivi
-        + '\n\nTe avisaremos cuando tu turno se acerque.';
+      return t('wa.confirmation', { prenom, numero, devant, salon: nomSalon })
+        + suivi + t('wa.confirmationFin');
     case 'APPROCHE':
-      return '¡Hola ' + prenom + '! 🔔\n'
-        + 'Tu turno en ' + nomSalon + ' se acerca.\n\n'
-        + '🎟️ Número: ' + numero + '\n'
-        + '👥 Personas delante de ti: ' + devant + '\n\n'
-        + 'Acércate al salón.'
-        + suivi;
+      return t('wa.approche', { prenom, numero, devant, salon: nomSalon }) + suivi;
     case 'TOUR':
-      return '¡Hola ' + prenom + '! 🟢\n'
-        + '¡Es tu turno en ' + nomSalon + '!\n\n'
-        + '🎟️ Número: ' + numero + '\n\n'
-        + 'Pasa al sillón.'
-        + suivi;
+      return t('wa.tour', { prenom, numero, salon: nomSalon }) + suivi;
     default:
       return '';
   }
@@ -116,7 +107,7 @@ const modelePourType = (type) => ({
  *   ticket doit porter id, retards, telephone_enc, et jeton_enc ou un jeton en clair.
  */
 export async function enfilerEnvoi(tx, { ticket, type, donnees = {} }) {
-  if (!Object.hasOwn(TYPES, type)) throw new Error('Type de message inconnu : ' + type);
+  if (!CODES_TYPES.includes(type)) throw new Error('Type de message inconnu : ' + type);
   const passage = (ticket.retards ?? 0) + 1;
   const statut = config.whatsapp.actif ? 'EN_ATTENTE' : 'DESACTIVE';
 
@@ -136,7 +127,7 @@ export async function enfilerEnvoi(tx, { ticket, type, donnees = {} }) {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8, now())
        ON CONFLICT (ticket_id, type, passage) DO NOTHING`,
       [newId(), ticket.id, type, passage, statut, ticket.telephone_enc, contenu,
-        config.whatsapp.actif ? null : 'WhatsApp Business no está configurado: mensaje no enviado.'],
+        config.whatsapp.actif ? null : t('wa.nonConfigure')],
     );
   } catch (err) {
     log.error('Boite d envoi WhatsApp : ecriture refusee, le geste metier est annule', { type, error: err?.message });

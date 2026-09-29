@@ -7,6 +7,7 @@
  * relais au retour a l'ecran.
  */
 import { donneesInitiales, poser, envoyer, suivreFlux, activerHorsLigne, bandeauHorsLigne } from './commun.js';
+import { t } from './langue.js';
 
 // La page de suivi est celle qu'un client rafraichit dans le salon, la ou la 4G
 // passe mal : c'est elle qui a le plus besoin de tenir sans reseau.
@@ -48,7 +49,7 @@ function demarrer(jeton, premiereVue) {
     if (carte) {
       for (const ton of TONS) carte.classList.toggle('ticket--' + ton, vue.ton === ton);
     }
-    document.title = 'Turno ' + vue.numero + ' — ' + (vue.nomSalon || 'Peluquería HARON');
+    document.title = t('ticket.titrePage', { numero: vue.numero, nom: vue.nomSalon || 'Peluquería HARON' });
 
     // Le client a posé son téléphone sur la table : une vibration courte au
     // moment où son tour arrive vaut mieux qu'un écran qu'il ne regarde pas.
@@ -74,8 +75,8 @@ function demarrer(jeton, premiereVue) {
     sur: {
       ticket: (vue) => { reseau.reussite(); afficher(vue); },
       fin: () => {
-        if (elements.titre) elements.titre.textContent = 'Este turno ha terminado.';
-        if (elements.detail) elements.detail.textContent = 'La jornada del salón está cerrada. ¡Hasta pronto!';
+        if (elements.titre) elements.titre.textContent = t('ticket.termine');
+        if (elements.detail) elements.detail.textContent = t('ticket.journeeClose');
         if (bouton) bouton.hidden = true;
       },
     },
@@ -108,7 +109,7 @@ function demarrer(jeton, premiereVue) {
     boutonCopier.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(lien);
-        confirmer('Enlace copiado.');
+        confirmer(t('ticket.copie'));
       } catch {
         // Presse-papiers refuse (page non securisee, permission) : on
         // selectionne le lien pour que le client le copie lui-meme.
@@ -119,7 +120,7 @@ function demarrer(jeton, premiereVue) {
           const selection = window.getSelection();
           selection.removeAllRanges();
           selection.addRange(plage);
-          confirmer('Enlace seleccionado: cópialo.');
+          confirmer(t('ticket.selectionne'));
         }
       }
     });
@@ -129,11 +130,15 @@ function demarrer(jeton, premiereVue) {
     boutonPartager.hidden = false;
     boutonPartager.addEventListener('click', async () => {
       const numero = derniere?.numero || '';
-      const salon = derniere?.nomSalon || 'le salon';
+      const salon = derniere?.nomSalon || t('commun.leSalon');
       try {
         await navigator.share({
-          title: 'Mon tour chez ' + salon,
-          text: 'Mon ticket ' + numero + ' chez ' + salon + '. Je suis ma position ici :',
+          // Ces deux phrases etaient EN FRANCAIS dans une application
+          // espagnole : la feuille de partage du telephone montrait « Mon tour
+          // chez … » a un client de Fuente Alamo. Invisible en relisant le code,
+          // visible seulement en appuyant sur « Envoyer le lien ».
+          title: t('ticket.partageTitre', { salon }),
+          text: t('ticket.partageTexte', { numero, salon }),
           url: lien,
         });
       } catch {
@@ -146,7 +151,7 @@ function demarrer(jeton, premiereVue) {
 
   if (bouton) {
     bouton.addEventListener('click', async () => {
-      if (!window.confirm('¿Liberar tu sitio en la fila? Tendrás que pedir otro turno para volver.')) return;
+      if (!window.confirm(t('ticket.confirmerAnnulation'))) return;
       bouton.disabled = true;
       if (erreur) erreur.hidden = true;
       try {

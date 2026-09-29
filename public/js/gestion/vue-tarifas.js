@@ -15,6 +15,8 @@
  */
 import { api, ErreurApi } from './api.js';
 import { el, remplacer, annoncer } from './dom.js';
+import { t, dureeCourte } from '../langue.js';
+import { montantNu, symboleMonnaie } from '../devise.js';
 
 /**
  * Le glisser-deposer de la fiche de prix.
@@ -87,10 +89,10 @@ function brancherGlisser(liste, dire, recharger) {
 
     try {
       await api.post('/api/tarifas/orden', { ids });
-      annoncer('Orden guardado.');
+      annoncer(t('tarifs.ordreEnregistre'));
       await recharger();
     } catch (err) {
-      dire(err instanceof ErreurApi ? err.message : 'No se ha podido guardar el orden.');
+      dire(err instanceof ErreurApi ? err.message : t('tarifs.ordreEchoue'));
       // L'ecran montre un ordre que la base n'a pas : on repart du vrai.
       await recharger();
     }
@@ -124,14 +126,14 @@ export async function vueTarifas(conteneur, { etat }) {
       annoncer(messageOk);
       await recharger();
     } catch (err) {
-      dire(err instanceof ErreurApi ? err.message : 'No se ha podido guardar.');
+      dire(err instanceof ErreurApi ? err.message : t('tarifs.enregistrementEchoue'));
     }
   };
 
   /* ---- la liste ---- */
 
-  const lignes = donnees.items.map((t, i) => el('li.tarifa-admin' + (t.visible ? '' : '.tarifa-admin--oculta'), {
-    donnees: { id: t.id },
+  const lignes = donnees.items.map((tarifa, i) => el('li.tarifa-admin' + (tarifa.visible ? '' : '.tarifa-admin--oculta'), {
+    donnees: { id: tarifa.id },
   },
     // La poignée de déplacement.
     //
@@ -140,18 +142,18 @@ export async function vueTarifas(conteneur, { etat }) {
     // elles sont le chemin au clavier, et le seul qui marche sans JavaScript.
     el('button.tarifa-admin__poignee', {
       type: 'button',
-      'aria-label': 'Mover ' + t.nombre,
-      title: 'Arrastra para reordenar',
+      'aria-label': t('tarifs.deplacerAria', { nom: tarifa.nombre }),
+      title: t('tarifs.poigneeTitre'),
       texte: '⠿',
     }),
     el('div.tarifa-admin__texte',
-      el('span.tarifa-admin__nombre', { texte: t.nombre }),
-      t.nota ? el('span.tarifa-admin__nota', { texte: t.nota }) : null,
-      t.visible ? null : el('span.tarifa-admin__badge', { texte: 'oculta' })),
+      el('span.tarifa-admin__nombre', { texte: tarifa.nombre }),
+      tarifa.nota ? el('span.tarifa-admin__nota', { texte: tarifa.nota }) : null,
+      tarifa.visible ? null : el('span.tarifa-admin__badge', { texte: t('tarifs.badgeMasquee') })),
 
     el('div.tarifa-admin__chiffres',
-      el('span.tarifa-admin__precio', { texte: t.precio }),
-      el('span.tarifa-admin__duree', { texte: (t.duracionMin ?? 15) + ' min' })),
+      el('span.tarifa-admin__precio', { texte: tarifa.precio }),
+      el('span.tarifa-admin__duree', { texte: dureeCourte(tarifa.duracionMin ?? 15) })),
 
     el('div.tarifa-admin__actions',
       // Les fleches sont desactivees en bout de liste plutot que cachees : la
@@ -159,36 +161,45 @@ export async function vueTarifas(conteneur, { etat }) {
       el('button.bouton.bouton--discret.bouton--petit', {
         type: 'button',
         texte: '↑',
-        'aria-label': 'Subir ' + t.nombre,
+        'aria-label': t('tarifs.monterAria', { nom: tarifa.nombre }),
         disabled: i === 0,
-        surClick: () => agir(() => api.post('/api/tarifas/' + t.id + '/mover', { sens: 'arriba' }), t.nombre + ' ha subido.'),
+        surClick: () => agir(
+          () => api.post('/api/tarifas/' + tarifa.id + '/mover', { sens: 'arriba' }),
+          t('tarifs.aMonte', { nom: tarifa.nombre }),
+        ),
       }),
       el('button.bouton.bouton--discret.bouton--petit', {
         type: 'button',
         texte: '↓',
-        'aria-label': 'Bajar ' + t.nombre,
+        'aria-label': t('tarifs.descendreAria', { nom: tarifa.nombre }),
         disabled: i === donnees.items.length - 1,
-        surClick: () => agir(() => api.post('/api/tarifas/' + t.id + '/mover', { sens: 'abajo' }), t.nombre + ' ha bajado.'),
-      }),
-      el('button.bouton.bouton--discret.bouton--petit', {
-        type: 'button',
-        texte: 'Editar',
-        surClick: () => editer(t),
-      }),
-      el('button.bouton.bouton--discret.bouton--petit', {
-        type: 'button',
-        texte: t.visible ? 'Ocultar' : 'Mostrar',
         surClick: () => agir(
-          () => api.patch('/api/tarifas/' + t.id, { visible: !t.visible }),
-          t.nombre + (t.visible ? ' ya no se muestra.' : ' vuelve a mostrarse.'),
+          () => api.post('/api/tarifas/' + tarifa.id + '/mover', { sens: 'abajo' }),
+          t('tarifs.aDescendu', { nom: tarifa.nombre }),
+        ),
+      }),
+      el('button.bouton.bouton--discret.bouton--petit', {
+        type: 'button',
+        texte: t('tarifs.modifier'),
+        surClick: () => editer(tarifa),
+      }),
+      el('button.bouton.bouton--discret.bouton--petit', {
+        type: 'button',
+        texte: t(tarifa.visible ? 'tarifs.masquer' : 'tarifs.montrer'),
+        surClick: () => agir(
+          () => api.patch('/api/tarifas/' + tarifa.id, { visible: !tarifa.visible }),
+          t(tarifa.visible ? 'tarifs.estMasquee' : 'tarifs.estAffichee', { nom: tarifa.nombre }),
         ),
       }),
       el('button.bouton.bouton--discret.bouton--petit.bouton--danger', {
         type: 'button',
-        texte: 'Borrar',
+        texte: t('tarifs.supprimer'),
         surClick: () => {
-          if (!window.confirm('¿Borrar « ' + t.nombre + ' » de la lista de precios?')) return;
-          agir(() => api.supprimer('/api/tarifas/' + t.id), t.nombre + ' borrado.');
+          if (!window.confirm(t('tarifs.confirmerSuppression', { nom: tarifa.nombre }))) return;
+          agir(
+            () => api.supprimer('/api/tarifas/' + tarifa.id),
+            t('tarifs.estSupprimee', { nom: tarifa.nombre }),
+          );
         },
       }))));
 
@@ -199,34 +210,34 @@ export async function vueTarifas(conteneur, { etat }) {
    * prix trois fois par an, debout, entre deux clients. Deux invites qu'il peut
    * valider au clavier le tirent d'affaire plus vite qu'un panneau a ouvrir.
    */
-  const editer = (t) => {
-    const nombre = window.prompt('Nombre del servicio:', t.nombre);
+  const editer = (tarifa) => {
+    const nombre = window.prompt(t('tarifs.inviteNom'), tarifa.nombre);
     if (nombre === null) return;
-    const precio = window.prompt('Precio (por ejemplo 14 o 14,90):', t.precio.replace(' €', ''));
+    const precio = window.prompt(t('tarifs.invitePrix'), montantNu(tarifa.precioCts));
     if (precio === null) return;
-    const duracion = window.prompt('Duración en minutos (sirve para calcular la espera):', String(t.duracionMin ?? 15));
+    const duracion = window.prompt(t('tarifs.inviteDuree'), String(tarifa.duracionMin ?? 15));
     if (duracion === null) return;
-    const nota = window.prompt('Nota (puede quedar vacía):', t.nota);
+    const nota = window.prompt(t('tarifs.inviteNote'), tarifa.nota);
     if (nota === null) return;
     agir(
-      () => api.patch('/api/tarifas/' + t.id, { nombre, precio, duracion, nota }),
-      'Guardado.',
+      () => api.patch('/api/tarifas/' + tarifa.id, { nombre, precio, duracion, nota }),
+      t('tarifs.enregistre'),
     );
   };
 
   const liste = donnees.items.length
     ? el('ul.tarifas-admin', lignes)
-    : el('p.texte-doux', { texte: 'Todavía no hay ningún precio. Añade el primero abajo.' });
+    : el('p.texte-doux', { texte: t('tarifs.listeVide') });
 
   if (donnees.items.length > 1) brancherGlisser(liste, dire, recharger);
 
   /* ---- ajouter ---- */
 
-  const champNombre = el('input', { id: 'tf-nombre', type: 'text', maxlength: '60', required: true, placeholder: 'Corte de pelo' });
+  const champNombre = el('input', { id: 'tf-nombre', type: 'text', maxlength: '60', required: true, placeholder: t('tarifs.exempleService') });
   const champPrecio = el('input', { id: 'tf-precio', type: 'text', maxlength: '12', required: true, inputmode: 'decimal', placeholder: '14,90' });
   const champDuracion = el('input', { id: 'tf-duracion', type: 'number', min: '1', max: '240', inputmode: 'numeric', value: '15' });
-  const champNota = el('input', { id: 'tf-nota', type: 'text', maxlength: '80', placeholder: 'Incluye lavado (opcional)' });
-  const bouton = el('button.bouton.bouton--principal', { type: 'submit', texte: 'Añadir' });
+  const champNota = el('input', { id: 'tf-nota', type: 'text', maxlength: '80', placeholder: t('tarifs.exempleNote') });
+  const bouton = el('button.bouton.bouton--principal', { type: 'submit', texte: t('tarifs.ajouter') });
 
   const formulaire = el('form.formulaire.tarifas-admin__ajout', {
     surSubmit: async (evenement) => {
@@ -239,32 +250,31 @@ export async function vueTarifas(conteneur, { etat }) {
           duracion: champDuracion.value.trim(),
           nota: champNota.value.trim(),
         });
-        annoncer(champNombre.value.trim() + ' añadido.');
+        annoncer(t('tarifs.estAjoutee', { nom: champNombre.value.trim() }));
         await recharger();
       } catch (err) {
         bouton.disabled = false;
-        dire(err instanceof ErreurApi ? err.message : 'No se ha podido añadir.');
+        dire(err instanceof ErreurApi ? err.message : t('tarifs.ajoutEchoue'));
         champNombre.focus();
       }
     },
   },
-  el('div.champ', el('label', { for: 'tf-nombre', texte: 'Servicio' }), champNombre),
-  el('div.champ', el('label', { for: 'tf-precio', texte: 'Precio' }), champPrecio,
-    el('p.champ__aide', { texte: 'Como lo escribes: 14, 14,90 o 14.90. El símbolo € se añade solo.' })),
-  el('div.champ', el('label', { for: 'tf-duracion', texte: 'Duración (minutos)' }), champDuracion,
-    el('p.champ__aide', { texte: 'Es lo que sirve para calcular la espera que se anuncia al cliente. Si dudas, pon el tiempo más largo: vale más pasar antes de lo prometido que después.' })),
-  el('div.champ', el('label', { for: 'tf-nota', texte: 'Nota' }), champNota),
+  el('div.champ', el('label', { for: 'tf-nombre', texte: t('tarifs.champService') }), champNombre),
+  el('div.champ', el('label', { for: 'tf-precio', texte: t('tarifs.champPrix') }), champPrecio,
+    el('p.champ__aide', { texte: t('tarifs.aidePrix', { symbole: symboleMonnaie() }) })),
+  el('div.champ', el('label', { for: 'tf-duracion', texte: t('tarifs.champDuree') }), champDuracion,
+    el('p.champ__aide', { texte: t('tarifs.aideDuree') })),
+  el('div.champ', el('label', { for: 'tf-nota', texte: t('tarifs.champNote') }), champNota),
   bouton);
 
   remplacer(conteneur, el('div.enveloppe.page-gestion',
-    el('h1.titre-page', { texte: 'Tarifas' }),
+    el('h1.titre-page', { texte: t('tarifs.titre') }),
     el('p.texte-doux', {
-      texte: donnees.visibles + ' de ' + donnees.items.length
-        + ' se muestran en la página de inicio, en este mismo orden.',
+      texte: t('tarifs.compteVisibles', { visibles: donnees.visibles, total: donnees.items.length }),
     }),
     alerte, succes,
     el('section.carte', liste),
     el('section.carte',
-      el('h2.reglages__titre', { texte: 'Añadir un servicio' }),
+      el('h2.reglages__titre', { texte: t('tarifs.titreAjout') }),
       formulaire)));
 }

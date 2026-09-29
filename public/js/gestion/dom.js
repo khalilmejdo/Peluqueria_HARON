@@ -5,6 +5,7 @@
  * assemblee en chaine HTML. Un prenom contenant « <script> » n'est donc, au
  * pire, qu'un prenom bizarre a l'ecran.
  */
+import { t, dureeNue, dureeCourte } from '../langue.js';
 
 /**
  * @param {string} balise  « div », « button.bouton.bouton--principal », « p#titre »
@@ -71,32 +72,40 @@ export function heure(instant) {
   return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
 }
 
-/** « il y a 12 min », pour dire depuis quand quelqu'un attend. */
+/** « depuis 12 min », pour dire depuis quand quelqu'un attend. */
 export function depuis(instant) {
   if (!instant) return '';
   const minutes = Math.max(0, Math.round((Date.now() - new Date(instant).getTime()) / 60000));
-  if (minutes < 1) return 'ahora mismo';
-  if (minutes < 60) return 'desde hace ' + minutes + ' min';
-  const h = Math.floor(minutes / 60);
-  const reste = minutes % 60;
-  return 'desde hace ' + h + ' h' + (reste ? ' ' + String(reste).padStart(2, '0') : '');
+  if (minutes < 1) return t('duree.maintenant');
+  if (minutes < 60) return t('duree.depuisMinutes', { n: minutes });
+  return t('duree.depuisHeures', { duree: dureeNue(minutes) });
 }
 
 export function minutesLisibles(minutes) {
   const m = Math.max(0, Math.round(Number(minutes) || 0));
-  if (m <= 0) return 'unos minutos';
-  if (m < 60) return m + ' min';
-  const h = Math.floor(m / 60);
-  const reste = m % 60;
-  return h + ' h' + (reste ? ' ' + String(reste).padStart(2, '0') : '');
+  if (m <= 0) return t('duree.quelquesMinutes');
+  return dureeCourte(m);
 }
 
-export const LIBELLE_SOURCE = { ONLINE: 'Por internet', QR: 'Código QR', COMPTOIR: 'Mostrador' };
-export const LIBELLE_STATUT = {
-  WAITING: 'Esperando',
-  LATE: 'Esperando · ya estuvo ausente',
-  CALLED: 'Llamado',
-  IN_SERVICE: 'En curso',
-  COMPLETED: 'Atendido',
-  CANCELLED: 'Anulado',
-};
+/**
+ * LIBELLES : DES FONCTIONS, PLUS DES OBJETS CONSTANTS.
+ *
+ * Un objet fige au chargement du module aurait porte les libelles de la langue
+ * du premier rendu ; ce module est importe par tous les ecrans, donc l'erreur
+ * aurait ete invisible jusqu'a un changement de langue.
+ *
+ * Un code inconnu se rend TEL QUEL plutot qu'en vide : un statut ajoute en base
+ * apparaitrait « NO_SHOW » a l'ecran, ce qui se remarque et se repare, la ou une
+ * colonne vide passe inapercue.
+ */
+export function libelleSource(code) {
+  const cle = 'source.' + code;
+  const lu = t(cle);
+  return lu === cle ? String(code) : lu;
+}
+
+export function libelleStatut(code) {
+  const cle = 'statut.' + code;
+  const lu = t(cle);
+  return lu === cle ? String(code) : lu;
+}

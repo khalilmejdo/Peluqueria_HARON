@@ -14,8 +14,11 @@ import { log } from '../core/logger.js';
 import { badRequest, conflict, notFound, forbidden } from '../core/errors.js';
 import { newId, hashPassword } from '../core/crypto.js';
 import { PROFILES } from '../core/ratelimit.js';
-import { CATALOGUE, lireTous, enregistrer, horairesLisibles, adressePublique } from '../core/reglages.js';
-import { ROLES, CODES_ROLES } from '../core/roles.js';
+import {
+  catalogueTraduit, lireTous, enregistrer, horairesLisibles, adressePublique, coherenceIdentite,
+} from '../core/reglages.js';
+import { t } from '../core/langue.js';
+import { role as roleParCode, roles, CODES_ROLES } from '../core/roles.js';
 import { revokeAllUserSessions } from '../core/session.js';
 import { pingSante, etatBase } from '../db/index.js';
 import { nombreAbonnes } from '../core/flux.js';
@@ -71,20 +74,15 @@ reglagesRoutes.get('/', async (ctx) => {
   const valeurs = await lireTous({ frais: true });
   ctx.ok({
     valeurs,
-    catalogue: Object.entries(CATALOGUE).map(([cle, regle]) => ({
-      cle,
-      type: regle.type,
-      libelle: regle.libelle,
-      aide: regle.aide ?? null,
-      groupe: regle.groupe ?? null,
-      min: regle.min ?? null,
-      max: regle.max ?? null,
-      maxLongueur: regle.maxLongueur ?? null,
-      options: regle.options ?? null,
-      defaut: regle.defaut,
-    })),
-    horaires: horairesLisibles(valeurs),
+    // Le catalogue arrive DEJA traduit : libelles, aides et intitules d'options.
+    // Le rendre brut obligerait l'interface a porter un second dictionnaire, et
+    // les deux auraient divergé.
+    catalogue: catalogueTraduit(valeurs['salon.idioma']),
+    horaires: horairesLisibles(valeurs, valeurs['salon.idioma']),
     adressePublique: adressePublique(valeurs, ctx.base),
+    // Ce qui vient du fichier .env, et ce qui ne concorde pas avec le choix fait
+    // a l'ecran. Le gerant voit les deux moities du reglage cote a cote.
+    identite: coherenceIdentite(valeurs),
     whatsapp: {
       actif: config.whatsapp.actif,
       modeles: config.whatsapp.modeles,
@@ -98,7 +96,7 @@ reglagesRoutes.get('/', async (ctx) => {
 reglagesRoutes.put('/', async (ctx) => {
   const valeurs = ctx.body && typeof ctx.body === 'object' ? ctx.body.valeurs : null;
   if (!valeurs || typeof valeurs !== 'object' || Array.isArray(valeurs)) {
-    throw badRequest('Envíe un objeto « valeurs » con los ajustes que hay que guardar.');
+    throw badRequest(t('reglages.envoiValeurs'));
   }
 
   // Changer l'organisation de la file en pleine journee laisserait les clients
@@ -114,18 +112,36 @@ reglagesRoutes.put('/', async (ctx) => {
         [jourLocal(), ['WAITING', 'LATE', 'CALLED', 'IN_SERVICE']],
       );
       if ((enFile?.n ?? 0) > 0) {
-        throw conflict('No se puede cambiar la organización de la fila: ' + enFile.n
-          + ' cliente' + (enFile.n > 1 ? 's siguen' : ' sigue') + ' en la fila de hoy. '
-          + 'Atiéndalos, o cierre la jornada, y cambie el ajuste después.',
-        );
+        throw conflict(t('reglages.modeFileOccupee', { n: enFile.n }));
       }
     }
   }
 
+  const avant = await lireTous();
   const n = await enregistrer(valeurs, { parUtilisateurId: ctx.user.id });
   log.info('Reglages enregistres', { nombre: n, par: ctx.user.identifiant });
   const frais = await lireTous({ frais: true });
-  ctx.ok({ enregistres: n, valeurs: frais, horaires: horairesLisibles(frais) });
+
+  /*
+   * « rechargerTout » : L'INTERFACE DOIT SE RECHARGER, PAS SE RAFRAICHIR.
+   *
+   * Changer la langue ou la monnaie ne change pas une valeur, il change TOUS les
+   * mots de l'application — y compris ceux de la barre de navigation, du titre
+   * de la page et de l'attribut « lang » du document, qui sont rendus par le
+   * serveur et qu'aucun re-rendu cote client ne touchera. Sans ce signal, le
+   * gerant verrait le formulaire changer de langue et le reste de l'ecran rester
+   * dans l'ancienne : il conclurait que l'enregistrement a echoue a moitie.
+   */
+  const rechargerTout = avant['salon.idioma'] !== frais['salon.idioma']
+    || avant['salon.moneda'] !== frais['salon.moneda'];
+
+  ctx.ok({
+    enregistres: n,
+    valeurs: frais,
+    horaires: horairesLisibles(frais, frais['salon.idioma']),
+    identite: coherenceIdentite(frais),
+    rechargerTout,
+  });
 }, { role: 'GERANT', rateLimit: PROFILES.administration });
 
 /* ================================================================== */
@@ -139,7 +155,7 @@ const versClient = (u) => ({
   identifiant: u.identifiant,
   nomComplet: u.nom_complet,
   role: u.role,
-  roleLibelle: ROLES[u.role]?.libelle ?? u.role,
+  roleLibelle: roleParCode(u.role)?.libelle ?? u.role,
   actif: u.actif,
   doitChangerMotDePasse: u.doit_changer_mot_de_passe,
   verrouilleJusquA: u.verrouille_jusqu_a,
@@ -153,7 +169,7 @@ comptesRoutes.get('/', async (ctx) => {
             verrouille_jusqu_a, derniere_connexion_at, created_at
        FROM utilisateurs ORDER BY role, identifiant_lower`,
   );
-  ctx.ok({ items: lignes.map(versClient), roles: CODES_ROLES.map((c) => ({ code: c, ...ROLES[c] })) });
+  ctx.ok({ items: lignes.map(versClient), roles: roles() });
 }, { role: 'GERANT' });
 
 comptesRoutes.post('/', async (ctx) => {
@@ -161,19 +177,19 @@ comptesRoutes.post('/', async (ctx) => {
     identifiant: {
       type: 'string', required: true, min: 3, max: 40, lower: true,
       pattern: /^[a-z0-9._-]+$/,
-      patternMessage: 'Solo letras sin acento, cifras, punto, guion y subrayado.',
+      patternMessage: t('compte.identifiantForme'),
     },
     nomComplet: { type: 'string', required: true, max: 80 },
     role: { type: 'enum', required: true, values: CODES_ROLES, upper: true },
     motDePasse: { type: 'string', required: true, max: 200, trim: false },
   });
   if (data.motDePasse.length < config.security.passwordMinLength) {
-    throw badRequest('La contraseña debe tener al menos ' + config.security.passwordMinLength + ' caracteres.',
-      { fields: { motDePasse: 'Al menos ' + config.security.passwordMinLength + ' caracteres.' } });
+    throw badRequest(t('compte.motDePasseCourt', { min: config.security.passwordMinLength }),
+      { fields: { motDePasse: t('compte.minCaracteres', { min: config.security.passwordMinLength }) } });
   }
 
   const existe = await one('SELECT id FROM utilisateurs WHERE identifiant_lower = $1', [data.identifiant]);
-  if (existe) throw conflict('Ya hay una cuenta con ese usuario.');
+  if (existe) throw conflict(t('compte.identifiantPris'));
 
   const id = newId();
   await execute(
@@ -193,21 +209,21 @@ comptesRoutes.patch('/:id', async (ctx) => {
     role: { type: 'enum', values: CODES_ROLES, upper: true },
     actif: { type: 'bool' },
   });
-  if (!Object.keys(data).length) throw badRequest('No se ha enviado ningún cambio.');
+  if (!Object.keys(data).length) throw badRequest(t('commun.aucuneModification'));
 
-  const ligne = exigerTrouve(await one('SELECT * FROM utilisateurs WHERE id = $1', [id]), 'Cuenta no encontrada.');
+  const ligne = exigerTrouve(await one('SELECT * FROM utilisateurs WHERE id = $1', [id]), t('compte.introuvable'));
 
   // Un gerant ne peut ni se retirer son propre role ni se desactiver : le salon
   // se retrouverait sans personne pour changer les reglages.
   if (ligne.id === ctx.user.id && (data.actif === false || (data.role && data.role !== 'GERANT'))) {
-    throw forbidden('No puedes quitarte tus propios permisos. Pídeselo a otro gerente.');
+    throw forbidden(t('compte.pasSoiMeme'));
   }
   if (ligne.role === 'GERANT' && ((data.role && data.role !== 'GERANT') || data.actif === false)) {
     const autres = await one(
       'SELECT COUNT(*)::int AS n FROM utilisateurs WHERE role = $1 AND actif AND id <> $2',
       ['GERANT', ligne.id],
     );
-    if (!autres || autres.n === 0) throw conflict('Esta cuenta es el último gerente activo: el salón debe conservar uno.');
+    if (!autres || autres.n === 0) throw conflict(t('compte.dernierGerant'));
   }
 
   const champs = [];
@@ -219,7 +235,7 @@ comptesRoutes.patch('/:id', async (ctx) => {
   }
   await execute('UPDATE utilisateurs SET ' + champs.join(', ') + ' WHERE id = $1', params);
   if (data.actif === false || (data.role && data.role !== ligne.role)) {
-    await revokeAllUserSessions(id, data.actif === false ? 'cuenta desactivada' : 'rol modificado');
+    await revokeAllUserSessions(id, t(data.actif === false ? 'trace.compteDesactive' : 'trace.roleModifie'));
   }
   log.info('Compte modifie', { identifiant: ligne.identifiant, par: ctx.user.identifiant, champs: Object.keys(data) });
   ctx.ok(versClient(await one('SELECT * FROM utilisateurs WHERE id = $1', [id])));
@@ -230,16 +246,16 @@ comptesRoutes.post('/:id/mot-de-passe', async (ctx) => {
   const id = idDe(ctx);
   const data = validate(ctx.body, { motDePasse: { type: 'string', required: true, max: 200, trim: false } });
   if (data.motDePasse.length < config.security.passwordMinLength) {
-    throw badRequest('La contraseña debe tener al menos ' + config.security.passwordMinLength + ' caracteres.',
-      { fields: { motDePasse: 'Al menos ' + config.security.passwordMinLength + ' caracteres.' } });
+    throw badRequest(t('compte.motDePasseCourt', { min: config.security.passwordMinLength }),
+      { fields: { motDePasse: t('compte.minCaracteres', { min: config.security.passwordMinLength }) } });
   }
-  const ligne = exigerTrouve(await one('SELECT identifiant FROM utilisateurs WHERE id = $1', [id]), 'Cuenta no encontrada.');
+  const ligne = exigerTrouve(await one('SELECT identifiant FROM utilisateurs WHERE id = $1', [id]), t('compte.introuvable'));
   await execute(
     `UPDATE utilisateurs SET mot_de_passe_hash = $2, doit_changer_mot_de_passe = TRUE,
             tentatives_echouees = 0, verrouille_jusqu_a = NULL WHERE id = $1`,
     [id, await hashPassword(data.motDePasse)],
   );
-  await revokeAllUserSessions(id, 'contraseña restablecida');
+  await revokeAllUserSessions(id, t('trace.motDePasseReinitialise'));
   log.info('Mot de passe reinitialise', { identifiant: ligne.identifiant, par: ctx.user.identifiant });
   ctx.ok({ ok: true });
 }, { role: 'GERANT', rateLimit: PROFILES.administration });
@@ -247,7 +263,7 @@ comptesRoutes.post('/:id/mot-de-passe', async (ctx) => {
 /** Deblocage apres plusieurs essais infructueux. */
 comptesRoutes.post('/:id/debloquer', async (ctx) => {
   const id = idDe(ctx);
-  exigerTrouve(await one('SELECT id FROM utilisateurs WHERE id = $1', [id]), 'Cuenta no encontrada.');
+  exigerTrouve(await one('SELECT id FROM utilisateurs WHERE id = $1', [id]), t('compte.introuvable'));
   await execute('UPDATE utilisateurs SET tentatives_echouees = 0, verrouille_jusqu_a = NULL WHERE id = $1', [id]);
   ctx.ok({ ok: true });
 }, { role: 'GERANT', rateLimit: PROFILES.administration });
@@ -362,8 +378,8 @@ tarifasRoutes.post('/', async (ctx) => {
   // « precio » reste une chaine : c'est le domaine qui sait lire « 14,90 », et
   // lui seul. Le faire ici en ferait deux endroits a garder d'accord.
   const data = validate(ctx.body, {
-    nombre: { type: 'string', required: true, min: 1, max: 60, requiredMessage: 'Indique el nombre del servicio.' },
-    precio: { type: 'string', required: true, max: 12, requiredMessage: 'Indique el precio.' },
+    nombre: { type: 'string', required: true, min: 1, max: 60, requiredMessage: () => t('admin.tarifNomRequis') },
+    precio: { type: 'string', required: true, max: 12, requiredMessage: () => t('admin.tarifPrixRequis') },
     nota: { type: 'string', max: 80 },
     icono: { type: 'string', max: 20 },
     // La duree reste une chaine ici aussi : le domaine la valide, et il est le
@@ -413,7 +429,7 @@ tarifasRoutes.post('/:id/mover', async (ctx) => {
  */
 tarifasRoutes.post('/orden', async (ctx) => {
   const brut = ctx.body?.ids;
-  if (!Array.isArray(brut)) throw badRequest('Envíe « ids » con el orden completo.');
+  if (!Array.isArray(brut)) throw badRequest(t('admin.ordreComplet'));
   if (brut.length > 500) throw badRequest('Lista demasiado larga.');
   const ids = brut.map((v) => String(v));
 
@@ -457,20 +473,18 @@ fermeturesRoutes.get('/', async (ctx) => {
 
 fermeturesRoutes.post('/', async (ctx) => {
   const data = validate(ctx.body, {
-    du: { type: 'date', required: true, requiredMessage: 'La fecha de inicio es obligatoria.' },
-    au: { type: 'date', required: true, requiredMessage: 'La fecha de fin es obligatoria.' },
+    du: { type: 'date', required: true, requiredMessage: () => t('admin.dateDebutRequise') },
+    au: { type: 'date', required: true, requiredMessage: () => t('admin.dateFinRequise') },
     motif: { type: 'string', max: 120 },
   });
   if (data.au < data.du) {
-    throw badRequest('La fecha de fin debe ser posterior o igual a la de inicio.',
-      { fields: { au: 'Posterior a la fecha de inicio.' } });
+    throw badRequest(t('admin.finApresDebut'), { fields: { au: t('admin.posterieurDebut') } });
   }
   // Une fermeture qui commence dans le passe ne sert a rien et embrouille
   // l'historique : on la refuse plutot que de la laisser passer en silence.
   const hier = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
   if (data.du < hier) {
-    throw badRequest('Un periodo de cierre no se declara en el pasado.',
-      { fields: { du: 'A partir de hoy.' } });
+    throw badRequest(t('admin.congesPasse'), { fields: { du: t('admin.aPartirDAujourdhui') } });
   }
 
   const cree = await ajouter(data, { parUtilisateurId: ctx.user.id });
@@ -503,7 +517,7 @@ statistiquesRoutes.get('/jour', async (ctx) => {
 statistiquesRoutes.get('/historique', async (ctx) => {
   const du = ctx.queryDate('du') || null;
   const au = ctx.queryDate('au') || null;
-  if (du && au && du > au) throw badRequest('La fecha de inicio debe ser anterior a la de fin.');
+  if (du && au && du > au) throw badRequest(t('admin.debutAvantFin'));
   const limite = ctx.queryInt('limite', 60, { min: 1, max: 366 });
   ctx.ok({ items: await historique({ du, au, limite }) });
 }, { role: 'GERANT' });
@@ -526,14 +540,14 @@ statistiquesRoutes.get('/historique', async (ctx) => {
 statistiquesRoutes.get('/historique.csv', async (ctx) => {
   const du = ctx.queryDate('du') || null;
   const au = ctx.queryDate('au') || null;
-  if (du && au && du > au) throw badRequest('La fecha de inicio debe ser anterior a la de fin.');
+  if (du && au && du > au) throw badRequest(t('admin.debutAvantFin'));
   const lignes = await historique({ du, au, limite: ctx.queryInt('limite', 366, { min: 1, max: 366 }) });
 
   const nombre = (v) => (v === null || v === undefined ? '' : String(v).replace('.', ','));
   const colonnes = [
-    'Fecha', 'Total', 'Atendidos', 'Anulados', 'Con ausencia',
-    'Por internet', 'Por QR', 'En mostrador',
-    'Espera media (min)', 'Duración media del corte (min)',
+    t('admin.colDate'), t('admin.colTotal'), t('admin.colServis'), t('admin.colAnnules'), t('admin.colAbsence'),
+    t('admin.colEnLigne'), t('admin.colQr'), t('admin.colComptoir'),
+    t('admin.colAttenteMoyenne'), t('admin.colDureeMoyenne'),
   ];
 
   const corps = lignes.map((l) => [
@@ -543,7 +557,7 @@ statistiquesRoutes.get('/historique.csv', async (ctx) => {
   ].join(';'));
 
   const csv = '﻿' + [colonnes.join(';'), ...corps].join('\r\n') + '\r\n';
-  const nom = 'haron-' + (du || 'inicio') + '_' + (au || jourLocal()) + '.csv';
+  const nom = 'haron-' + (du || t('admin.csvNomFichier')) + '_' + (au || jourLocal()) + '.csv';
 
   log.info('Export CSV des chiffres', { lignes: lignes.length, par: ctx.user.identifiant });
   ctx.file(Buffer.from(csv, 'utf8'), { filename: nom, mimeType: 'text/csv; charset=utf-8', download: true });
@@ -590,9 +604,12 @@ serviceRoutes.post('/purger', async (ctx) => {
   const data = validate(ctx.body, {
     confirmation: { type: 'string', required: true, max: 20, trim: false },
   });
-  if (data.confirmation !== 'BORRAR') {
-    throw badRequest('Escribe BORRAR en mayúsculas para confirmar.', {
-      fields: { confirmation: 'Escribe exactamente BORRAR.' },
+  // Le mot a recopier suit la langue du salon : demander « BORRAR » a un gerant
+  // francophone lui ferait chercher ce qu'il doit taper, et la friction voulue
+  // deviendrait une devinette. C'est la MEME cle que l'interface affiche.
+  if (data.confirmation !== t('admin.purgeMot')) {
+    throw badRequest(t('admin.purgeMotMajuscules'), {
+      fields: { confirmation: t('admin.purgeMotExact') },
     });
   }
 
@@ -608,7 +625,7 @@ serviceRoutes.post('/purger', async (ctx) => {
  */
 serviceRoutes.post('/taches/:nom', async (ctx) => {
   const nom = String(ctx.params.nom || '');
-  if (!nomsDesTaches().includes(nom)) throw notFound('Tarea desconocida.');
+  if (!nomsDesTaches().includes(nom)) throw notFound(t('admin.tacheInconnue'));
   const bilan = await executerTache(nom);
   log.info('Tache relancee a la main', { tache: nom, par: ctx.user.identifiant });
   ctx.ok({ tache: nom, bilan: bilan ?? null });

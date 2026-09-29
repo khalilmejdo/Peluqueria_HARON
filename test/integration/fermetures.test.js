@@ -150,7 +150,13 @@ test('le salon peut fermer son entree sans jamais interrompre la file', { skip: 
   await t.test('l accueil annonce la fermeture et la date de reouverture', async () => {
     const r = await banc.client().get('/');
     assert.match(r.body, /Salón cerrado/);
-    assert.match(r.body, /rouvrons/);
+    // « Volvemos a abrir el … » : la page parle la langue du salon, et le salon
+    // d'essai est espagnol. Ce test cherchait « rouvrons » — du francais — et
+    // n'avait donc jamais pu passer ; il n'avait jamais tourne non plus, faute
+    // de base. C'est LA DATE qui compte : un client qui lit « fermé » sans
+    // savoir quand revenir rappelle trois fois.
+    assert.match(r.body, /Volvemos a abrir el/);
+    assert.match(r.body, /de octubre de 2026/);
   });
 
   await t.test('les conges l emportent sur l interrupteur du coiffeur', async () => {

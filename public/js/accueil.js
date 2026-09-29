@@ -11,6 +11,7 @@
  * se met simplement plus a jour d'elle-meme.
  */
 import { envoyer, activerHorsLigne, bandeauHorsLigne } from './commun.js';
+import { t, dureeNue } from './langue.js';
 
 // La vitrine se garde aussi : un passant qui la rouvre sans reseau voit le
 // salon, pas l'ecran d'erreur du navigateur.
@@ -108,11 +109,11 @@ if (bloc) {
       if (!forte || !detail) return;
 
       if (etat.enAttente === 0) {
-        poser(forte, 'Sin espera');
-        poser(detail, 'El sillón te está esperando.');
+        poser(forte, t('accueil.sansAttente'));
+        poser(detail, t('accueil.sansAttenteDetail'));
       } else {
-        poser(forte, etat.enAttente + ' persona' + (etat.enAttente > 1 ? 's' : '') + ' en la fila');
-        poser(detail, 'Espera estimada: ≈ ' + minutesLisibles(etat.attenteEstimeeMinutes));
+        poser(forte, t('accueil.enFile', { n: etat.enAttente }));
+        poser(detail, t('accueil.attenteEstimee', { duree: '≈ ' + dureeNue(etat.attenteEstimeeMinutes) }));
       }
       poserCola(etat.enAttente);
 
@@ -121,7 +122,7 @@ if (bloc) {
       if (servis) {
         const assez = Number(etat.servis) >= 3;
         servis.hidden = !assez;
-        if (assez) poser(servis, etat.servis + ' atendidos hoy');
+        if (assez) poser(servis, t('accueil.servisAujourdhui', { n: etat.servis }));
       }
       reseau.reussite();
     } catch {
@@ -138,14 +139,6 @@ if (bloc) {
   });
 }
 
-function minutesLisibles(minutes) {
-  const m = Math.max(0, Math.round(Number(minutes) || 0));
-  if (m <= 0) return 'unos minutos';
-  if (m < 60) return m + ' minuto' + (m > 1 ? 's' : '');
-  const h = Math.floor(m / 60);
-  const reste = m % 60;
-  return h + ' h' + (reste ? ' ' + String(reste).padStart(2, '0') : '');
-}
 
 /* ------------------------------------------------------------------ */
 /*  Les sections arrivent au defilement                                */

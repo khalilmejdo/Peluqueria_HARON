@@ -1166,3 +1166,98 @@
 .presta-duree { font-size: 0.75rem; color: var(--texte-doux); font-variant-numeric: tabular-nums; }
 
 .actuel .carte-file__prestas { justify-content: center; }
+
+/* ------------------------------------------------------------------ */
+/*  L'identite : ce qui vient du serveur                               */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Ce bloc vit SOUS les champs de l'identite, dans la meme carte, et il est
+ * volontairement plus sobre qu'eux : ce ne sont pas des reglages, ce sont des
+ * constats. Un cadre aussi appuye que les champs ferait chercher ou cliquer.
+ */
+.identite {
+  margin-top: 1.4rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--bordure);
+}
+
+.identite__titre {
+  margin: 0 0 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--texte-doux);
+}
+
+.identite__liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+
+.identite__ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.2rem 0.8rem;
+}
+
+.identite__quoi { font-size: 0.88rem; }
+
+/* La valeur est ce qu'on vient verifier : elle porte donc le seul accent. */
+.identite__valeur {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--accent);
+}
+
+/* Le nom de la variable dit OU aller la changer. Il occupe toute la largeur
+   sous la ligne : colle a droite, il se confondait avec la valeur. */
+.identite__variable {
+  grid-column: 1 / -1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  color: var(--texte-doux);
+}
+
+.identite__ok {
+  margin: 0.9rem 0 0;
+  font-size: 0.85rem;
+  color: var(--vert);
+}
+
+/*
+ * L'incoherence est AMBRE, pas rouge : rien n'est casse, et le salon fonctionne.
+ * Le rouge est reserve a ce qui refuse de s'enregistrer — l'user apprend vite a
+ * distinguer les deux, a condition qu'on ne triche jamais.
+ */
+.identite__alertes {
+  margin-top: 0.9rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: var(--r, 10px);
+  border: 1px solid color-mix(in srgb, var(--ambre) 40%, transparent);
+  background: color-mix(in srgb, var(--ambre) 10%, transparent);
+}
+
+.identite__alertes-titre {
+  margin: 0 0 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ambre);
+}
+
+.identite__alertes-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.identite__alertes-liste li { font-size: 0.85rem; line-height: 1.5; }
+
+.identite__alertes-liste code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  color: var(--ambre);
+}
+
+.identite__note {
+  margin: 0.9rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}

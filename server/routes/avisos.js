@@ -21,6 +21,7 @@ import { validate } from '../core/validate.js';
 import { badRequest } from '../core/errors.js';
 import { PROFILES } from '../core/ratelimit.js';
 import { log } from '../core/logger.js';
+import { t } from '../core/langue.js';
 import {
   notificationsActives, clePubliqueVapid, enregistrerAbonnement, supprimerAbonnement,
   compterAbonnements, envoyerUnEssai,
@@ -47,9 +48,9 @@ function exigerEndpoint(valeur) {
   try {
     url = new URL(valeur);
   } catch {
-    throw badRequest('Dirección de suscripción no válida.');
+    throw badRequest(t('push.adresseInvalide'));
   }
-  if (url.protocol !== 'https:') throw badRequest('La suscripción debe usar https.');
+  if (url.protocol !== 'https:') throw badRequest(t('push.httpsRequis'));
   return url.href;
 }
 
@@ -73,7 +74,7 @@ avisosRoutes.get('/', async (ctx) => {
 
 avisosRoutes.post('/', async (ctx) => {
   if (!notificationsActives()) {
-    throw badRequest('Los avisos no están configurados en este servidor.');
+    throw badRequest(t('push.nonConfigure'));
   }
   const data = validate(ctx.body, REGLES_ABONNEMENT);
   await enregistrerAbonnement(ctx.user.id, {
@@ -108,15 +109,15 @@ avisosRoutes.post('/baja', async (ctx) => {
  */
 avisosRoutes.post('/prueba', async (ctx) => {
   if (!notificationsActives()) {
-    throw badRequest('Los avisos no están configurados en este servidor.');
+    throw badRequest(t('push.nonConfigure'));
   }
   const data = validate(ctx.body, { endpoint: REGLES_ABONNEMENT.endpoint });
   const bilan = await envoyerUnEssai(ctx.user.id, data.endpoint);
   if (!bilan.envoyes && bilan.effaces) {
-    throw badRequest('Este aparato ya no acepta avisos: vuelve a activarlos.');
+    throw badRequest(t('push.abonnementPerime'));
   }
   if (!bilan.envoyes) {
-    throw badRequest('No se ha podido enviar el aviso a este aparato.');
+    throw badRequest(t('push.envoiImpossible'));
   }
   ctx.ok(bilan);
 }, { rateLimit: PROFILES.administration });

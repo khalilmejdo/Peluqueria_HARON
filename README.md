@@ -127,6 +127,8 @@ Mise en place et modèles à faire approuver : [`docs/WHATSAPP.md`](docs/WHATSAP
 
 | | |
 |---|---|
+| **Langue** | **Espagnol** ou **français**, pour tout : la vitrine, l'écran du salon, les messages, l'espace de gestion, les pages d'erreur. Le changement prend effet immédiatement ; l'écran se recharge pour appliquer la langue du document. Ce que le gérant a écrit lui-même — nom du salon, phrase d'accueil, noms des prestations — n'est jamais traduit. |
+| **Monnaie** | **Euro (€)** ou **dirham (DH)**. Change le symbole des prix, et rien d'autre : les montants déjà saisis ne sont pas convertis, « 15 € » devient « 15 DH ». Un taux de change dormant dans le code serait faux six mois plus tard, et personne ne saurait quel prix a été enregistré. |
 | **Fiche de prix** | Une liste simple — service, prix, note — affichée en vitrine sur la page d'accueil. Ajout, renommage, réordonnancement, masquage. Le prix se tape « 14 » ou « 14,90 » ; il est stocké en centimes entiers, jamais en flottant. |
 | **Hors ligne** | La vitrine et la page de suivi restent lisibles sans réseau : un travailleur de service garde la dernière page vue, et un bandeau ambre dit que le chiffre affiché n'est plus frais. L'API n'est jamais mise en cache. |
 | **Photos du salon** | Déposées dans `/opt/haron/photos` (volume monté), pas dans l'image : ni reconstruction ni redémarrage. Le nom du fichier donne l'ordre et la légende. Dossier vide = section absente. |
@@ -139,6 +141,32 @@ Mise en place et modèles à faire approuver : [`docs/WHATSAPP.md`](docs/WHATSAP
 | **Horaires** | Facultatif : refuser les tours hors des heures d'ouverture. |
 | **Nom, adresse, téléphone** | Affichés au client et repris dans les messages. |
 | **QR Code** | Affiché, téléchargeable en SVG et PNG, avec une affiche prête à imprimer. |
+
+### Installer le salon au Maroc
+
+Trois valeurs se règlent à l'écran (langue, monnaie, identité) ; trois autres
+vivent dans le `.env` du serveur, parce que les changer en cours de journée
+déplacerait la file :
+
+```ini
+APP_LANGUE=fr                      # lu seulement à la première installation
+APP_MONNAIE=MAD                    # idem : ensuite, l'écran commande
+APP_TIMEZONE=Africa/Casablanca     # décide de ce qu'est « aujourd'hui »
+TELEPHONE_INDICATIF_DEFAUT=212     # appliqué aux numéros saisis sans « + »
+WHATSAPP_LANGUE=fr                 # les modèles Meta sont déclarés par langue
+```
+
+`APP_LANGUE` et `APP_MONNAIE` ne sont lues **que** par le seed, sur une base où
+le réglage n'existe pas encore : elles décident de la langue dans laquelle le
+salon s'installe — l'accroche de la page d'accueil, le nom du premier fauteuil,
+les quinze prestations de départ (avec des prix en dirhams plausibles, pas la
+conversion des prix espagnols) et le nom du compte gérant.
+
+Les trois autres ne se règlent pas à l'écran, mais **s'y voient** : l'écran des
+réglages les affiche sous l'identité, avec le nom de leur variable, et signale
+en ambre ce qui ne concorde pas avec la monnaie choisie — un salon qui encaisse
+en dirhams avec le fuseau de Madrid changerait de jour à la mauvaise heure, en
+silence.
 
 ---
 
@@ -170,6 +198,8 @@ server/
   app.js            montage de toutes les routes — toute la surface exposée
   core/             config, crypto, sessions, validation, temps du salon,
                     réglages, diffusion temps réel (SSE), WhatsApp, QR Code, PNG
+                    langue.js + textes.js  ← une clé, deux langues, une ligne
+                    devise.js              ← euro ou dirham, centimes entiers
   http/             routeur, contexte, corps, fichiers statiques, en-têtes
   db/               schema.sql (idempotent), accès, données de référence
   domain/           file.js  ← LE CŒUR

@@ -8,6 +8,7 @@ import { sansOctetNul, isValidIsoDate } from '../core/text.js';
 import { config } from '../core/config.js';
 import { badRequest } from '../core/errors.js';
 import { applySecurityHeaders, applyNoStore, clientIp, effectiveHost, effectiveProtocol, baseUrl } from './security.js';
+import { t } from '../core/langue.js';
 
 /* ------------------------------------------------------------------ */
 /*  Cookies                                                            */
@@ -134,10 +135,10 @@ export class Context {
     const texte = sansOctetNul(raw).trim();
     const n = /^[+-]?\d+$/.test(texte) ? Number(texte) : Number.NaN;
     if (!Number.isSafeInteger(n)) {
-      throw badRequest('El parámetro « ' + name + ' » debe ser un número entero.', { fields: { [name]: 'Se espera un número entero.' } });
+      throw badRequest(t('req.entierAttendu', { champ: name }), { fields: { [name]: t('valid.entierAttendu') } });
     }
     if (n < min || n > max) {
-      throw badRequest('El parámetro « ' + name + ' » debe estar entre ' + min + ' y ' + max + '.', { fields: { [name]: 'Entre ' + min + ' y ' + max + '.' } });
+      throw badRequest(t('req.entre', { champ: name, min, max }), { fields: { [name]: t('req.entre', { champ: name, min, max }) } });
     }
     return n;
   }
@@ -147,7 +148,7 @@ export class Context {
     const value = this.query(name);
     if (value === undefined) return undefined;
     if (!isUuid(value)) {
-      throw badRequest('El parámetro « ' + name + ' » no es un identificador válido.', { fields: { [name]: 'Identificador no válido.' } });
+      throw badRequest(t('req.identifiantAttendu', { champ: name }), { fields: { [name]: t('valid.identifiant') } });
     }
     return value;
   }
@@ -157,7 +158,7 @@ export class Context {
     const value = this.query(name);
     if (value === undefined) return undefined;
     if (!isValidIsoDate(value)) {
-      throw badRequest('El parámetro « ' + name + ' » debe ser una fecha con formato AAAA-MM-DD.', { fields: { [name]: 'Se espera una fecha: AAAA-MM-DD.' } });
+      throw badRequest(t('req.dateAttendue', { champ: name }), { fields: { [name]: t('req.dateForme') } });
     }
     return value;
   }

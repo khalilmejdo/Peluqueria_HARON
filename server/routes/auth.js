@@ -20,11 +20,21 @@ import {
   SESSION_COOKIE, createSession, revokeSession, revokeAllUserSessions,
   makeCsrfToken, listActiveSessions,
 } from '../core/session.js';
-import { ROLES } from '../core/roles.js';
+import { role as roleParCode } from '../core/roles.js';
+import { t } from '../core/langue.js';
 
 export const authRoutes = new Router();
 
-const REFUS = 'Usuario o contraseña incorrectos.';
+/**
+ * Le meme refus pour un identifiant inconnu et pour un mot de passe faux.
+ *
+ * C'est une FONCTION, pas une constante de module : une constante serait
+ * evaluee au chargement du fichier et figerait la phrase dans la langue du
+ * demarrage. Un salon passe en francais aurait continue a refuser en espagnol
+ * jusqu'au prochain redemarrage — sur l'ecran de connexion, c'est-a-dire le
+ * premier ecran que voit le personnel.
+ */
+const refus = () => t('acces.identifiantsIncorrects');
 
 function profil(user, csrfToken) {
   return {
@@ -33,10 +43,20 @@ function profil(user, csrfToken) {
       identifiant: user.identifiant,
       nomComplet: user.nomComplet ?? user.nom_complet,
       role: user.role,
-      roleLibelle: ROLES[user.role]?.libelle ?? user.role,
+      roleLibelle: roleParCode(user.role)?.libelle ?? user.role,
       doitChangerMotDePasse: user.doitChangerMotDePasse ?? user.doit_changer_mot_de_passe ?? false,
     },
     csrfToken,
+    /*
+     * LA LONGUEUR MINIMALE VIENT DU SERVEUR, ET DE LUI SEUL.
+     *
+     * Elle etait ecrite « 12 » en dur a trois endroits du navigateur : le
+     * `minlength` du champ, la phrase d'aide sous le champ, et l'invite de
+     * reinitialisation. Un deploiement qui remonte PASSWORD_MIN_LENGTH les
+     * aurait tous les trois laisses mentir, et le gerant aurait vu son mot de
+     * passe refuse par un serveur qui demandait plus que ce que l'ecran annoncait.
+     */
+    motDePasseMin: config.security.passwordMinLength,
   };
 }
 
@@ -61,8 +81,7 @@ authRoutes.post('/login', async (ctx) => {
 
   if (ligne?.verrouille_jusqu_a && new Date(ligne.verrouille_jusqu_a).getTime() > Date.now()) {
     const minutes = Math.ceil((new Date(ligne.verrouille_jusqu_a).getTime() - Date.now()) / 60000);
-    throw new AppError(429, 'Esta cuenta está bloqueada ' + minutes + ' minuto' + (minutes > 1 ? 's' : '')
-      + ' más, tras varios intentos fallidos.', { code: 'COMPTE_VERROUILLE' });
+    throw new AppError(429, t('acces.compteBloque', { n: minutes }), { code: 'COMPTE_VERROUILLE' });
   }
 
   let correct = false;
@@ -74,7 +93,7 @@ authRoutes.post('/login', async (ctx) => {
     if (err instanceof DerivationImpossible) {
       log.error('Verification du mot de passe impossible', { error: err.message });
       // Un incident machine n'est PAS une tentative ratee : ne pas verrouiller.
-      throw new AppError(503, 'El servicio de identificación no está disponible ahora mismo. Inténtelo en un instante.');
+      throw new AppError(503, t('acces.serviceIndisponible'));
     }
     throw err;
   }
@@ -82,9 +101,9 @@ authRoutes.post('/login', async (ctx) => {
   if (!ligne || !correct) {
     if (ligne) await compterEchec(ligne);
     log.warn('Connexion refusee', { identifiant: data.identifiant, ip: ctx.ip });
-    throw unauthorized(REFUS);
+    throw unauthorized(refus());
   }
-  if (!ligne.actif) throw unauthorized(REFUS);
+  if (!ligne.actif) throw unauthorized(refus());
 
   const session = await transaction(async (tx) => {
     await tx.execute(
@@ -124,14 +143,14 @@ async function compterEchec(ligne) {
 /** L'etat de la session courante : appele au chargement de l'espace de gestion. */
 authRoutes.get('/session', async (ctx) => {
   if (!ctx.user || !ctx.session) {
-    ctx.ok({ utilisateur: null, csrfToken: null });
+    ctx.ok({ utilisateur: null, csrfToken: null, motDePasseMin: config.security.passwordMinLength });
     return;
   }
   ctx.ok(profil(ctx.user, makeCsrfToken(ctx.session.id, ctx.session.csrfSecret)));
 }, { public: true });
 
 authRoutes.post('/logout', async (ctx) => {
-  if (ctx.session) await revokeSession(ctx.session.id, 'cierre de sesión');
+  if (ctx.session) await revokeSession(ctx.session.id, t('trace.deconnexion'));
   ctx.clearCookie(SESSION_COOKIE);
   ctx.noContent();
 }, { allowDuringPasswordChange: true });
@@ -144,16 +163,16 @@ authRoutes.post('/mot-de-passe', async (ctx) => {
   });
 
   if (data.nouveau.length < config.security.passwordMinLength) {
-    throw badRequest('La contraseña nueva debe tener al menos ' + config.security.passwordMinLength + ' caracteres.',
-      { fields: { nouveau: 'Al menos ' + config.security.passwordMinLength + ' caracteres.' } });
+    throw badRequest(t('acces.motDePasseCourt', { min: config.security.passwordMinLength }),
+      { fields: { nouveau: t('compte.minCaracteres', { min: config.security.passwordMinLength }) } });
   }
   if (data.nouveau === data.actuel) {
-    throw badRequest('La contraseña nueva debe ser distinta de la anterior.', { fields: { nouveau: 'Elija una contraseña distinta.' } });
+    throw badRequest(t('acces.motDePasseIdentique'), { fields: { nouveau: t('acces.motDePasseIdentiqueChamp') } });
   }
 
   const ligne = await one('SELECT mot_de_passe_hash FROM utilisateurs WHERE id = $1', [ctx.user.id]);
   if (!ligne || !(await verifyPassword(data.actuel, ligne.mot_de_passe_hash))) {
-    throw unauthorized('La contraseña actual no es correcta.');
+    throw unauthorized(t('acces.motDePasseActuelFaux'));
   }
 
   const hash = await hashPassword(data.nouveau);
@@ -161,7 +180,7 @@ authRoutes.post('/mot-de-passe', async (ctx) => {
     'UPDATE utilisateurs SET mot_de_passe_hash = $2, doit_changer_mot_de_passe = FALSE WHERE id = $1',
     [ctx.user.id, hash],
   );
-  await revokeAllUserSessions(ctx.user.id, 'contraseña cambiada', { exceptSessionId: ctx.session?.id ?? null });
+  await revokeAllUserSessions(ctx.user.id, t('trace.motDePasseChange'), { exceptSessionId: ctx.session?.id ?? null });
   log.info('Mot de passe change', { identifiant: ctx.user.identifiant });
   ctx.ok({ ok: true });
 }, { allowDuringPasswordChange: true, rateLimit: PROFILES.administration });
@@ -183,6 +202,6 @@ authRoutes.get('/sessions', async (ctx) => {
 });
 
 authRoutes.post('/sessions/fermer-les-autres', async (ctx) => {
-  const n = await revokeAllUserSessions(ctx.user.id, 'cierre solicitado', { exceptSessionId: ctx.session?.id ?? null });
+  const n = await revokeAllUserSessions(ctx.user.id, t('trace.deconnexionDemandee'), { exceptSessionId: ctx.session?.id ?? null });
   ctx.ok({ fermees: n });
 }, { rateLimit: PROFILES.administration });

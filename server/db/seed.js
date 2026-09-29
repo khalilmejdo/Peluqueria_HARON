@@ -17,7 +17,9 @@ import { config } from '../core/config.js';
 import { execute, one } from './index.js';
 import { newId, hashPassword } from '../core/crypto.js';
 import { normalize } from '../core/text.js';
-import { CATALOGUE } from '../core/reglages.js';
+import { CATALOGUE, defautDe, invaliderCache } from '../core/reglages.js';
+import { t, poserLangueActive, LANGUE_DEFAUT } from '../core/langue.js';
+import { poserDeviseActive, deviseActive, DEVISE_DEFAUT } from '../core/devise.js';
 
 /**
  * La fiche de prix de depart : celle du tableau affiche dans le salon.
@@ -36,35 +38,89 @@ import { CATALOGUE } from '../core/reglages.js';
  * qui passe plus tot que prevu qu un client qui attend au-dela de ce qu on
  * lui a promis.
  */
+/**
+ * La fiche de depart : une cle de nom, les prix par monnaie, l'icone, la note,
+ * la duree en minutes.
+ *
+ * LES PRIX SONT DONNES PAR MONNAIE, ET CE N'EST PAS UNE CONVERSION. Sept euros
+ * font environ soixante-quinze dirhams, mais une coupe a Casablanca ne coute pas
+ * soixante-quinze dirhams : elle en coute quarante. Ce sont deux marches, pas
+ * deux ecritures du meme prix — un taux de change ici aurait produit une fiche
+ * credible nulle part.
+ *
+ * Ce sont des ordres de grandeur, pas une verite : le gerant les corrige en deux
+ * minutes depuis l'espace de gestion, et c'est bien pour cela qu'ils existent —
+ * une vitrine vide le premier jour est pire qu'une vitrine approximative.
+ */
 export const TARIFS_DE_DEPART = [
-  ['Corte normal', 700, 'tijeras', '', 15],
-  ['Barba', 500, 'barba', '', 15],
-  ['Corte + barba', 1200, 'navaja', 'El más pedido', 25],
-  ['Mascarilla', 300, 'mascarilla', '', 3],
-  ['Dark', 800, 'bote', '', 10],
-  ['Queratina', 4000, 'gota', '', 30],
-  ['Mechas', 2000, 'mechas', '', 25],
-  ['Mechas blancas', 4000, 'mechas', '', 25],
-  ['Peinado', 300, 'peine', '', 5],
-  ['Cejas', 300, 'cejas', '', 5],
-  ['Cejas con cera', 300, 'cera', '', 5],
-  ['Tinte normal', 500, 'tinte', '', 5],
-  ['Tinte de pelo', 1000, 'tinte', '', 5],
-  ['Tinte barba', 300, 'barba', '', 5],
-  ['Lavado de pelo', 200, 'lavado', '', 1],
+  ['seed.tarif.coupe', { EUR: 700, MAD: 4000 }, 'tijeras', null, 15],
+  ['seed.tarif.barbe', { EUR: 500, MAD: 2000 }, 'barba', null, 15],
+  ['seed.tarif.coupeBarbe', { EUR: 1200, MAD: 5500 }, 'navaja', 'seed.tarif.leplusdemande', 25],
+  ['seed.tarif.masque', { EUR: 300, MAD: 2000 }, 'mascarilla', null, 3],
+  ['seed.tarif.dark', { EUR: 800, MAD: 5000 }, 'bote', null, 10],
+  ['seed.tarif.keratine', { EUR: 4000, MAD: 30000 }, 'gota', null, 30],
+  ['seed.tarif.meches', { EUR: 2000, MAD: 15000 }, 'mechas', null, 25],
+  ['seed.tarif.mechesBlanches', { EUR: 4000, MAD: 30000 }, 'mechas', null, 25],
+  ['seed.tarif.coiffage', { EUR: 300, MAD: 3000 }, 'peine', null, 5],
+  ['seed.tarif.sourcils', { EUR: 300, MAD: 2000 }, 'cejas', null, 5],
+  ['seed.tarif.sourcilsCire', { EUR: 300, MAD: 2500 }, 'cera', null, 5],
+  ['seed.tarif.teinture', { EUR: 500, MAD: 5000 }, 'tinte', null, 5],
+  ['seed.tarif.coloration', { EUR: 1000, MAD: 10000 }, 'tinte', null, 5],
+  ['seed.tarif.teintureBarbe', { EUR: 300, MAD: 2500 }, 'barba', null, 5],
+  ['seed.tarif.shampoing', { EUR: 200, MAD: 1500 }, 'lavado', null, 1],
 ];
+
+/**
+ * LA LANGUE ET LA MONNAIE D'ABORD, AVANT TOUTE ECRITURE.
+ *
+ * Tout ce que le seed ecrit est du texte : l'accroche de la page d'accueil, le
+ * nom du premier fauteuil, les quinze noms de prestations, le nom du compte
+ * gerant. Les ecrire avant de savoir dans quelle langue on installe reviendrait
+ * a installer en espagnol, puis a demander au gerant de tout retaper.
+ *
+ * On ne lit `.env` QUE si le reglage n'existe pas encore. Sur un salon en
+ * service, la base fait foi : un APP_LANGUE oublie dans un fichier ne doit pas
+ * pouvoir renverser le choix fait a l'ecran.
+ */
+async function langueDInstallation(dire) {
+  const stockee = await one("SELECT valeur FROM reglages WHERE cle = 'salon.idioma'");
+  const stockeeDevise = await one("SELECT valeur FROM reglages WHERE cle = 'salon.moneda'");
+
+  const langue = stockee?.valeur || config.installation.langue || LANGUE_DEFAUT;
+  const monnaie = stockeeDevise?.valeur || config.installation.monnaie || DEVISE_DEFAUT;
+
+  const langueActive = poserLangueActive(langue);
+  const deviseRetenue = poserDeviseActive(monnaie);
+  invaliderCache();
+
+  if (!stockee && config.installation.langue) {
+    dire('  Installation : langue « ' + langueActive + ' » lue dans APP_LANGUE.');
+  }
+  if (!stockeeDevise && config.installation.monnaie) {
+    dire('  Installation : monnaie « ' + deviseRetenue + ' » lue dans APP_MONNAIE.');
+  }
+  return { langue: langueActive, monnaie: deviseRetenue };
+}
 
 export async function seed({ silencieux = false } = {}) {
   const dire = silencieux ? () => {} : (message) => console.log(message);
 
+  const installation = await langueDInstallation(dire);
+
   let poses = 0;
   for (const [cle, regle] of Object.entries(CATALOGUE)) {
-    const valeur = regle.type === 'booleen' ? (regle.defaut ? 'true' : 'false') : String(regle.defaut ?? '');
+    // La langue et la monnaie prennent la valeur d'installation ; les autres
+    // prennent leur defaut, resolu DANS cette langue.
+    const defaut = cle === 'salon.idioma' ? installation.langue
+      : cle === 'salon.moneda' ? installation.monnaie
+        : defautDe(cle);
+    const valeur = regle.type === 'booleen' ? (defaut ? 'true' : 'false') : String(defaut ?? '');
     poses += await execute(
       'INSERT INTO reglages (cle, valeur) VALUES ($1, $2) ON CONFLICT (cle) DO NOTHING',
       [cle, valeur],
     );
   }
+  invaliderCache();
   dire('  Reglages : ' + poses + ' valeur(s) par defaut posee(s), '
     + (Object.keys(CATALOGUE).length - poses) + ' deja definie(s).');
 
@@ -73,11 +129,12 @@ export async function seed({ silencieux = false } = {}) {
   // pas revenir a chaque redeploiement.
   const fauteuils = await one('SELECT COUNT(*)::int AS n FROM postes');
   if (fauteuils.n === 0) {
+    const nom = t('seed.fauteuil1');
     await execute(
       'INSERT INTO postes (id, nom, nom_lower, ordre) VALUES ($1, $2, $3, 1)',
-      [newId(), 'Sillón 1', normalize('Sillón 1')],
+      [newId(), nom, normalize(nom)],
     );
-    dire('  Fauteuils : « Sillón 1 » cree.');
+    dire('  Fauteuils : « ' + nom + ' » cree.');
   } else {
     dire('  Fauteuils : ' + fauteuils.n + ' deja present(s).');
   }
@@ -88,10 +145,12 @@ export async function seed({ silencieux = false } = {}) {
   const tarifs = await one('SELECT COUNT(*)::int AS n FROM tarifas');
   if (tarifs.n === 0) {
     for (let i = 0; i < TARIFS_DE_DEPART.length; i += 1) {
-      const [nombre, cts, icono, nota, duracion] = TARIFS_DE_DEPART[i];
+      const [cleNom, prix, icono, cleNota, duracion] = TARIFS_DE_DEPART[i];
+      const nombre = t(cleNom);
+      const cts = prix[deviseActive()] ?? prix[DEVISE_DEFAUT];
       await execute(
         'INSERT INTO tarifas (id, nombre, nombre_lower, precio_cts, nota, icono, ordre, duracion_min) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-        [newId(), nombre, normalize(nombre), cts, nota || null, icono || null, i, duracion || 15],
+        [newId(), nombre, normalize(nombre), cts, cleNota ? t(cleNota) : null, icono || null, i, duracion || 15],
       );
     }
     dire('  Fiche de prix : ' + TARIFS_DE_DEPART.length + ' ligne(s) de depart creee(s).');
@@ -117,7 +176,7 @@ export async function seed({ silencieux = false } = {}) {
   await execute(
     `INSERT INTO utilisateurs (id, identifiant, identifiant_lower, nom_complet, mot_de_passe_hash, role, doit_changer_mot_de_passe)
      VALUES ($1,$2,$2,$3,$4,'GERANT',TRUE)`,
-    [newId(), identifiant, 'Gerente del salón', await hashPassword(config.bootstrap.password)],
+    [newId(), identifiant, t('seed.gerant'), await hashPassword(config.bootstrap.password)],
   );
   dire('  Compte gerant « ' + identifiant + ' » cree. Il devra changer son mot de passe a la premiere connexion.');
   return { reglagesPoses: poses, compteCree: true };

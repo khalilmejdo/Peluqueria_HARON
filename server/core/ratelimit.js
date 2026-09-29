@@ -6,6 +6,7 @@
  * ne repose pas que sur lui : le verrouillage de compte est en base.
  */
 import { config } from './config.js';
+import { t } from './langue.js';
 
 /** @type {Map<string, {count:number, resetAt:number}>} */
 const buckets = new Map();
@@ -77,12 +78,12 @@ export function resetAll() {
  */
 export function attenteLisible(secondes) {
   const s = Math.max(1, Math.ceil(Number(secondes) || 0));
-  if (s < 90) return 'en ' + s + ' segundo' + (s > 1 ? 's' : '');
+  if (s < 90) return t('debit.dansSecondes', { n: s });
   const minutes = Math.ceil(s / 60);
-  if (minutes < 60) return 'en ' + minutes + ' minuto' + (minutes > 1 ? 's' : '');
+  if (minutes < 60) return t('debit.dansMinutes', { n: minutes });
   const heures = Math.floor(minutes / 60);
   const reste = minutes % 60;
-  return 'en ' + heures + ' hora' + (heures > 1 ? 's' : '') + (reste ? ' y ' + reste + ' minuto' + (reste > 1 ? 's' : '') : '');
+  return t('debit.dansHeures', { n: heures }) + (reste ? t('debit.etMinutes', { n: reste }) : '');
 }
 
 /**
@@ -106,11 +107,12 @@ export function consommerPriseDeTour({ ip, telephone = null }, { telephoneSalon 
   const bloquant = !parNumero.allowed ? { r: parNumero, portee: 'NUMERO' } : (!parIp.allowed ? { r: parIp, portee: 'IP' } : null);
   if (!bloquant) return { allowed: true, retryAfterSeconds: 0, message: null, portee: null };
 
-  const attente = attenteLisible(bloquant.r.retryAfterSeconds);
-  const ouAppeler = telephoneSalon ? ' También puedes llamar al salón al ' + telephoneSalon + '.' : ' También puedes venir directamente al salón.';
-  const message = bloquant.portee === 'NUMERO'
-    ? 'Este número ya ha pedido varios turnos hoy. El siguiente será posible ' + attente + '.' + ouAppeler
-    : 'Demasiadas peticiones desde esta conexión a internet. Inténtalo de nuevo ' + attente + '.' + ouAppeler;
+  const delai = attenteLisible(bloquant.r.retryAfterSeconds);
+  const ouAppeler = telephoneSalon
+    ? t('debit.appelerAussi', { telephone: telephoneSalon })
+    : t('debit.venirAuSalon');
+  const message = t(bloquant.portee === 'NUMERO' ? 'debit.tropDeTours' : 'debit.tropDepuisCetteConnexion',
+    { delai }) + ouAppeler;
   return { allowed: false, retryAfterSeconds: bloquant.r.retryAfterSeconds, message, portee: bloquant.portee };
 }
 

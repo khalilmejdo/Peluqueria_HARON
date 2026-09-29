@@ -19,6 +19,7 @@ import { transaction } from '../db/index.js';
 import { jourLocal } from './temps.js';
 import { cloturerJourneesAnterieures } from '../domain/journee.js';
 import { traiterEnvois } from '../domain/notifications.js';
+import { t } from './langue.js';
 
 /** @type {Array<{ nom:string, intervalleMs:number, executer:() => Promise<any>, timer:any }>} */
 const TACHES = [
@@ -27,7 +28,7 @@ const TACHES = [
     intervalleMs: 10 * 60000,
     executer: async () => {
       const jour = jourLocal();
-      return transaction((tx) => cloturerJourneesAnterieures(tx, jour, { par: 'cierre automático' }));
+      return transaction((tx) => cloturerJourneesAnterieures(tx, jour, { par: t('journee.clotureAuto') }));
     },
   },
   {

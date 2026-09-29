@@ -7,6 +7,7 @@
  */
 import { api } from './api.js';
 import { el, remplacer, annoncer } from './dom.js';
+import { t } from '../langue.js';
 
 export async function vueAffiche(conteneur, { etat }) {
   const gerant = etat.utilisateur?.role === 'GERANT';
@@ -25,31 +26,31 @@ export async function vueAffiche(conteneur, { etat }) {
 
   const image = el('img.qr__image', {
     src: '/qr.svg',
-    alt: 'Código QR que lleva a la página para pedir turno en el salón',
+    alt: t('affiche.qr.alt'),
     width: '320',
     height: '320',
   });
 
   remplacer(conteneur, el('div.enveloppe.page-gestion',
-    el('h1.titre-page', { texte: 'Código QR del salón' }),
-    el('p.texte-doux', { texte: 'Pégalo en el escaparate o en el espejo. El cliente lo escanea, rellena tres campos y entra en la misma fila que quien pide turno por internet.' }),
+    el('h1.titre-page', { texte: t('affiche.titre') }),
+    el('p.texte-doux', { texte: t('affiche.intro') }),
     el('section.carte.qr',
       image,
-      el('p.qr__legende', { texte: 'Escanea para pedir tu turno' }),
+      el('p.qr__legende', { texte: t('affiche.qr.legende') }),
       el('p.qr__adresse', { texte: adresse }),
       el('div.qr__actions',
-        el('a.bouton.bouton--principal', { href: '/affiche', target: '_blank', rel: 'noopener', texte: 'Abrir el cartel para imprimir' }),
-        el('a.bouton.bouton--discret', { href: '/qr.svg?telecharger=1', download: true, texte: 'Descargar (SVG)' }),
-        el('a.bouton.bouton--discret', { href: '/qr.png?telecharger=1', download: true, texte: 'Descargar (PNG)' }),
+        el('a.bouton.bouton--principal', { href: '/affiche', target: '_blank', rel: 'noopener', texte: t('affiche.action.ouvrirAffiche') }),
+        el('a.bouton.bouton--discret', { href: '/qr.svg?telecharger=1', download: true, texte: t('affiche.action.telechargerSvg') }),
+        el('a.bouton.bouton--discret', { href: '/qr.png?telecharger=1', download: true, texte: t('affiche.action.telechargerPng') }),
         el('button.bouton.bouton--discret', {
           type: 'button',
-          texte: 'Copiar la dirección',
+          texte: t('affiche.action.copierAdresse'),
           surClick: async () => {
             try {
               await navigator.clipboard.writeText(adresse);
-              annoncer('Dirección copiada.');
+              annoncer(t('affiche.succes.adresseCopiee'));
             } catch {
-              window.prompt('Copia esta dirección:', adresse);
+              window.prompt(t('affiche.invite.copierAdresse'), adresse);
             }
           },
         }))),
@@ -61,8 +62,8 @@ export async function vueAffiche(conteneur, { etat }) {
      * que sur cet ordinateur-ci.
      */
     el('section.carte.carte--discrete',
-      el('h2.reglages__titre', { texte: 'Pantalla del salón' }),
-      el('p.texte-doux', { texte: 'Una pantalla o una tablet en la sala de espera: el turno en curso en grande, los siguientes debajo, y el código QR siempre visible. Se actualiza sola.' }),
+      el('h2.reglages__titre', { texte: t('affiche.ecran.titre') }),
+      el('p.texte-doux', { texte: t('affiche.ecran.intro') }),
       /*
        * LA CLE FAIT PARTIE DE L'ADRESSE. Sans elle, recopiee telle quelle sur
        * le televiseur, la page repond 404 — et on chercherait le probleme du
@@ -71,30 +72,30 @@ export async function vueAffiche(conteneur, { etat }) {
       el('p.qr__adresse', { texte: adressePantalla }),
       el('div.qr__actions',
         el('a.bouton.bouton--principal', {
-          href: cheminPantalla, target: '_blank', rel: 'noopener', texte: 'Abrir la pantalla',
+          href: cheminPantalla, target: '_blank', rel: 'noopener', texte: t('affiche.ecran.action.ouvrir'),
         }),
         el('button.bouton.bouton--discret', {
           type: 'button',
-          texte: 'Copiar la dirección de la pantalla',
+          texte: t('affiche.ecran.action.copierAdresse'),
           surClick: async () => {
             try {
               await navigator.clipboard.writeText(adressePantalla);
-              annoncer('Dirección de la pantalla copiada.');
+              annoncer(t('affiche.ecran.succes.adresseCopiee'));
             } catch {
-              window.prompt('Copia esta dirección:', adressePantalla);
+              window.prompt(t('affiche.invite.copierAdresse'), adressePantalla);
             }
           },
         })),
       el('p.texte-doux', {
         texte: clePantalla
-          ? 'Esa dirección lleva una clave: es lo que mantiene la pantalla fuera del alcance de quien no la conozca, ya que se muestran los apellidos. Cópiala entera en el navegador de la pantalla y ponlo en pantalla completa (F11). Si la clave cambia, hay que volver a poner la dirección.'
-          : 'Ábrela en el navegador de la pantalla y ponlo en pantalla completa (F11). No hace falta iniciar sesión, y por eso la página solo muestra números, nombres de pila y sillones. En Ajustes se puede quitar los nombres, o mostrar también los apellidos (entonces se añade una clave a la dirección).',
+          ? t('affiche.ecran.aide.avecCle')
+          : t('affiche.ecran.aide.sansCle'),
       })),
 
     el('section.carte.carte--discrete',
-      el('h2.reglages__titre', { texte: 'Antes de imprimir' }),
+      el('h2.reglages__titre', { texte: t('affiche.impression.titre') }),
       el('ul.liste-etat',
-        el('li', { texte: 'Comprueba que la dirección de arriba es la dirección pública definitiva del salón: un código QR impreso no se corrige.' }),
-        el('li', { texte: 'Escanéalo tú mismo con un móvil antes de llevarlo a la imprenta.' }),
-        el('li', { texte: 'El SVG es el formato para la imprenta; el PNG basta para imprimir en la oficina.' })))));
+        el('li', { texte: t('affiche.impression.adresseDefinitive') }),
+        el('li', { texte: t('affiche.impression.testerSoiMeme') }),
+        el('li', { texte: t('affiche.impression.formats') })))));
 }

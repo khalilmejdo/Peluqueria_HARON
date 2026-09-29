@@ -40,6 +40,7 @@ import { STATUTS_EN_ATTENTE } from './journee.js';
 import { newId } from '../core/crypto.js';
 import { log } from '../core/logger.js';
 import { lireCles, envoyer } from '../core/webpush.js';
+import { t, langueActive } from '../core/langue.js';
 
 const CLES = lireCles();
 
@@ -110,7 +111,11 @@ export async function compterAbonnements(utilisateurId) {
  */
 async function diffuser(abonnements, contenu) {
   if (!abonnements.length) return { envoyes: 0, effaces: 0 };
-  const charge = JSON.stringify(contenu);
+  // LA LANGUE VOYAGE AVEC LE MESSAGE. Le travailleur de service est un script
+  // classique : il ne peut ni importer le dictionnaire, ni lire l'attribut
+  // « lang » d'une page qu'il n'a pas. Tout le texte qu'il affiche vient d'ici,
+  // deja traduit ; ce champ ne sert qu'a sa phrase de secours.
+  const charge = JSON.stringify({ ...contenu, langue: langueActive() });
 
   const resultats = await Promise.all(abonnements.map(async (a) => {
     const resultat = await envoyer(
@@ -191,10 +196,10 @@ async function abonnementsDuPersonnel({ sauf = null } = {}) {
 function messageTourPris(ticket, enAttente) {
   const qui = ticket.prenom ? ' — ' + ticket.prenom : '';
   return {
-    titre: 'Nuevo turno ' + ticket.numero_affiche + qui,
+    titre: t('push.tourPris', { numero: ticket.numero_affiche, qui }),
     corps: enAttente === 1
-      ? 'Es el único que espera.'
-      : enAttente + ' personas esperando.',
+      ? t('push.seulEnAttente')
+      : t('push.enAttente', { n: enAttente }),
     tag: 'file',
     renotifier: true,
     url: '/gestion#file',
@@ -204,10 +209,10 @@ function messageTourPris(ticket, enAttente) {
 function messageAnnulation(ticket, enAttente) {
   const qui = ticket.prenom ? ' — ' + ticket.prenom : '';
   return {
-    titre: 'Turno anulado ' + ticket.numero_affiche + qui,
+    titre: t('push.tourAnnule', { numero: ticket.numero_affiche, qui }),
     corps: enAttente === 0
-      ? 'Ya no espera nadie.'
-      : 'Quedan ' + enAttente + (enAttente === 1 ? ' persona' : ' personas') + ' esperando.',
+      ? t('push.personneEnAttente')
+      : t('push.resteEnAttente', { n: enAttente }),
     tag: 'file',
     renotifier: true,
     url: '/gestion#file',
@@ -267,7 +272,7 @@ export async function envoyerUnEssai(utilisateurId, endpoint) {
   );
   return diffuser(abonnements, {
     titre: 'Peluquería HARON',
-    corps: 'Las notificaciones funcionan en este aparato.',
+    corps: t('push.essai'),
     tag: 'prueba',
     renotifier: true,
     url: '/gestion#file',

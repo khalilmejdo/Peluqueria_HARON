@@ -185,9 +185,23 @@ self.addEventListener('push', (evenement) => {
     contenu = {};
   }
 
+  /*
+   * LE SEUL TEXTE DE CE FICHIER, ET IL EST BILINGUE A LA MAIN.
+   *
+   * Le travailleur de service est un script CLASSIQUE — il est enregistre sans
+   * « { type: 'module' } » — il ne peut donc pas importer langue.js. Il n'a pas
+   * non plus de `document` ou lire la langue de la page.
+   *
+   * Tout le reste du texte vient du serveur, deja traduit, dans la charge du
+   * message. Cette phrase-ci n'apparait que si cette charge arrive sans corps,
+   * c'est-a-dire jamais en fonctionnement normal — mais une notification vide
+   * serait plus inquietante qu'utile, et « quelque chose a bouge » vaut mieux que
+   * rien. La langue voyage donc avec la charge.
+   */
+  const SECOURS = { es: 'Hay novedades en la fila.', fr: 'Du nouveau dans la file.' };
   const titre = contenu.titre || 'Peluquería HARON';
   const options = {
-    body: contenu.corps || 'Hay novedades en la fila.',
+    body: contenu.corps || SECOURS[contenu.langue] || SECOURS.es,
     icon: '/img/app-192.png',
     badge: '/img/app-192.png',
     tag: contenu.tag || 'haron',

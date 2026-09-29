@@ -19,6 +19,7 @@
  */
 import { api, ErreurApi } from './api.js';
 import { el } from './dom.js';
+import { t } from '../langue.js';
 
 const VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -67,11 +68,11 @@ async function travailleurPret() {
 }
 
 export function carteAvisos() {
-  const etatTexte = el('p.avisos__etat', { texte: 'Comprobando…' });
+  const etatTexte = el('p.avisos__etat', { texte: t('avisos.verification') });
   const detail = el('p.avisos__detail.texte-doux', { hidden: true });
   const actions = el('div.avisos__actions');
   const carte = el('section.carte.avisos',
-    el('h2.avisos__titre', { texte: 'Avisos en este aparato' }),
+    el('h2.avisos__titre', { texte: t('avisos.titre') }),
     etatTexte,
     detail,
     actions);
@@ -106,9 +107,7 @@ export function carteAvisos() {
       // une suite de promesses, Safari la refuse sans explication.
       const autorisation = await Notification.requestPermission();
       if (autorisation !== 'granted') {
-        dire('Avisos bloqueados.', autorisation === 'denied'
-          ? 'El navegador ya no volverá a preguntar: hay que permitirlos en sus ajustes de sitio.'
-          : 'No se ha dado permiso.');
+        dire(t('avisos.bloques'), t(autorisation === 'denied' ? 'avisos.bloquesDetail' : 'avisos.permisRefuse'));
         remplacerActions();
         return;
       }
@@ -127,7 +126,7 @@ export function carteAvisos() {
 
       await peindre();
     } catch (err) {
-      dire('No se han podido activar.', err instanceof ErreurApi ? err.message : String(err.message || err));
+      dire(t('avisos.activationEchouee'), err instanceof ErreurApi ? err.message : String(err.message || err));
       declencheur.disabled = false;
     }
   }
@@ -145,7 +144,7 @@ export function carteAvisos() {
       }
       await peindre();
     } catch (err) {
-      dire('No se han podido desactivar.', String(err.message || err));
+      dire(t('avisos.desactivationEchouee'), String(err.message || err));
       declencheur.disabled = false;
     }
   }
@@ -153,14 +152,14 @@ export function carteAvisos() {
   async function essayer(declencheur) {
     const texteInitial = declencheur.textContent;
     declencheur.disabled = true;
-    declencheur.textContent = 'Enviando…';
+    declencheur.textContent = t('avisos.envoi');
     try {
       const abonnement = await enregistrement.pushManager.getSubscription();
-      if (!abonnement) throw new Error('Este aparato ya no está suscrito.');
+      if (!abonnement) throw new Error(t('avisos.plusAbonne'));
       await api.post('/api/avisos/prueba', { endpoint: abonnement.endpoint });
-      dire('Aviso enviado.', 'Debería aparecer en un momento. Si no llega, comprueba los ajustes del aparato.');
+      dire(t('avisos.envoye'), t('avisos.envoyeDetail'));
     } catch (err) {
-      dire('El aviso de prueba no ha llegado a salir.',
+      dire(t('avisos.essaiEchoue'),
         err instanceof ErreurApi ? err.message : String(err.message || err));
       await peindre();
       return;
@@ -171,8 +170,7 @@ export function carteAvisos() {
 
   async function peindre() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-      dire('Este navegador no admite avisos.',
-        'En iPhone hay que añadir la página a la pantalla de inicio para que funcionen.');
+      dire(t('avisos.navigateurIncapable'), t('avisos.iphone'));
       remplacerActions();
       return;
     }
@@ -181,14 +179,13 @@ export function carteAvisos() {
     try {
       reponse = await api.get('/api/avisos');
     } catch {
-      dire('No se ha podido comprobar el estado de los avisos.');
+      dire(t('avisos.etatInconnu'));
       remplacerActions();
       return;
     }
 
     if (!reponse.actif) {
-      dire('Los avisos no están configurados en este servidor.',
-        'Hacen falta las claves WEBPUSH en el servidor. Mientras tanto, la fila se actualiza sola en pantalla.');
+      dire(t('avisos.nonConfigure'), t('avisos.nonConfigureDetail'));
       remplacerActions();
       return;
     }
@@ -196,8 +193,7 @@ export function carteAvisos() {
     clePublique = reponse.clePublique;
     enregistrement = await travailleurPret().catch(() => null);
     if (!enregistrement) {
-      dire('El navegador no ha permitido preparar los avisos.',
-        'Suele pasar en ventanas privadas.');
+      dire(t('avisos.preparationRefusee'), t('avisos.preparationRefuseeDetail'));
       remplacerActions();
       return;
     }
@@ -217,27 +213,25 @@ export function carteAvisos() {
     }
 
     if (abonnement) {
-      dire('Activados en este aparato.',
+      dire(t('avisos.actifs'),
         reponse.abonnements > 1
-          ? 'Tienes ' + reponse.abonnements + ' aparatos suscritos con tu cuenta.'
-          : 'Sonará cuando alguien pida turno o lo anule.');
+          ? t('avisos.autresAppareils', { n: reponse.abonnements })
+          : t('avisos.actifsDetail'));
       remplacerActions(
-        bouton('Probar', false, (e) => essayer(e.currentTarget)),
-        bouton('Desactivar', false, (e) => desactiver(e.currentTarget)),
+        bouton(t('avisos.essayer'), false, (e) => essayer(e.currentTarget)),
+        bouton(t('avisos.desactiver'), false, (e) => desactiver(e.currentTarget)),
       );
       return;
     }
 
     if (Notification.permission === 'denied') {
-      dire('Avisos bloqueados en este navegador.',
-        'Hay que permitirlos en los ajustes del sitio; desde aquí ya no se puede preguntar.');
+      dire(t('avisos.bloquesNavigateur'), t('avisos.bloquesNavigateurDetail'));
       remplacerActions();
       return;
     }
 
-    dire('Desactivados en este aparato.',
-      'Actívalos y el móvil vibrará cuando alguien pida turno o lo anule, sin tener que mirar la pantalla.');
-    remplacerActions(bouton('Activar los avisos', true, (e) => activer(e.currentTarget)));
+    dire(t('avisos.inactifs'), t('avisos.inactifsDetail'));
+    remplacerActions(bouton(t('avisos.activer'), true, (e) => activer(e.currentTarget)));
   }
 
   // Le navigateur renouvelle parfois l'abonnement de lui-meme ; le travailleur
@@ -251,6 +245,6 @@ export function carteAvisos() {
     });
   }
 
-  peindre().catch(() => dire('No se ha podido comprobar el estado de los avisos.'));
+  peindre().catch(() => dire(t('avisos.etatInconnu')));
   return carte;
 }

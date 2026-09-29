@@ -7,13 +7,19 @@
  */
 import { api } from './api.js';
 import { el, remplacer, minutesLisibles } from './dom.js';
+import { t } from '../langue.js';
 
-const JOURS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-
+/**
+ * « mar 29/09 », dans la colonne la plus etroite du tableau.
+ *
+ * Le nom du jour vient des cles « jour.0 »..« jour.6 », coupe a trois lettres :
+ * les sept abreviations restent distinctes dans les deux langues (dim, lun, mar,
+ * mer, jeu, ven, sam — dom, lun, mar, mie, jue, vie, sab).
+ */
 function dateCourte(iso) {
   const [a, m, j] = String(iso).split('-').map(Number);
   const d = new Date(Date.UTC(a, m - 1, j));
-  return JOURS[d.getUTCDay()].slice(0, 3) + ' ' + String(j).padStart(2, '0') + '/' + String(m).padStart(2, '0');
+  return t('jour.' + d.getUTCDay()).slice(0, 3) + ' ' + String(j).padStart(2, '0') + '/' + String(m).padStart(2, '0');
 }
 
 function carreau(valeur, libelle, precision = null) {
@@ -28,31 +34,39 @@ export async function vueStatistiques(conteneur, { etat }) {
   const gerant = etat.utilisateur?.role === 'GERANT';
 
   const grille = el('div.carreaux',
-    carreau(jour.total, 'clientes de hoy'),
-    carreau(jour.servis, 'atendidos'),
-    carreau(jour.annules, 'anulados'),
-    carreau(jour.clientsEnRetard, 'llegaron tarde', jour.absencesTotales ? jour.absencesTotales + ' ausencia(s) en total' : null),
-    carreau(jour.attenteMoyenneMinutes === null ? '—' : minutesLisibles(jour.attenteMoyenneMinutes), 'espera media'),
-    carreau(jour.serviceMoyenMinutes === null ? '—' : minutesLisibles(jour.serviceMoyenMinutes), 'duración media de un corte',
-      'ajuste actual: ' + (jour.dureeMoyenneReglee ?? '—') + ' min'),
-    carreau(jour.enLigne, 'por internet'),
-    carreau(jour.parQr, 'por código QR'),
-    carreau(jour.auComptoir, 'añadidos en mostrador'));
+    carreau(jour.total, t('chiffres.clientsDuJour')),
+    carreau(jour.servis, t('chiffres.servis')),
+    carreau(jour.annules, t('chiffres.annules')),
+    carreau(jour.clientsEnRetard, t('chiffres.enRetard'),
+      jour.absencesTotales ? t('chiffres.absencesTotales', { n: jour.absencesTotales }) : null),
+    carreau(jour.attenteMoyenneMinutes === null ? '—' : minutesLisibles(jour.attenteMoyenneMinutes), t('chiffres.attenteMoyenne')),
+    carreau(jour.serviceMoyenMinutes === null ? '—' : minutesLisibles(jour.serviceMoyenMinutes), t('chiffres.coupeMoyenne'),
+      jour.dureeMoyenneReglee === null || jour.dureeMoyenneReglee === undefined
+        ? t('chiffres.reglageAbsent')
+        : t('chiffres.reglageActuel', { n: jour.dureeMoyenneReglee })),
+    carreau(jour.enLigne, t('chiffres.parInternet')),
+    carreau(jour.parQr, t('chiffres.parQr')),
+    carreau(jour.auComptoir, t('chiffres.auComptoir')));
 
   const contenu = [
-    el('h1.titre-page', { texte: 'Cifras' }),
-    el('p.texte-doux', { texte: 'Jornada del ' + jour.jour + (jour.ouverte === false ? ' — cerrada' : '') }),
+    el('h1.titre-page', { texte: t('chiffres.titre') }),
+    el('p.texte-doux', {
+      texte: t(jour.ouverte === false ? 'chiffres.journeeFermee' : 'chiffres.journeeDu', { date: jour.jour }),
+    }),
     el('section.carte', grille),
   ];
 
   // Le détail par fauteuil n'a de sens qu'à partir de deux.
   if ((jour.fauteuils || []).length > 1) {
     contenu.push(el('section.carte',
-      el('h2.reglages__titre', { texte: 'Por sillón' }),
+      el('h2.reglages__titre', { texte: t('chiffres.parFauteuil') }),
       el('ul.liste-etat', jour.fauteuils.map((f) => el('li', {
-        texte: f.nom + (f.coiffeur ? ' (' + f.coiffeur + ')' : '') + ': '
-          + f.servis + ' cliente' + (f.servis > 1 ? 's' : '') + ' atendido' + (f.servis > 1 ? 's' : '')
-          + (f.coupeMoyenneMinutes === null ? '' : ', corte medio ' + minutesLisibles(f.coupeMoyenneMinutes)),
+        texte: t('chiffres.fauteuilServis', {
+          nom: f.nom + (f.coiffeur ? ' (' + f.coiffeur + ')' : ''),
+          n: f.servis,
+        }) + (f.coupeMoyenneMinutes === null
+          ? ''
+          : t('chiffres.fauteuilCoupeMoyenne', { duree: minutesLisibles(f.coupeMoyenneMinutes) })),
       })))));
   }
 
@@ -69,39 +83,60 @@ export async function vueStatistiques(conteneur, { etat }) {
 
     contenu.push(el('section.carte',
       el('div.entete-section',
-        el('h2.reglages__titre', { texte: 'Los últimos treinta días' }),
+        el('h2.reglages__titre', { texte: t('chiffres.trenteDerniersJours') }),
         // Un vrai lien, pas un bouton avec du script : le navigateur telecharge
         // lui-meme, la session voyage dans le cookie, et « enregistrer sous »
         // du clic droit fonctionne.
         el('a.bouton.bouton--discret.bouton--petit', {
           href: '/api/statistiques/historique.csv',
           download: true,
-          texte: 'Descargar CSV',
+          texte: t('chiffres.telechargerCsv'),
         })),
       historique.items.length
         ? el('div.tableau-defilant',
           el('table.tableau',
             el('thead', el('tr',
-              el('th', { texte: 'Día' }),
-              el('th.nombre', { texte: 'Total' }),
-              el('th.nombre', { texte: 'Atendidos' }),
-              el('th.nombre', { texte: 'Anulados' }),
-              el('th.nombre', { texte: 'Ausencias' }),
-              el('th.nombre', { texte: 'Espera med.' }),
-              el('th.nombre', { texte: 'Internet / QR' }))),
+              el('th', { texte: t('chiffres.colJour') }),
+              el('th.nombre', { texte: t('chiffres.colTotal') }),
+              el('th.nombre', { texte: t('chiffres.colServis') }),
+              el('th.nombre', { texte: t('chiffres.colAnnules') }),
+              el('th.nombre', { texte: t('chiffres.colAbsences') }),
+              el('th.nombre', { texte: t('chiffres.colAttenteMoyenne') }),
+              el('th.nombre', { texte: t('chiffres.colInternetQr') }))),
             el('tbody', lignes)))
-        : el('p.texte-doux', { texte: 'Todavía no hay ninguna jornada registrada.' })));
+        : el('p.texte-doux', { texte: t('chiffres.aucuneJournee') })));
 
     const service = await api.get('/api/service/etat').catch(() => null);
     if (service) {
+      const base = service.base.ok
+        ? (service.base.ecriture
+          ? t('chiffres.baseEnLigne')
+          : t('chiffres.baseLectureSeule', { motif: service.base.motif }))
+        : t('chiffres.baseMuette', { motif: service.base.motif });
+
       contenu.push(el('section.carte',
-        el('h2.reglages__titre', { texte: 'Estado del servicio' }),
+        el('h2.reglages__titre', { texte: t('chiffres.etatService') }),
         el('ul.liste-etat',
-          el('li', { texte: 'Base de datos: ' + (service.base.ok ? (service.base.ecriture ? 'en línea' : 'solo lectura — ' + service.base.motif) : 'no responde — ' + service.base.motif) }),
-          el('li', { texte: 'WhatsApp: ' + (service.whatsapp.actif ? 'activo' : 'sin configurar') + ' — ' + service.whatsapp.enAttente + ' en espera, ' + service.whatsapp.enEchec + ' con error' }),
-          el('li', { texte: 'Pantallas conectadas en directo: ' + service.tempsReel.abonnes }),
-          el('li', { texte: 'Informe de errores: ' + (service.sentry ? 'activo' : 'sin configurar') }),
-          el('li', { texte: 'Versión desplegada: ' + (service.version || 'desconocida') + ' — zona horaria ' + service.fuseau }))));
+          el('li', { texte: base }),
+          el('li', {
+            texte: t('chiffres.whatsapp', {
+              etat: t(service.whatsapp.actif ? 'chiffres.actif' : 'chiffres.nonConfigure'),
+              enAttente: service.whatsapp.enAttente,
+              enEchec: service.whatsapp.enEchec,
+            }),
+          }),
+          el('li', { texte: t('chiffres.ecransConnectes', { n: service.tempsReel.abonnes }) }),
+          el('li', {
+            texte: t('chiffres.rapportErreurs', {
+              etat: t(service.sentry ? 'chiffres.actif' : 'chiffres.nonConfigure'),
+            }),
+          }),
+          el('li', {
+            texte: t('chiffres.versionDeployee', {
+              version: service.version || t('chiffres.versionInconnue'),
+              fuseau: service.fuseau,
+            }),
+          }))));
     }
   }
 

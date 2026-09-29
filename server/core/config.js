@@ -161,6 +161,23 @@ export const config = {
   /** Indicatif applique a un numero saisi sans « + » (34 Espagne, 212 Maroc). */
   indicatifDefaut: str('TELEPHONE_INDICATIF_DEFAUT', '34').replace(/[^0-9]/g, ''),
 
+  /**
+   * LA LANGUE ET LA MONNAIE DE LA PREMIERE INSTALLATION, et d'elle seule.
+   *
+   * Ensuite, les deux se reglent a l'ecran et c'est la base qui fait foi : ces
+   * variables ne sont lues que par le seed, sur une base ou le reglage n'existe
+   * pas encore. Sans elles, un salon marocain s'installerait en espagnol avec
+   * des euros, et le gerant devrait tout reprendre — y compris les quinze noms
+   * de prestations et le nom du fauteuil, ecrits dans la mauvaise langue.
+   *
+   * Elles ne REMPLACENT pas le reglage : un .env modifie apres coup ne change
+   * plus rien, et c'est voulu. Ce qui est dans la base appartient au gerant.
+   */
+  installation: {
+    langue: str('APP_LANGUE', '').trim().toLowerCase(),
+    monnaie: str('APP_MONNAIE', '').trim().toUpperCase(),
+  },
+
   storage: { dataDir },
 
   bootstrap: {
@@ -237,6 +254,15 @@ export function validateConfig({ requireDb = true } = {}) {
   }
   if (!/^\d{1,4}$/.test(config.indicatifDefaut)) {
     errors.push('TELEPHONE_INDICATIF_DEFAUT doit etre un indicatif en chiffres (34, 212, 33...).');
+  }
+  // Une valeur mal orthographiee tomberait silencieusement sur le defaut, et le
+  // salon s'installerait dans la mauvaise langue sans que personne le sache
+  // avant de voir la vitrine.
+  if (config.installation.langue && !['es', 'fr'].includes(config.installation.langue)) {
+    errors.push('APP_LANGUE doit valoir « es » ou « fr » (lu : ' + config.installation.langue + ').');
+  }
+  if (config.installation.monnaie && !['EUR', 'MAD'].includes(config.installation.monnaie)) {
+    errors.push('APP_MONNAIE doit valoir « EUR » ou « MAD » (lu : ' + config.installation.monnaie + ').');
   }
 
   for (const [cle, regle] of Object.entries(PLANCHERS_SECURITE)) {

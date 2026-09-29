@@ -3,19 +3,73 @@
  *
  * Le formulaire est CONSTRUIT depuis le catalogue rendu par le serveur :
  * ajouter un reglage dans server/core/reglages.js le fait apparaitre ici sans
- * toucher a ce fichier.
+ * toucher a ce fichier. Les libelles et les aides arrivent deja traduits — il
+ * n'y a qu'un seul dictionnaire de reglages, et il est cote serveur.
  */
 import { api, ErreurApi } from './api.js';
 import { el, remplacer, annoncer } from './dom.js';
+import { t } from '../langue.js';
 
+/**
+ * L'ORDRE DES GROUPES EST L'ORDRE DE L'INSTALLATION.
+ *
+ * L'identite vient en premier parce qu'elle commande tout le reste : la langue
+ * decide des mots de cet ecran meme, la monnaie decide du symbole de la fiche de
+ * prix. Un gerant qui installe le salon doit repondre a ces deux questions avant
+ * de saisir quoi que ce soit — sans quoi il saisira tout, puis recommencera.
+ */
 const GROUPES = [
-  { titre: 'El salón', prefixes: ['salon.'] },
-  { titre: 'La fila', prefixes: ['file.'] },
-  { titre: 'Horario de apertura', prefixes: ['horaires.'] },
-  { titre: 'Tarifas en la vitrina', prefixes: ['tarifas.'] },
-  { titre: 'Pantalla del salón', prefixes: ['pantalla.'] },
-  { titre: 'Dirección pública', prefixes: ['public.'] },
+  { titre: 'reglages.groupe.identite', prefixes: ['salon.'], identite: true },
+  { titre: 'reglages.groupe.file', prefixes: ['file.'] },
+  { titre: 'reglages.groupe.horaires', prefixes: ['horaires.'] },
+  { titre: 'reglages.groupe.tarifs', prefixes: ['tarifas.'] },
+  { titre: 'reglages.groupe.pantalla', prefixes: ['pantalla.'] },
+  { titre: 'reglages.groupe.public', prefixes: ['public.'] },
 ];
+
+/**
+ * CE QUI VIENT DU FICHIER .env, MONTRE A COTE DE CE QUI VIENT DE L'ECRAN.
+ *
+ * Le fuseau horaire, l'indicatif telephonique et la langue des modeles WhatsApp
+ * ne se reglent pas ici, et c'est deliberé : changer le fuseau en milieu
+ * d'apres-midi deplacerait la journee en cours, et la file du jour paraitrait
+ * vide sans que personne comprenne pourquoi. Ce sont des decisions
+ * d'installation, pas des reglages d'ecran.
+ *
+ * MAIS LES CACHER SERAIT PIRE. Un salon marocain dont le fuseau est reste sur
+ * Madrid fonctionne — mal, et de facon parfaitement silencieuse. On montre donc
+ * les trois valeurs, on dit ou les changer, et on signale ce qui ne concorde pas
+ * avec la monnaie choisie juste au-dessus.
+ */
+function blocServeur(identite) {
+  if (!identite) return null;
+
+  const ligne = (cle, valeur, variable) => el('li.identite__ligne',
+    el('span.identite__quoi', { texte: t(cle) }),
+    el('span.identite__valeur', { texte: valeur }),
+    el('code.identite__variable', { texte: variable }));
+
+  const avertissements = identite.avertissements || [];
+
+  return el('div.identite',
+    el('h3.identite__titre', { texte: t('identite.serveurTitre') }),
+    el('ul.identite__liste',
+      ligne('identite.fuseau', identite.timezone, 'APP_TIMEZONE'),
+      ligne('identite.indicatif', '+' + identite.indicatif, 'TELEPHONE_INDICATIF_DEFAUT'),
+      ligne(
+        'identite.whatsappLangue',
+        identite.whatsappLangue || t('identite.whatsappInactif'),
+        'WHATSAPP_LANGUE',
+      )),
+    avertissements.length
+      ? el('div.identite__alertes',
+        el('p.identite__alertes-titre', { texte: t('identite.aCorriger') }),
+        el('ul.identite__alertes-liste', avertissements.map((a) => el('li',
+          el('code', { texte: a.champ }),
+          el('span', { texte: ' ' + a.message })))))
+      : el('p.identite__ok', { texte: t('identite.coherenceOk') }),
+    el('p.texte-doux.identite__note', { texte: t('identite.envNote') }));
+}
 
 /**
  * Les fauteuils du salon.
@@ -31,101 +85,109 @@ async function sectionFauteuils(recharger, dire) {
     el('div.fauteuil__tete',
       el('span.fauteuil__nom', { texte: p.nom }),
       p.coiffeur ? el('span.fauteuil__coiffeur', { texte: p.coiffeur }) : null,
-      p.actif ? null : el('span.fauteuil__badge', { texte: 'cerrado' })),
+      p.actif ? null : el('span.fauteuil__badge', { texte: t('reglages.fauteuils.badgeFerme') })),
     el('p.fauteuil__meta',
-      p.occupePar ? el('span.fauteuil__occupe', { texte: 'ocupado — ' + p.occupePar }) : el('span', { texte: p.actif ? 'libre' : 'fuera de servicio' }),
+      p.occupePar
+        ? el('span.fauteuil__occupe', { texte: t('reglages.fauteuils.occupe', { qui: p.occupePar }) })
+        : el('span', { texte: t(p.actif ? 'reglages.fauteuils.libre' : 'reglages.fauteuils.horsService') }),
       el('span', { texte: '·' }),
-      el('span', { texte: p.servisAujourdhui + ' atendido' + (p.servisAujourdhui > 1 ? 's' : '') + ' hoy' })),
+      el('span', { texte: t('reglages.fauteuils.servis', { n: p.servisAujourdhui }) })),
     el('div.fauteuil__actions',
       el('button.bouton.bouton--discret.bouton--petit', {
         type: 'button',
-        texte: 'Renombrar',
+        texte: t('commun.renommer'),
         surClick: async () => {
-          const nom = window.prompt('Nombre del sillón:', p.nom);
+          const nom = window.prompt(t('reglages.fauteuils.inviteNom'), p.nom);
           if (nom === null || nom.trim() === p.nom) return;
           try {
             await api.patch('/api/postes/' + p.id, { nom: nom.trim() });
             await recharger();
           } catch (err) {
-            dire(err instanceof ErreurApi ? err.message : 'No se ha podido renombrar.');
+            dire(err instanceof ErreurApi ? err.message : t('reglages.fauteuils.echecRenommer'));
           }
         },
       }),
       el('button.bouton.bouton--discret.bouton--petit', {
         type: 'button',
-        texte: p.coiffeur ? 'Cambiar el peluquero' : 'Poner el peluquero',
+        texte: t(p.coiffeur ? 'reglages.fauteuils.changerCoiffeur' : 'reglages.fauteuils.mettreCoiffeur'),
         surClick: async () => {
-          const coiffeur = window.prompt('Peluquero de este sillón (déjalo vacío para quitarlo):', p.coiffeur || '');
+          const coiffeur = window.prompt(t('reglages.fauteuils.inviteCoiffeur'), p.coiffeur || '');
           if (coiffeur === null) return;
           try {
             await api.patch('/api/postes/' + p.id, { coiffeur: coiffeur.trim() });
             await recharger();
           } catch (err) {
-            dire(err instanceof ErreurApi ? err.message : 'Modification impossible.');
+            dire(err instanceof ErreurApi ? err.message : t('reglages.fauteuils.echecModif'));
           }
         },
       }),
       el('button.bouton.bouton--discret.bouton--petit', {
         type: 'button',
-        texte: p.actif ? 'Cerrar' : 'Reabrir',
+        texte: t(p.actif ? 'reglages.fauteuils.fermer' : 'reglages.fauteuils.reouvrir'),
         surClick: async () => {
           try {
             await api.patch('/api/postes/' + p.id, { actif: !p.actif });
-            dire(p.actif ? 'Sillón cerrado.' : 'Sillón reabierto.', true);
+            dire(t(p.actif ? 'reglages.fauteuils.estFerme' : 'reglages.fauteuils.estReouvert'), true);
             await recharger();
           } catch (err) {
-            dire(err instanceof ErreurApi ? err.message : 'Modification impossible.');
+            dire(err instanceof ErreurApi ? err.message : t('reglages.fauteuils.echecModif'));
           }
         },
       }),
       p.servisAujourdhui === 0
         ? el('button.bouton.bouton--discret.bouton--petit.bouton--danger', {
           type: 'button',
-          texte: 'Borrar',
+          texte: t('commun.supprimer'),
           surClick: async () => {
-            if (!window.confirm('¿Borrar el sillón « ' + p.nom + ' »?')) return;
+            if (!window.confirm(t('reglages.fauteuils.confirmerSuppression', { nom: p.nom }))) return;
             try {
               await api.supprimer('/api/postes/' + p.id);
-              dire('Sillón borrado.', true);
+              dire(t('reglages.fauteuils.estSupprime'), true);
               await recharger();
             } catch (err) {
-              dire(err instanceof ErreurApi ? err.message : 'No se ha podido borrar.');
+              dire(err instanceof ErreurApi ? err.message : t('reglages.fauteuils.echecSuppression'));
             }
           },
         })
         : null)));
 
-  const nom = el('input', { id: 'p-nom', type: 'text', maxlength: '40', required: true, placeholder: 'Sillón 2' });
-  const coiffeur = el('input', { id: 'p-coiffeur', type: 'text', maxlength: '60', placeholder: 'Nombre del peluquero (opcional)' });
+  const nom = el('input', {
+    id: 'p-nom', type: 'text', maxlength: '40', required: true,
+    placeholder: t('reglages.fauteuils.exempleNom'),
+  });
+  const coiffeur = el('input', {
+    id: 'p-coiffeur', type: 'text', maxlength: '60',
+    placeholder: t('reglages.fauteuils.exempleCoiffeur'),
+  });
 
   const ajout = el('form.formulaire', {
     surSubmit: async (evenement) => {
       evenement.preventDefault();
       try {
         await api.post('/api/postes', { nom: nom.value.trim(), coiffeur: coiffeur.value.trim() || undefined });
-        dire('Sillón añadido.', true);
+        dire(t('reglages.fauteuils.estAjoute'), true);
         await recharger();
       } catch (err) {
-        dire(err instanceof ErreurApi ? err.message : 'No se ha podido crear.');
+        dire(err instanceof ErreurApi ? err.message : t('reglages.fauteuils.echecCreation'));
       }
     },
   },
   el('div.reglages__grille',
-    el('div.champ', el('label', { for: 'p-nom', texte: 'Nombre del sillón' }), nom),
-    el('div.champ', el('label', { for: 'p-coiffeur', texte: 'Peluquero' }), coiffeur,
-      el('p.champ__aide', { texte: 'Se muestra en la tarjeta del sillón. Opcional.' }))),
-  el('button.bouton.bouton--principal', { type: 'submit', texte: 'Añadir el sillón' }));
+    el('div.champ', el('label', { for: 'p-nom', texte: t('reglages.fauteuils.champNom') }), nom),
+    el('div.champ', el('label', { for: 'p-coiffeur', texte: t('reglages.fauteuils.champCoiffeur') }), coiffeur,
+      el('p.champ__aide', { texte: t('reglages.fauteuils.aideCoiffeur') }))),
+  el('button.bouton.bouton--principal', { type: 'submit', texte: t('reglages.fauteuils.ajouter') }));
 
   return el('section.carte.reglages__groupe',
-    el('h2.reglages__titre', { texte: 'Sillones' }),
+    el('h2.reglages__titre', { texte: t('reglages.fauteuils.titre') }),
     el('p.texte-doux', {
       texte: donnees.actifs > 1
-        ? donnees.actifs + ' sillones abiertos: la fila sigue siendo una sola, pero avanza ' + donnees.actifs + ' veces más rápido, y la espera que se anuncia a los clientes lo tiene en cuenta.'
-        : 'Solo un sillón abierto. Añade un segundo y la pantalla de la fila mostrará una tarjeta por sillón.',
+        ? t('reglages.fauteuils.plusieurs', { n: donnees.actifs })
+        : t('reglages.fauteuils.unSeul'),
     }),
     el('ul.fauteuils-liste', lignes),
     el('details.creation',
-      el('summary', { texte: 'Añadir un sillón' }),
+      el('summary', { texte: t('reglages.fauteuils.titreAjout') }),
       ajout));
 }
 
@@ -185,11 +247,12 @@ export async function vueReglages(conteneur) {
     const regles = donnees.catalogue.filter((r) => groupe.prefixes.some((p) => r.cle.startsWith(p)));
     if (!regles.length) return null;
     return el('section.carte.reglages__groupe',
-      el('h2.reglages__titre', { texte: groupe.titre }),
-      el('div.reglages__grille', regles.map(champ)));
+      el('h2.reglages__titre', { texte: t(groupe.titre) }),
+      el('div.reglages__grille', regles.map(champ)),
+      groupe.identite ? blocServeur(donnees.identite) : null);
   });
 
-  const bouton = el('button.bouton.bouton--principal', { type: 'submit', texte: 'Guardar los ajustes' });
+  const bouton = el('button.bouton.bouton--principal', { type: 'submit', texte: t('reglages.enregistrer') });
 
   const formulaire = el('form.reglages', {
     surSubmit: async (evenement) => {
@@ -204,10 +267,33 @@ export async function vueReglages(conteneur) {
         valeurs[cle] = regle.type === 'booleen' ? entree.checked : entree.value;
       }
       try {
-        await api.put('/api/reglages', { valeurs });
-        succes.textContent = 'Ajustes guardados.';
+        const reponse = await api.put('/api/reglages', { valeurs });
+
+        /*
+         * CHANGER LA LANGUE OU LA MONNAIE RECHARGE TOUTE LA PAGE.
+         *
+         * Ce ne sont pas des valeurs comme les autres : elles changent TOUS les
+         * mots de l'application, y compris la barre de navigation, le titre du
+         * document et l'attribut « lang » — trois choses rendues par le serveur,
+         * qu'aucun re-rendu cote client ne toucherait. Sans ce rechargement, le
+         * gerant verrait le formulaire changer de langue et le reste de l'ecran
+         * rester dans l'ancienne, et conclurait que l'enregistrement a echoue a
+         * moitie.
+         *
+         * Le serveur decide, pas nous : il compare l'avant et l'apres, et ne
+         * demande le rechargement que si l'un des deux a reellement change.
+         */
+        if (reponse?.rechargerTout) {
+          succes.textContent = t('reglages.rechargement');
+          succes.hidden = false;
+          annoncer(t('reglages.rechargement'));
+          window.location.reload();
+          return;
+        }
+
+        succes.textContent = t('reglages.enregistres');
         succes.hidden = false;
-        annoncer('Ajustes guardados.');
+        annoncer(t('reglages.enregistres'));
       } catch (err) {
         if (err instanceof ErreurApi && err.champs) {
           for (const [cle, message] of Object.entries(err.champs)) {
@@ -230,15 +316,13 @@ export async function vueReglages(conteneur) {
   sections, el('div.reglages__pied', bouton));
 
   const whatsapp = el('section.carte.reglages__groupe',
-    el('h2.reglages__titre', { texte: 'WhatsApp' }),
+    el('h2.reglages__titre', { texte: t('reglages.whatsapp.titre') }),
     el('p.texte-doux', {
       texte: donnees.whatsapp.actif
-        ? 'Los mensajes salen automáticamente. Plantillas: ' + Object.values(donnees.whatsapp.modeles).join(', ') + '.'
-        : 'El envío automático no está activado. Cada cliente ve su enlace en pantalla, y el botón « WhatsApp » de la fila abre la conversación con el mensaje ya escrito.',
+        ? t('reglages.whatsapp.actif', { modeles: Object.values(donnees.whatsapp.modeles).join(', ') })
+        : t('reglages.whatsapp.inactif'),
     }),
-    el('p.texte-doux.reglages__note', {
-      texte: 'El token de acceso y el identificador del número se ponen en las variables de entorno (WHATSAPP_ACTIF, WHATSAPP_NUMERO_ID, WHATSAPP_JETON), nunca aquí: un secreto no tiene nada que hacer en la base de datos.',
-    }));
+    el('p.texte-doux.reglages__note', { texte: t('reglages.whatsapp.note') }));
 
   const dire = (message, bon = false) => {
     const cible = bon ? succes : erreurGlobale;
@@ -252,8 +336,8 @@ export async function vueReglages(conteneur) {
   const fauteuils = await sectionFauteuils(() => vueReglages(conteneur), dire);
 
   remplacer(conteneur, el('div.enveloppe.page-gestion',
-    el('h1.titre-page', { texte: 'Ajustes' }),
-    el('p.texte-doux', { texte: 'Dirección pública del código QR: ' + donnees.adressePublique }),
+    el('h1.titre-page', { texte: t('reglages.titre') }),
+    el('p.texte-doux', { texte: t('reglages.adresseQr', { url: donnees.adressePublique }) }),
     erreurGlobale, succes,
     fauteuils,
     formulaire,
@@ -273,23 +357,30 @@ export async function vueReglages(conteneur) {
  * le temps d'arrêt qu'aucune fenêtre « êtes-vous sûr ? » ne procure, parce
  * qu'on y répond oui sans lire.
  *
+ * LE MOT SUIT LA LANGUE DU SALON. Demander « BORRAR » à un gérant francophone
+ * transformerait la friction voulue en devinette : il chercherait ce qu'il doit
+ * taper au lieu de réfléchir à ce qu'il efface. Le serveur compare au même mot,
+ * lu dans son propre dictionnaire sous la même clé.
+ *
  * Les deux colonnes disent exactement ce qui disparaît. Une suppression dont on
  * ignore la portée ne se fait jamais l'esprit tranquille, et c'est comme ça
  * qu'on renonce à nettoyer des données d'essai qui restent des mois.
  */
 function sectionPurge(dire) {
+  const mot = t('reglages.purge.mot');
+
   const confirmation = el('input', {
     id: 'purge-confirmation', type: 'text', autocomplete: 'off',
-    autocapitalize: 'characters', spellcheck: 'false', placeholder: 'BORRAR',
+    autocapitalize: 'characters', spellcheck: 'false', placeholder: mot,
   });
 
   const bouton = el('button.bouton.bouton--petit.bouton--danger', {
-    type: 'submit', texte: 'Borrar el historial',
+    type: 'submit', texte: t('reglages.purge.bouton'),
   });
 
   const liste = (titre, items, classe) => el('div.purge__colonne',
     el('p.purge__colonne-titre' + classe, { texte: titre }),
-    el('ul.purge__liste', items.map((t) => el('li', { texte: t }))));
+    el('ul.purge__liste', items.map((texte) => el('li', { texte }))));
 
   const formulaire = el('form.purge__form', {
     surSubmit: async (evenement) => {
@@ -297,43 +388,39 @@ function sectionPurge(dire) {
       bouton.disabled = true;
       try {
         const reponse = await api.post('/api/service/purger', { confirmation: confirmation.value });
-        dire('Historial borrado: ' + reponse.total + ' líneas. Las cuentas, los ajustes, los sillones y las tarifas siguen ahí.', true);
+        dire(t('reglages.purge.fait', { n: reponse.total }), true);
         confirmation.value = '';
       } catch (err) {
-        dire(err instanceof ErreurApi ? err.message : 'No se ha podido borrar.');
+        dire(err instanceof ErreurApi ? err.message : t('reglages.purge.echec'));
       }
       bouton.disabled = false;
     },
   },
   el('div.champ',
-    el('label', { for: 'purge-confirmation', texte: 'Escribe BORRAR para confirmar' }),
+    el('label', { for: 'purge-confirmation', texte: t('reglages.purge.champ', { mot }) }),
     confirmation),
   bouton);
 
   return el('section.carte.reglages__groupe.purge',
-    el('h2.reglages__titre.purge__titre', { texte: 'Borrar el historial' }),
-    el('p.texte-doux', {
-      texte: 'Para empezar de cero después de las pruebas: se van todos los turnos y todo lo que cuelga de ellos. No se puede deshacer y no hay papelera.',
-    }),
+    el('h2.reglages__titre.purge__titre', { texte: t('reglages.purge.titre') }),
+    el('p.texte-doux', { texte: t('reglages.purge.intro') }),
     el('details.purge__repli',
-      el('summary', { texte: 'Ver qué se borra exactamente' }),
+      el('summary', { texte: t('reglages.purge.voir') }),
       el('div.purge__colonnes',
-        liste('Se borra', [
-          'Todos los turnos, de todos los días',
-          'Su historial (llamadas, retrasos, anulaciones)',
-          'Los mensajes de WhatsApp pendientes',
-          'Las jornadas',
-          'Las vacaciones y cierres declarados',
+        liste(t('reglages.purge.seSupprime'), [
+          t('reglages.purge.part1'),
+          t('reglages.purge.part2'),
+          t('reglages.purge.part3'),
+          t('reglages.purge.part4'),
+          t('reglages.purge.part5'),
         ], '.purge__colonne-titre--part'),
-        liste('Se conserva', [
-          'Las cuentas del personal',
-          'Todos los ajustes del salón',
-          'Los sillones',
-          'Las tarifas',
-          'Los avisos activados en cada aparato',
+        liste(t('reglages.purge.seConserve'), [
+          t('reglages.purge.reste1'),
+          t('reglages.purge.reste2'),
+          t('reglages.purge.reste3'),
+          t('reglages.purge.reste4'),
+          t('reglages.purge.reste5'),
         ], '.purge__colonne-titre--reste')),
-      el('p.texte-doux.purge__note', {
-        texte: 'La fila tiene que estar vacía: si queda alguien esperando, cierra la jornada primero. Borrar un turno mientras su cliente mira su enlace le dejaría una página muerta, y nadie en el salón sabría que sigue esperando.',
-      }),
+      el('p.texte-doux.purge__note', { texte: t('reglages.purge.note') }),
       formulaire));
 }

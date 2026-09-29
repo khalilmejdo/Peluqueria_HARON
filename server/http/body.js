@@ -10,6 +10,7 @@
  */
 import { badRequest, tooLarge, unsupportedMedia } from '../core/errors.js';
 import { sansOctetNul } from '../core/text.js';
+import { t } from '../core/langue.js';
 
 /**
  * Lit integralement le corps de la requete, dans la limite indiquee.
@@ -98,10 +99,10 @@ export function parseJsonBody(buffer) {
   try {
     parsed = JSON.parse(buffer.toString('utf8'));
   } catch {
-    throw badRequest('El cuerpo de la petición no es un JSON válido.');
+    throw badRequest(t('req.jsonInvalide'));
   }
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw badRequest('El cuerpo de la petición debe ser un objeto JSON.');
+    throw badRequest(t('req.objetAttendu'));
   }
   // Neutralise la pollution de prototype : une cle « __proto__ » recue depuis
   // le reseau ne doit jamais atteindre Object.prototype.

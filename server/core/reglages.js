@@ -15,129 +15,115 @@
  */
 import { randomBytes } from 'node:crypto';
 import { all, execute } from '../db/index.js';
-import { heureValide, heureEnMinutes, NOMS_JOURS } from './temps.js';
+import { heureValide, heureEnMinutes, nomJour } from './temps.js';
 import { config } from './config.js';
 import { ValidationError } from './errors.js';
+import {
+  t, texte as texteEnLangue, existe, poserLangueActive, langueActive,
+  LANGUE_DEFAUT, optionsLangues, LANGUES,
+} from './langue.js';
+import { poserDeviseActive, DEVISE_DEFAUT, optionsDevises, DEVISES } from './devise.js';
 
 /**
- * @typedef {{ type: 'texte'|'entier'|'booleen'|'heure'|'url'|'telephone',
- *             defaut: any, libelle: string, aide?: string,
+ * @typedef {{ type: 'texte'|'entier'|'booleen'|'heure'|'url'|'telephone'|'choix'|'coordenadas',
+ *             defaut: any, defautCle?: string, libelleCle?: string, jour?: number,
+ *             options?: Array<{valeur:string}>, groupe?: string,
  *             min?: number, max?: number, maxLongueur?: number }} Reglage
  */
 
+/**
+ * LES LIBELLES NE SONT PAS ICI.
+ *
+ * Chaque entree tire son libelle et son explication du dictionnaire, par
+ * convention : la cle « salon.nom » lit « reglage.salon.nom.libelle » et, s'il
+ * existe, « reglage.salon.nom.aide ». Rien a declarer deux fois, donc rien qui
+ * puisse se contredire — et surtout, les libelles sont resolus AU MOMENT OU ON
+ * LES DEMANDE, pas au chargement du module. C'est indispensable : le catalogue
+ * est construit une seule fois au demarrage, et la langue du salon peut changer
+ * apres.
+ *
+ * L'IDENTITE VIENT EN TETE, et la langue en tete de l'identite. L'ordre de cet
+ * objet est l'ordre du formulaire — le premier ecran qu'ouvre un gerant qui
+ * installe le salon doit commencer par la question qui commande toutes les
+ * autres.
+ */
 /** @type {Record<string, Reglage>} */
 export const CATALOGUE = {
+  'salon.idioma': {
+    type: 'choix', defaut: LANGUE_DEFAUT, options: optionsLangues(),
+  },
+  'salon.moneda': {
+    type: 'choix', defaut: DEVISE_DEFAUT, options: optionsDevises(),
+  },
   'salon.nom': {
     type: 'texte', defaut: 'Peluquería HARON', maxLongueur: 60,
-    libelle: 'Nombre del salón',
-    aide: 'Aparece en la cabecera de todas las páginas y en los mensajes de WhatsApp.',
   },
   'salon.accroche': {
-    type: 'texte', defaut: 'Pide tu turno sin esperar de pie.', maxLongueur: 120,
-    libelle: 'Frase de la página de inicio',
+    // Le defaut suit la langue : un salon installe en francais ne doit pas
+    // afficher une accroche espagnole tant que le gerant n'a rien saisi.
+    type: 'texte', defaut: 'Pide tu turno sin esperar de pie.',
+    defautCle: 'reglage.salon.accroche.defaut', maxLongueur: 120,
   },
   'salon.adresse': {
     type: 'texte', defaut: '', maxLongueur: 160,
-    libelle: 'Dirección del salón',
-    aide: 'Aparece en la sección Contacto de la página de inicio, con enlace al mapa, y en la página de seguimiento.',
   },
   'salon.telephone': {
     type: 'telephone', defaut: '', maxLongueur: 25,
-    libelle: 'Teléfono del salón',
-    aide: 'Aparece en la sección Contacto de la página de inicio y se ofrece al cliente cuando no se pueden pedir turnos por internet.',
   },
   'salon.whatsapp': {
     type: 'telephone', defaut: '', maxLongueur: 25,
-    libelle: 'WhatsApp del salón',
-    aide: 'Número desde el que salen los mensajes. Aparece en la sección Contacto, con enlace directo a la conversación.',
+  },
+  'salon.coordenadas': {
+    type: 'coordenadas', defaut: '', maxLongueur: 44,
+  },
+  'salon.comoLlegar': {
+    type: 'texte', defaut: '', maxLongueur: 400,
   },
 
   'file.dureeMoyenneMinutes': {
     type: 'entier', defaut: 20, min: 1, max: 240,
-    libelle: 'Duración media de un corte (minutos)',
-    aide: 'Sirve para estimar la espera. Se puede cambiar en cualquier momento; el día en curso conserva el valor de la mañana.',
   },
   'file.seuilPrevenir': {
     type: 'entier', defaut: 2, min: 0, max: 20,
-    libelle: 'Avisar al cliente cuando le queden N personas delante',
-    aide: 'Por debajo de este umbral, el cliente ve « tu turno se acerca » y recibe un mensaje de WhatsApp.',
   },
   'file.mode': {
     type: 'choix',
     defaut: 'UNIQUE',
-    options: [
-      { valeur: 'UNIQUE', libelle: 'Una sola fila para todo el salón' },
-      { valeur: 'PAR_FAUTEUIL', libelle: 'Una fila por peluquero' },
-    ],
-    libelle: 'Organización de la fila',
-    aide: 'Una sola fila: el cliente pide turno y le atiende el primer peluquero libre. '
-      + 'Una fila por peluquero: el cliente elige el suyo y espera en SU fila. '
-      + 'Solo se puede cambiar con la fila vacía.',
+    options: [{ valeur: 'UNIQUE' }, { valeur: 'PAR_FAUTEUIL' }],
   },
   'file.priseDeTourOuverte': {
     type: 'booleen', defaut: true,
-    libelle: 'Aceptar nuevos turnos',
-    aide: 'Desmarque para dejar de dar turnos sin tocar la fila en curso: quien espera será atendido, pero nadie nuevo entra.',
   },
   'file.messagePause': {
     type: 'texte', defaut: '', maxLongueur: 160,
-    libelle: 'Mensaje cuando no se dan turnos',
-    aide: 'Por ejemplo: « Esta tarde ya no damos más turnos, mañana a las 9:30. » Si lo deja vacío se usa un mensaje predeterminado.',
   },
   'file.maxParJour': {
     type: 'entier', defaut: 200, min: 1, max: 2000,
-    libelle: 'Número máximo de turnos por día',
-    aide: 'Tope de seguridad: por encima, no se aceptan más turnos por internet y se explica al cliente.',
   },
 
   'horaires.actifs': {
     type: 'booleen', defaut: false,
-    libelle: 'No dar turnos fuera del horario',
-    aide: 'Desactivado, el cliente puede pedir turno a cualquier hora.',
   },
 
   // La fiche de prix elle-meme vit dans sa propre table, avec son propre ecran.
   // Ces deux reglages ne disent que comment la SECTION se presente en vitrine.
   'tarifas.visible': {
     type: 'booleen', defaut: true,
-    libelle: 'Mostrar las tarifas en la página de inicio',
-    aide: 'Desactívelo si prefiere no publicar los precios.',
   },
   'tarifas.nota': {
     type: 'texte', defaut: '', maxLongueur: 160,
-    libelle: 'Nota debajo de las tarifas',
-    aide: 'Por ejemplo: « Efectivo y tarjeta. » Se deja vacío si no hace falta.',
   },
-  'salon.coordenadas': {
-    type: 'coordenadas', defaut: '', maxLongueur: 44,
-    libelle: 'Coordenadas del salón (latitud, longitud)',
-    aide: 'En Google Maps: pulsación larga sobre la puerta del salón y se copian « 40.416775, -3.703790 ». Con ellas, el botón « Cómo llegar » lleva a la puerta y no a mitad de la calle.',
-  },
-  'salon.comoLlegar': {
-    type: 'texte', defaut: '', maxLongueur: 400,
-    libelle: 'Cómo llegar',
-    aide: 'Referencias, transporte y aparcamiento. Por ejemplo: « Frente a la farmacia, metro Sol a 3 minutos, aparcamiento en la plaza. »',
-  },
+
   'pantalla.nombres': {
     type: 'choix',
     defaut: 'NOMBRE',
-    options: [
-      { valeur: 'NINGUNO', libelle: 'Solo los números de turno' },
-      { valeur: 'NOMBRE', libelle: 'Número y nombre de pila' },
-      { valeur: 'COMPLETO', libelle: 'Número, nombre y apellido' },
-    ],
-    libelle: 'Qué se muestra en la pantalla del salón',
-    aide: 'Si la pantalla se ve desde la calle, deje solo los números. Con « nombre y apellido », la pantalla pasa a estar protegida por una clave en su dirección: solo se abre desde el aparato donde la haya puesto.',
+    options: [{ valeur: 'NINGUNO' }, { valeur: 'NOMBRE' }, { valeur: 'COMPLETO' }],
   },
   'pantalla.clave': {
     type: 'texte', defaut: '', maxLongueur: 64,
-    libelle: 'Clave de la pantalla',
-    aide: 'Vacía, la pantalla se abre en /pantalla sin más. Rellena, hace falta /pantalla?k=… — es la dirección que hay que poner en el televisor. Se genera sola al elegir « nombre y apellido ».',
   },
   'public.url': {
     type: 'url', defaut: '', maxLongueur: 300,
-    libelle: 'Dirección pública del salón',
-    aide: 'Es la que codifica el código QR del escaparate. Déjelo vacío para usar PUBLIC_URL.',
   },
 };
 
@@ -146,11 +132,11 @@ export const CATALOGUE = {
 for (let j = 0; j < 7; j += 1) {
   CATALOGUE['horaires.' + j + '.ouverture'] = {
     type: 'heure', defaut: j === 0 ? '' : '09:30', maxLongueur: 5,
-    libelle: 'Apertura ' + NOMS_JOURS[j], groupe: 'horaires',
+    libelleCle: 'reglage.horaires.ouverture', jour: j, groupe: 'horaires',
   };
   CATALOGUE['horaires.' + j + '.fermeture'] = {
     type: 'heure', defaut: j === 0 ? '' : '20:00', maxLongueur: 5,
-    libelle: 'Cierre ' + NOMS_JOURS[j], groupe: 'horaires',
+    libelleCle: 'reglage.horaires.fermeture', jour: j, groupe: 'horaires',
   };
   // La coupure du milieu de journee. Vide, la journee est d'un seul tenant.
   //
@@ -159,18 +145,58 @@ for (let j = 0; j < 7; j += 1) {
   // formulaire.
   CATALOGUE['horaires.' + j + '.pauseDebut'] = {
     type: 'heure', defaut: '', maxLongueur: 5,
-    libelle: 'Empieza el descanso ' + NOMS_JOURS[j], groupe: 'horaires',
-    aide: j === 1
-      ? 'Si el salón cierra a mediodía, pon aquí las dos horas. Durante el descanso no se pueden pedir turnos, y el horario se muestra en dos tramos: 10:00 – 14:00 · 17:00 – 20:30. Déjalo vacío si la jornada es seguida.'
-      : undefined,
+    libelleCle: 'reglage.horaires.pauseDebut', jour: j, groupe: 'horaires',
+    aideCle: j === 1 ? 'reglage.horaires.pauseAide' : undefined,
   };
   CATALOGUE['horaires.' + j + '.pauseFin'] = {
     type: 'heure', defaut: '', maxLongueur: 5,
-    libelle: 'Vuelve a abrir ' + NOMS_JOURS[j], groupe: 'horaires',
+    libelleCle: 'reglage.horaires.pauseFin', jour: j, groupe: 'horaires',
   };
 }
 
 export const CLES = Object.keys(CATALOGUE);
+
+/* ------------------------------------------------------------------ */
+/*  Le catalogue, mis en mots                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Le catalogue tel que l'interface le recoit : libelles, aides et options
+ * traduits, dans la langue demandee.
+ *
+ * C'est la seule sortie du catalogue vers l'exterieur. Le catalogue brut reste
+ * exporte pour les tests et pour le domaine, qui n'ont besoin que des types et
+ * des bornes.
+ */
+export function catalogueTraduit(langue = null) {
+  const dire = (cle, params = null) => (langue ? texteEnLangue(langue, cle, params) : t(cle, params));
+  return CLES.map((cle) => {
+    const regle = CATALOGUE[cle];
+    const params = regle.jour === undefined ? null : { jour: nomJour(regle.jour, langue) };
+    const aideCle = regle.aideCle ?? ('reglage.' + cle + '.aide');
+    const sortie = {
+      cle,
+      type: regle.type,
+      libelle: dire(regle.libelleCle ?? ('reglage.' + cle + '.libelle'), params),
+      groupe: regle.groupe ?? cle.split('.')[0],
+    };
+    if (regle.aideCle || existe(aideCle)) sortie.aide = dire(aideCle, params);
+    if (regle.min !== undefined) sortie.min = regle.min;
+    if (regle.max !== undefined) sortie.max = regle.max;
+    if (regle.maxLongueur !== undefined) sortie.maxLongueur = regle.maxLongueur;
+    if (regle.options) {
+      // Une option qui porte deja son nom le garde : « Español » ne se traduit
+      // pas en francais, et « Dirham (DH) » ne se traduit pas en espagnol. Ce
+      // sont des noms propres, pas des libelles d'interface.
+      sortie.options = regle.options.map((o) => ({
+        valeur: o.valeur,
+        libelle: o.libelle ?? dire('reglage.' + cle + '.' + o.valeur),
+      }));
+    }
+    sortie.defaut = regle.defautCle ? dire(regle.defautCle) : regle.defaut;
+    return sortie;
+  });
+}
 
 /* ------------------------------------------------------------------ */
 /*  Coordonnees                                                        */
@@ -213,12 +239,36 @@ export function normaliserCoordonnees(brut) {
 /*  Conversion                                                         */
 /* ------------------------------------------------------------------ */
 
-/** Convertit la chaine stockee en base vers le type declare. Jamais d'exception. */
+/**
+ * La valeur par defaut d'un reglage, dans la langue du salon.
+ *
+ * La plupart sont des constantes ; l'accroche de la page d'accueil est une
+ * phrase, et une phrase a une langue. On ne peut donc pas la figer dans le
+ * catalogue, qui est construit une fois pour toutes au demarrage.
+ */
+export function defautDe(cle) {
+  const regle = CATALOGUE[cle];
+  if (!regle) return null;
+  return regle.defautCle ? t(regle.defautCle) : regle.defaut;
+}
+
+/**
+ * Convertit la chaine stockee en base vers le type declare. Jamais d'exception.
+ *
+ * UNE VALEUR VIDE RETOMBE SUR LE DEFAUT pour tout ce qui ne peut pas etre vide :
+ * un choix, des coordonnees. Une chaine vide rendue pour « salon.idioma » aurait
+ * donne un menu deroulant sans rien de selectionne, et un « <html lang=""> ».
+ * Les textes, eux, ont parfaitement le droit d'etre vides — c'est ainsi qu'on
+ * retire une note de la vitrine.
+ */
 function depuisTexte(cle, brut) {
   const regle = CATALOGUE[cle];
   if (!regle) return null;
   if (brut === null || brut === undefined || brut === '') {
-    return regle.type === 'booleen' ? regle.defaut : (regle.type === 'entier' ? regle.defaut : (brut === '' ? '' : regle.defaut));
+    if (regle.type === 'texte' || regle.type === 'url' || regle.type === 'telephone' || regle.type === 'heure') {
+      return brut === '' ? '' : defautDe(cle);
+    }
+    return defautDe(cle);
   }
   switch (regle.type) {
     case 'entier': {
@@ -239,37 +289,49 @@ function depuisTexte(cle, brut) {
   }
 }
 
-/** Valide une valeur soumise par le gerant et rend sa forme de stockage (texte). */
+/**
+ * Valide une valeur soumise par le gerant et rend sa forme de stockage (texte).
+ *
+ * TROIS DE CES MESSAGES ETAIENT EN FRANCAIS dans une interface espagnole — la
+ * valeur oui/non, l'heure et l'adresse. Personne ne les avait vus parce qu'on ne
+ * les declenche qu'en se trompant, et qu'on ne se trompe pas en relisant son
+ * propre code. Ils passent tous par le dictionnaire maintenant : une phrase qui
+ * n'a pas de cle ne peut plus etre oubliee dans une langue.
+ */
 export function versTexte(cle, valeur) {
   const regle = CATALOGUE[cle];
-  if (!regle) throw new ValidationError({ [cle]: 'Ajuste desconocido.' });
+  if (!regle) throw new ValidationError({ [cle]: t('valid.reglageInconnu') });
   const vide = valeur === null || valeur === undefined || String(valeur).trim() === '';
 
   switch (regle.type) {
     case 'entier': {
-      if (vide) throw new ValidationError({ [cle]: 'Se espera un valor.' });
+      if (vide) throw new ValidationError({ [cle]: t('valid.valeurAttendue') });
       const texte = String(valeur).trim();
       const n = /^-?\d+$/.test(texte) ? Number(texte) : Number.NaN;
-      if (!Number.isSafeInteger(n)) throw new ValidationError({ [cle]: 'Se espera un número entero.' });
-      if (regle.min !== undefined && n < regle.min) throw new ValidationError({ [cle]: 'Como mínimo ' + regle.min + '.' });
-      if (regle.max !== undefined && n > regle.max) throw new ValidationError({ [cle]: 'Como máximo ' + regle.max + '.' });
+      if (!Number.isSafeInteger(n)) throw new ValidationError({ [cle]: t('valid.entierAttendu') });
+      if (regle.min !== undefined && n < regle.min) throw new ValidationError({ [cle]: t('valid.minimum', { min: regle.min }) });
+      if (regle.max !== undefined && n > regle.max) throw new ValidationError({ [cle]: t('valid.maximum', { max: regle.max }) });
       return String(n);
     }
     case 'booleen':
       if (typeof valeur === 'boolean') return valeur ? 'true' : 'false';
       if (/^(1|true|oui|on)$/i.test(String(valeur).trim())) return 'true';
       if (/^(0|false|non|off)$/i.test(String(valeur).trim())) return 'false';
-      throw new ValidationError({ [cle]: 'Valeur oui/non attendue.' });
+      throw new ValidationError({ [cle]: t('valid.ouiNon') });
     case 'heure': {
       if (vide) return '';
       const texte = String(valeur).trim().slice(0, 5);
-      if (!heureValide(texte)) throw new ValidationError({ [cle]: 'Heure attendue au format HH:MM.' });
+      if (!heureValide(texte)) throw new ValidationError({ [cle]: t('valid.heure') });
       return texte;
     }
     case 'choix': {
-      const texte = String(valeur).trim().toUpperCase();
+      // La langue se stocke en minuscules (« es », « fr ») : ce sont des codes
+      // ISO, et les mettre en majuscules comme les autres choix aurait donne
+      // « ES » dans « <html lang> ». Les autres choix restent en majuscules.
+      const brut = String(valeur).trim();
+      const texte = regle.options.some((o) => o.valeur === brut) ? brut : brut.toUpperCase();
       if (!regle.options.some((o) => o.valeur === texte)) {
-        throw new ValidationError({ [cle]: 'Valeur attendue parmi : ' + regle.options.map((o) => o.valeur).join(', ') + '.' });
+        throw new ValidationError({ [cle]: t('valid.choix', { valeurs: regle.options.map((o) => o.valeur).join(', ') }) });
       }
       return texte;
     }
@@ -280,32 +342,28 @@ export function versTexte(cle, valeur) {
         const u = new URL(texte);
         if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('protocole');
       } catch {
-        throw new ValidationError({ [cle]: 'Adresse invalide. Exemple : https://file.peluqueria-haron.com' });
+        throw new ValidationError({ [cle]: t('valid.url') });
       }
-      if (texte.length > (regle.maxLongueur ?? 300)) throw new ValidationError({ [cle]: 'Dirección demasiado larga.' });
+      if (texte.length > (regle.maxLongueur ?? 300)) throw new ValidationError({ [cle]: t('valid.urlTropLongue') });
       return texte;
     }
     case 'coordenadas': {
       if (vide) return '';
       const normalisees = normaliserCoordonnees(valeur);
-      if (!normalisees) {
-        throw new ValidationError({
-          [cle]: 'Se esperan dos números con punto decimal, separados por una coma. Ejemplo: 40.416775, -3.703790',
-        });
-      }
+      if (!normalisees) throw new ValidationError({ [cle]: t('valid.coordonnees') });
       return normalisees;
     }
     case 'telephone': {
       if (vide) return '';
       const texte = String(valeur).replace(/\s+/g, ' ').trim();
-      if (!/^\+?[0-9][0-9\s.\-()/]*$/.test(texte)) throw new ValidationError({ [cle]: 'Número no válido.' });
-      if (texte.length > (regle.maxLongueur ?? 25)) throw new ValidationError({ [cle]: 'Número demasiado largo.' });
+      if (!/^\+?[0-9][0-9\s.\-()/]*$/.test(texte)) throw new ValidationError({ [cle]: t('valid.telephone') });
+      if (texte.length > (regle.maxLongueur ?? 25)) throw new ValidationError({ [cle]: t('valid.telephoneTropLong') });
       return texte;
     }
     default: {
       const texte = String(valeur).replace(/\s+/g, ' ').trim();
       if (texte.length > (regle.maxLongueur ?? 200)) {
-        throw new ValidationError({ [cle]: 'Este texto no puede pasar de ' + (regle.maxLongueur ?? 200) + ' caracteres.' });
+        throw new ValidationError({ [cle]: t('valid.texteTropLong', { max: regle.maxLongueur ?? 200 }) });
       }
       return texte;
     }
@@ -325,15 +383,35 @@ export function invaliderCache() {
   cacheAt = 0;
 }
 
-/** Tous les reglages, catalogue complet, valeurs par defaut comprises. */
+/**
+ * Tous les reglages, catalogue complet, valeurs par defaut comprises.
+ *
+ * C'EST ICI QUE LA LANGUE ET LA MONNAIE DU SALON ENTRENT EN VIGUEUR, et l'ordre
+ * des trois etapes n'est pas indifferent :
+ *
+ *   1. lire la langue et la monnaie telles qu'elles sont stockees,
+ *   2. les rendre actives,
+ *   3. seulement ensuite, resoudre les autres valeurs.
+ *
+ * Inverser 2 et 3 ferait calculer l'accroche par defaut dans la langue
+ * PRECEDENTE — invisible tant que le defaut n'est pas utilise, donc invisible
+ * jusqu'au jour de l'installation d'un nouveau salon.
+ */
 export async function lireTous({ frais = false } = {}) {
   if (!frais && cache && Date.now() - cacheAt < DUREE_CACHE_MS) return cache;
   const rows = await all('SELECT cle, valeur FROM reglages WHERE cle = ANY($1)', [CLES]);
   const stockes = new Map(rows.map((r) => [r.cle, r.valeur]));
+
+  const langue = poserLangueActive(depuisTexte('salon.idioma', stockes.get('salon.idioma')));
+  const devise = poserDeviseActive(depuisTexte('salon.moneda', stockes.get('salon.moneda')));
+
   const sortie = {};
   for (const cle of CLES) {
-    sortie[cle] = stockes.has(cle) ? depuisTexte(cle, stockes.get(cle)) : CATALOGUE[cle].defaut;
+    sortie[cle] = stockes.has(cle) ? depuisTexte(cle, stockes.get(cle)) : defautDe(cle);
   }
+  sortie['salon.idioma'] = langue;
+  sortie['salon.moneda'] = devise;
+
   cache = sortie;
   cacheAt = Date.now();
   return sortie;
@@ -357,7 +435,7 @@ export async function enregistrer(valeurs, { tx = null, parUtilisateurId = null 
   const aEcrire = [];
   for (const [cle, valeur] of Object.entries(valeurs || {})) {
     if (!Object.hasOwn(CATALOGUE, cle)) {
-      erreurs[cle] = 'Ajuste desconocido.';
+      erreurs[cle] = t('valid.reglageInconnu');
       continue;
     }
     try {
@@ -383,7 +461,7 @@ export async function enregistrer(valeurs, { tx = null, parUtilisateurId = null 
   if (parJour.size) {
     const actuels = await lireTous({ frais: true });
     for (const [jour, saisi] of parJour) {
-      const nom = NOMS_JOURS[Number(jour)];
+      const nom = nomJour(Number(jour));
       const valeur = (champ) => saisi[champ] ?? actuels['horaires.' + jour + '.' + champ];
       const ouverture = valeur('ouverture');
       const fermeture = valeur('fermeture');
@@ -392,7 +470,7 @@ export async function enregistrer(valeurs, { tx = null, parUtilisateurId = null 
 
       if (ouverture && fermeture && heureEnMinutes(fermeture) <= heureEnMinutes(ouverture)) {
         throw new ValidationError({
-          ['horaires.' + jour + '.fermeture']: 'El cierre debe ser posterior a la apertura (' + nom + ').',
+          ['horaires.' + jour + '.fermeture']: t('valid.fermetureApresOuverture', { jour: nom }),
         });
       }
 
@@ -401,14 +479,14 @@ export async function enregistrer(valeurs, { tx = null, parUtilisateurId = null 
       if (Boolean(pauseDebut) !== Boolean(pauseFin)) {
         throw new ValidationError({
           ['horaires.' + jour + (pauseDebut ? '.pauseFin' : '.pauseDebut')]:
-            'El descanso necesita las dos horas: cuándo empieza y cuándo se vuelve a abrir (' + nom + ').',
+            t('valid.pauseDeuxHeures', { jour: nom }),
         });
       }
 
       if (pauseDebut && pauseFin) {
         if (heureEnMinutes(pauseFin) <= heureEnMinutes(pauseDebut)) {
           throw new ValidationError({
-            ['horaires.' + jour + '.pauseFin']: 'La reapertura debe ser posterior al inicio del descanso (' + nom + ').',
+            ['horaires.' + jour + '.pauseFin']: t('valid.pauseFinApresDebut', { jour: nom }),
           });
         }
         // Une coupure qui deborde de la journee n'a pas de sens, et la
@@ -418,7 +496,7 @@ export async function enregistrer(valeurs, { tx = null, parUtilisateurId = null 
             || heureEnMinutes(pauseFin) >= heureEnMinutes(fermeture))) {
           throw new ValidationError({
             ['horaires.' + jour + '.pauseDebut']:
-              'El descanso tiene que caer dentro del horario del día, entre ' + ouverture + ' y ' + fermeture + ' (' + nom + ').',
+              t('valid.pauseDansJournee', { jour: nom, ouverture, fermeture }),
           });
         }
       }
@@ -466,6 +544,90 @@ export async function enregistrer(valeurs, { tx = null, parUtilisateurId = null 
 /* ------------------------------------------------------------------ */
 /*  Lectures derivees                                                  */
 /* ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ */
+/*  L'identite, et sa coherence avec le serveur                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Ce qu'on attend du serveur selon la monnaie du salon.
+ *
+ * LA MONNAIE SERT DE PAYS, pas la langue. Un salon de Tanger peut parler
+ * espagnol tout en encaissant des dirhams, et un salon de Perpignan parler
+ * francais en encaissant des euros : la langue ne dit rien du fuseau ni de
+ * l'indicatif. La monnaie, elle, ne se choisit pas — c'est celle du pays ou l'on
+ * encaisse.
+ *
+ * L'euro couvre l'Espagne, la France et la Belgique : on ne peut donc rien en
+ * deduire de precis, et on se garde d'inventer une attente qu'on ne sait pas
+ * verifier. Seule la contradiction franche est signalee.
+ */
+const ATTENDU_PAR_DEVISE = {
+  MAD: { timezone: 'Africa/Casablanca', indicatif: '212' },
+  EUR: { timezone: null, indicatif: null },
+};
+
+/**
+ * Les contradictions entre ce qui se regle a l'ecran et ce qui se regle dans le
+ * fichier .env.
+ *
+ * ELLES NE BLOQUENT RIEN. Un salon marocain dont le fuseau est reste sur Madrid
+ * fonctionne — mal, mais il fonctionne, et refuser d'enregistrer la monnaie
+ * jusqu'a ce que quelqu'un se connecte en SSH serait absurde. On dit le probleme
+ * a l'endroit ou l'on vient de faire le choix qui le cree, et on dit quoi
+ * changer.
+ *
+ * C'est la seule reponse honnete a un reglage a moitie dans la base et a moitie
+ * dans l'environnement : montrer les deux moities cote a cote.
+ */
+export function coherenceIdentite(reglages) {
+  const devise = reglages['salon.moneda'] || DEVISE_DEFAUT;
+  const langue = reglages['salon.idioma'] || LANGUE_DEFAUT;
+  const attendu = ATTENDU_PAR_DEVISE[devise] || { timezone: null, indicatif: null };
+  const avertissements = [];
+
+  if (attendu.timezone && config.timezone !== attendu.timezone) {
+    avertissements.push({
+      champ: 'APP_TIMEZONE',
+      message: t('identite.fuseauIncoherent', {
+        devise: DEVISES[devise]?.symbole ?? devise,
+        actuel: config.timezone,
+        attendu: attendu.timezone,
+      }),
+    });
+  }
+  if (attendu.indicatif && config.indicatifDefaut !== attendu.indicatif) {
+    avertissements.push({
+      champ: 'TELEPHONE_INDICATIF_DEFAUT',
+      message: t('identite.indicatifIncoherent', {
+        devise: DEVISES[devise]?.symbole ?? devise,
+        actuel: config.indicatifDefaut,
+        attendu: attendu.indicatif,
+      }),
+    });
+  }
+  // Une plantilla WhatsApp est declaree par langue chez Meta : demander un
+  // modele en espagnol pour un salon francais ne donne pas un message mal
+  // traduit, il donne un refus d'envoi.
+  if (config.whatsapp.actif && !config.whatsapp.langue.toLowerCase().startsWith(langue)) {
+    avertissements.push({
+      champ: 'WHATSAPP_LANGUE',
+      message: t('identite.whatsappIncoherent', {
+        langue: LANGUES[langue]?.nomLocal ?? langue,
+        actuel: config.whatsapp.langue,
+      }),
+    });
+  }
+
+  return {
+    langue,
+    devise,
+    timezone: config.timezone,
+    indicatif: config.indicatifDefaut,
+    whatsappLangue: config.whatsapp.actif ? config.whatsapp.langue : null,
+    avertissements,
+  };
+}
 
 /**
  * L'adresse publique effective : le reglage s'il est pose, sinon PUBLIC_URL,
@@ -557,14 +719,14 @@ export function estOuvert(reglages, jourSemaine, minutes) {
  * ne sait afficher qu'une amplitude, et donnent alors le premier et le dernier
  * horaire du jour.
  */
-export function horairesLisibles(reglages) {
+export function horairesLisibles(reglages, langue = null) {
   const lignes = [];
   for (let j = 1; j <= 7; j += 1) {
     const jour = j % 7; // la semaine commence le lundi a l'affichage
     const plages = plagesDuJour(reglages, jour);
     lignes.push({
       jour,
-      nom: NOMS_JOURS[jour],
+      nom: nomJour(jour, langue),
       plages,
       ouverture: plages.length ? plages[0].ouverture : null,
       fermeture: plages.length ? plages[plages.length - 1].fermeture : null,

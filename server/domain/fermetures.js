@@ -15,9 +15,10 @@
  */
 import { all, one, execute } from '../db/index.js';
 import { newId } from '../core/crypto.js';
-import { jourLocal, dateLongueFr } from '../core/temps.js';
+import { jourLocal, dateLongue } from '../core/temps.js';
 import { addDays } from '../core/text.js';
 import { conflict, notFound } from '../core/errors.js';
+import { t } from '../core/langue.js';
 
 /** La periode qui couvre ce jour, ou null. */
 export async function fermetureDuJour(jour = jourLocal()) {
@@ -41,7 +42,7 @@ export async function prochaine(jour = jourLocal()) {
 }
 
 export async function ajouter({ du, au, motif = null }, { parUtilisateurId = null } = {}) {
-  if (au < du) throw conflict('La fecha de fin debe ser posterior o igual a la de inicio.');
+  if (au < du) throw conflict(t('conges.finAvantDebut'));
   const id = newId();
   try {
     await execute(
@@ -56,8 +57,8 @@ export async function ajouter({ du, au, motif = null }, { parUtilisateurId = nul
         [du, au, '[]'],
       );
       throw conflict(existante
-        ? 'Ya hay un cierre que cubre estas fechas (del ' + existante.du + ' al ' + existante.au + '). Modifíquelo en lugar de añadir otro.'
-        : 'Ya hay un cierre que cubre estas fechas.');
+        ? t('conges.chevauchementPrecis', { du: existante.du, au: existante.au })
+        : t('conges.chevauchement'));
     }
     throw err;
   }
@@ -66,17 +67,22 @@ export async function ajouter({ du, au, motif = null }, { parUtilisateurId = nul
 
 export async function supprimer(id) {
   const n = await execute('DELETE FROM fermetures WHERE id = $1', [id]);
-  if (!n) throw notFound('Este periodo de cierre ya no existe.');
+  if (!n) throw notFound(t('conges.introuvable'));
   return true;
 }
 
 /**
  * Le message a montrer au client, quand le salon est ferme.
+ *
+ * Le motif est celui que le gerant a SAISI : il n'est pas traduit, et c'est
+ * normal — il l'a ecrit dans sa langue, pour ses clients.
+ *
  * @param {{du:string, au:string, motif:string|null}} fermeture
  */
 export function messageDeFermeture(fermeture) {
-  const reouverture = dateLongueFr(addDays(fermeture.au, 1));
-  const raison = fermeture.motif ? fermeture.motif + '. ' : '';
-  return raison + 'El salón está cerrado hasta el ' + dateLongueFr(fermeture.au)
-    + ' incluido. Reabrimos el ' + reouverture + '.';
+  return t('conges.messageClient', {
+    raison: fermeture.motif ? fermeture.motif + '. ' : '',
+    jusqua: dateLongue(fermeture.au),
+    reouverture: dateLongue(addDays(fermeture.au, 1)),
+  });
 }

@@ -20,7 +20,10 @@
  */
 import { transaction, all, one } from '../db/index.js';
 import { newId, jetonSuivi, hashToken, encrypt, decrypt, blindIndexTous, blindIndex } from '../core/crypto.js';
-import { jourLocal, attenteLisible, attenteCourte, jourSemaine, minutesDepuisMinuit } from '../core/temps.js';
+import {
+  jourLocal, attenteLisible, attenteCourte, attenteNue, jourSemaine, minutesDepuisMinuit,
+} from '../core/temps.js';
+import { t } from '../core/langue.js';
 import { conflict, notFound, badRequest, AppError, ValidationError } from '../core/errors.js';
 import { lireTous, estOuvert } from '../core/reglages.js';
 import { annoncerChangement } from '../core/flux.js';
@@ -190,29 +193,39 @@ export function calculerPositions(tickets, {
   return sortie;
 }
 
-/** La phrase que lit le client, selon sa phase. */
-export function messageDePhase(phase, { devant = 0, estimationMinutes = 0, nomSalon = 'el salón' } = {}) {
+/**
+ * La phrase que lit le client, selon sa phase.
+ *
+ * Le nom du salon arrive tel qu'il est saisi : c'est le sien, il ne se traduit
+ * pas. Seul le mot generique de secours — « le salon » quand le reglage est vide
+ * — passe par le dictionnaire.
+ */
+export function messageDePhase(phase, { devant = 0, estimationMinutes = 0, nomSalon = null } = {}) {
+  const salon = nomSalon || t('commun.salonLeNom');
   switch (phase) {
     case 'VOTRE_TOUR':
-      return { titre: '¡Es tu turno!', detail: 'Pasa al sillón, ' + nomSalon + ' te espera.', ton: 'tour' };
+      return { titre: t('phase.tour.titre'), detail: t('phase.tour.detail', { nom: salon }), ton: 'tour' };
     case 'EN_COURS':
-      return { titre: 'Estás en el sillón.', detail: '¡Que te quede bien!', ton: 'tour' };
+      return { titre: t('phase.service.titre'), detail: t('phase.service.detail'), ton: 'tour' };
     case 'PROCHAIN':
-      return { titre: 'Eres el siguiente.', detail: 'Quédate cerca del salón, tu turno está a punto de llegar.', ton: 'proche' };
+      return { titre: t('phase.suivant.titre'), detail: t('phase.suivant.detail'), ton: 'proche' };
     case 'APPROCHE':
       return {
-        titre: '¡Tu turno se acerca!',
-        detail: 'Te queda' + (devant > 1 ? 'n' : '') + ' ' + devant + ' persona' + (devant > 1 ? 's' : '') + ' delante. Acércate al salón.',
+        titre: t('phase.approche.titre'),
+        detail: t('phase.approche.detail', { n: devant }),
         ton: 'proche',
       };
     case 'TERMINE':
-      return { titre: 'Ya te han atendido.', detail: 'Gracias por tu visita, ¡hasta pronto!', ton: 'fini' };
+      return { titre: t('phase.fini.titre'), detail: t('phase.fini.detail'), ton: 'fini' };
     case 'ANNULE':
-      return { titre: 'Este turno se ha anulado.', detail: 'Pide otro turno cuando quieras.', ton: 'fini' };
+      return { titre: t('phase.annule.titre'), detail: t('phase.annule.detail'), ton: 'fini' };
     default:
       return {
-        titre: 'Estás en la fila.',
-        detail: 'Unos ' + attenteLisible(estimationMinutes).replace(/^unos /, '').replace(/^alrededor de /, '') + ' de espera. Quédate cerca, te avisaremos.',
+        titre: t('phase.attente.titre'),
+        // attenteNue, et non attenteLisible dont on retaillait le debut : la
+        // phrase porte deja « Unos » / « Environ », et decouper une traduction
+        // a coups d'expression reguliere ne survit pas au changement de langue.
+        detail: t('phase.attente.detail', { duree: attenteNue(estimationMinutes) }),
         ton: 'attente',
       };
   }
@@ -263,8 +276,7 @@ export async function etatPriseDeTour({ instant = new Date() } = {}) {
     return {
       ouverte: false,
       code: 'PRISE_DE_TOUR_SUSPENDUE',
-      message: reglages['file.messagePause']
-        || 'El salón no da más turnos por ahora. Ven directamente al salón, o vuelve un poco más tarde.',
+      message: reglages['file.messagePause'] || t('file.plusDeToursDefaut'),
       fermeture: null,
       prochaineFermeture: aVenir,
       ouvertureA: null,
@@ -280,11 +292,10 @@ export async function etatPriseDeTour({ instant = new Date() } = {}) {
       // a 15 h, un jour ou le salon rouvre a 17 h, est pire que le silence :
       // le client comprend qu'il a manque l'ouverture et ne revient pas.
       message: horaires.enPause
-        ? 'El salón está cerrado a mediodía. Volvemos a abrir a las ' + horaires.ouverture
-          + ', y entonces podrás pedir tu turno.'
+        ? t('file.fermeMidi', { heure: horaires.ouverture })
         : horaires.ouverture
-          ? 'El salón está cerrado ahora mismo. Podrás pedir tu turno a partir de las ' + horaires.ouverture + '.'
-          : 'El salón está cerrado hoy. Vuelve el próximo día de apertura.',
+          ? t('file.fermeMaintenant', { heure: horaires.ouverture })
+          : t('file.fermeAujourdhui'),
       fermeture: null,
       prochaineFermeture: aVenir,
       ouvertureA: horaires.ouverture,
@@ -741,13 +752,11 @@ export async function prendreTour({
   let poste = null;
   if (reglages['file.mode'] === MODE_PAR_FAUTEUIL) {
     if (!posteId) {
-      throw new ValidationError({ posteId: 'Elige tu peluquero.' },
-        'El salón funciona con una fila por peluquero: elige el tuyo.');
+      throw new ValidationError({ posteId: t('file.choisirCoiffeur') }, t('file.choisirCoiffeurGlobal'));
     }
     poste = await posteParId(posteId);
     if (!poste || !poste.actif) {
-      throw new ValidationError({ posteId: 'Este peluquero no está disponible.' },
-        'Este peluquero ya no está disponible. Elige otro.');
+      throw new ValidationError({ posteId: t('file.coiffeurIndisponible') }, t('file.coiffeurIndisponibleGlobal'));
     }
   }
 
@@ -762,13 +771,13 @@ export async function prendreTour({
     // Ici on dit au client ce qui le concerne : le salon a fini.
     if (!journee.ouverte) {
       throw new AppError(409,
-        'El salón ha cerrado la jornada. Vuelve mañana, o ven directamente al salón.',
+        t('file.journeeClose'),
         { code: 'JOURNEE_CLOSE' });
     }
 
     const total = await tx.value('SELECT COUNT(*)::int FROM tickets WHERE jour = $1', [jour]);
     if (total >= reglages['file.maxParJour']) {
-      throw new AppError(409, 'La fila de hoy está completa. Ven al salón o vuelve mañana.', { code: 'FILE_COMPLETE' });
+      throw new AppError(409, t('file.complete'), { code: 'FILE_COMPLETE' });
     }
 
     // Un meme numero ne peut pas occuper deux places dans la file du jour.
@@ -781,8 +790,7 @@ export async function prendreTour({
     );
     if (dejaLa) {
       throw new AppError(409,
-        'Ya hay un turno en curso para este número (turno ' + dejaLa.numero_affiche + '). '
-        + 'Búscalo en tu enlace de seguimiento, o pídelo en el salón.',
+        t('file.dejaUnTour', { numero: dejaLa.numero_affiche }),
         { code: 'TOUR_DEJA_PRIS' });
     }
 
@@ -830,7 +838,7 @@ export async function prendreTour({
       statut: 'WAITING',
       rang,
       user,
-      detail: 'Tour pris (' + libelleSource(source) + ')'
+      detail: t('trace.tourPris', { source: libelleSource(source) })
         + (poste ? ', file de ' + (poste.coiffeur || poste.nom) : '') + '.',
     });
     await enfilerEnvoi(tx, { ticket, type: 'CONFIRMATION', donnees: { jeton } });
@@ -857,7 +865,20 @@ export async function prendreTour({
   return { ticket: resultat, jeton, position: pourClient(etat, resultat.id) };
 }
 
-const libelleSource = (source) => ({ ONLINE: 'en ligne', QR: 'QR Code du salon', COMPTOIR: 'comptoir' })[source] || source;
+/**
+ * D'ou vient le tour, tel que ce sera GRAVE dans l'historique.
+ *
+ * Ces lignes etaient en francais dans une base espagnole : l'ecran d'historique
+ * melangeait « Cliente llamado al sillón » et « Tour pris (en ligne) ». Elles
+ * passent par le dictionnaire, et sont donc ecrites dans la langue du salon au
+ * moment du geste — une trace ne se retraduit pas apres coup, c'est ce qui en
+ * fait une trace.
+ */
+const libelleSource = (source) => ({
+  ONLINE: t('trace.sourceEnLigne'),
+  QR: t('trace.sourceQr'),
+  COMPTOIR: t('trace.sourceComptoir'),
+}[source] || source);
 
 /**
  * Charge un ticket ACTIF du jour et verrouille sa ligne. Tout geste du coiffeur
@@ -868,7 +889,7 @@ async function verrouillerTicket(tx, ticketId, jour) {
     'SELECT ' + COLONNES + ' FROM tickets WHERE id = $1 AND jour = $2 FOR UPDATE',
     [ticketId, jour],
   );
-  if (!ticket) throw notFound('Este turno no está en la fila de hoy.');
+  if (!ticket) throw notFound(t('file.pasDansLaFile'));
   return ticket;
 }
 
@@ -887,8 +908,8 @@ function geste(nom, executer) {
     const jour = jourLocal();
     const resultat = await transaction(async (tx) => {
       const journee = await verrouillerJournee(tx, jour);
-      if (!journee) throw notFound('Aucune file ouverte aujourd’hui.');
-      if (!journee.ouverte) throw conflict('La jornada está cerrada: la fila de hoy ya no se puede modificar.');
+      if (!journee) throw notFound(t('file.aucuneFileOuverte'));
+      if (!journee.ouverte) throw conflict(t('file.journeeCloseModif'));
       const ticket = await verrouillerTicket(tx, ticketId, jour);
       const sortie = await executer({ tx, ticket, journee, user, reglages, jour, options });
       await planifierNotifications(tx, jour, reglages);
@@ -909,10 +930,10 @@ function geste(nom, executer) {
  */
 export const appeler = geste('appeler', async ({ tx, ticket, user, jour, options, reglages }) => {
   if (STATUTS_EN_COURS.includes(ticket.statut)) {
-    throw conflict('El turno ' + ticket.numero_affiche + ' ya está llamado.');
+    throw conflict(t('file.dejaAppele', { numero: ticket.numero_affiche }));
   }
   if (!STATUTS_EN_ATTENTE.includes(ticket.statut)) {
-    throw conflict('El turno ' + ticket.numero_affiche + ' ya no está esperando (' + libelleStatut(ticket.statut) + ').');
+    throw conflict(t('file.plusEnAttente', { numero: ticket.numero_affiche, statut: libelleStatut(ticket.statut) }));
   }
 
   // En file par coiffeur, le fauteuil du client est celui qu'il a choisi. Le
@@ -930,10 +951,9 @@ export const appeler = geste('appeler', async ({ tx, ticket, user, jour, options
     [jour, poste.id, STATUTS_EN_COURS],
   );
   if (occupe) {
-    throw new AppError(409,
-      occupe.prenom + ' (' + occupe.numero_affiche + ') ya está en el sillón « ' + poste.nom + ' ». '
-      + 'Terminez ce client, ou marquez-le absent, avant d’appeler le suivant.',
-      { code: 'FAUTEUIL_OCCUPE' });
+    throw new AppError(409, t('file.fauteuilOccupe', {
+      prenom: occupe.prenom, numero: occupe.numero_affiche, poste: poste.nom,
+    }), { code: 'FAUTEUIL_OCCUPE' });
   }
 
   const maj = await tx.one(
@@ -945,8 +965,9 @@ export const appeler = geste('appeler', async ({ tx, ticket, user, jour, options
   await tracer(tx, maj, {
     statut: 'CALLED',
     user,
-    detail: 'Cliente llamado al sillón « ' + poste.nom + ' »'
-      + (deplace ? ' (movido desde otro sillón).' : '.'),
+    detail: deplace
+      ? t('trace.appeleDeplace', { poste: poste.nom })
+      : t('trace.appele', { poste: poste.nom }) + '.',
   });
   maj.poste = poste;
   maj.deplace = deplace;
@@ -957,14 +978,14 @@ export const appeler = geste('appeler', async ({ tx, ticket, user, jour, options
 export const commencerService = geste('service', async ({ tx, ticket, user }) => {
   if (ticket.statut === 'IN_SERVICE') return ticket;
   if (ticket.statut !== 'CALLED') {
-    throw conflict('El turno ' + ticket.numero_affiche + ' tiene que ser llamado primero.');
+    throw conflict(t('file.aAppelerDabord', { numero: ticket.numero_affiche }));
   }
   const maj = await tx.one(
     `UPDATE tickets SET statut = 'IN_SERVICE', statut_at = now(), service_at = now(), version = version + 1
       WHERE id = $1 RETURNING ` + COLONNES,
     [ticket.id],
   );
-  await tracer(tx, maj, { statut: 'IN_SERVICE', user, detail: 'Corte empezado.' });
+  await tracer(tx, maj, { statut: 'IN_SERVICE', user, detail: t('trace.coupeCommencee') });
   return maj;
 });
 
@@ -979,7 +1000,7 @@ export const commencerService = geste('service', async ({ tx, ticket, user }) =>
 export const terminer = geste('servi', async ({ tx, ticket, user }) => {
   if (ticket.statut === 'COMPLETED') return ticket;
   if (!STATUTS_ACTIFS.includes(ticket.statut)) {
-    throw conflict('El turno ' + ticket.numero_affiche + ' ya está ' + libelleStatut(ticket.statut).toLowerCase() + '.');
+    throw conflict(t('file.dejaDansCetEtat', { numero: ticket.numero_affiche, statut: libelleStatut(ticket.statut).toLowerCase() }));
   }
   const maj = await tx.one(
     `UPDATE tickets SET statut = 'COMPLETED', statut_at = now(), termine_at = now(),
@@ -987,7 +1008,7 @@ export const terminer = geste('servi', async ({ tx, ticket, user }) => {
       WHERE id = $1 RETURNING ` + COLONNES,
     [ticket.id],
   );
-  await tracer(tx, maj, { statut: 'COMPLETED', user, detail: 'Client servi.' });
+  await tracer(tx, maj, { statut: 'COMPLETED', user, detail: t('trace.clientServi') });
   return maj;
 });
 
@@ -1005,7 +1026,7 @@ export const terminer = geste('servi', async ({ tx, ticket, user }) => {
  */
 export const marquerAbsent = geste('absent', async ({ tx, ticket, journee, user }) => {
   if (!STATUTS_ACTIFS.includes(ticket.statut)) {
-    throw conflict('El turno ' + ticket.numero_affiche + ' ya no está en la fila (' + libelleStatut(ticket.statut).toLowerCase() + ').');
+    throw conflict(t('file.plusDansLaFile', { numero: ticket.numero_affiche, statut: libelleStatut(ticket.statut).toLowerCase() }));
   }
   const rang = await prochainRang(tx, journee);
   // Le fauteuil est libere du meme geste : le client n'y est plus, et le
@@ -1024,7 +1045,7 @@ export const marquerAbsent = geste('absent', async ({ tx, ticket, journee, user 
     statut: 'LATE',
     rang,
     user,
-    detail: 'Ausente al llamarle: pasa al final de la fila (ausencia n.º ' + maj.retards + ').',
+    detail: t('trace.absent', { n: maj.retards }),
   });
   return maj;
 });
@@ -1047,19 +1068,20 @@ export const marquerAbsent = geste('absent', async ({ tx, ticket, journee, user 
  */
 export const transferer = geste('transferer', async ({ tx, ticket, user, reglages, options }) => {
   if (reglages['file.mode'] !== MODE_PAR_FAUTEUIL) {
-    throw conflict('El salón funciona con una sola fila: no hay otra fila a la que mover a este cliente.');
+    throw conflict(t('file.uneSeuleFile'));
   }
   if (!STATUTS_EN_ATTENTE.includes(ticket.statut)) {
-    throw conflict('El turno ' + ticket.numero_affiche + ' ya no está esperando ('
-      + libelleStatut(ticket.statut).toLowerCase() + '): no se cambia de peluquero a alguien que ya está en el sillón.');
+    throw conflict(t('file.dejaAuFauteuil', {
+      numero: ticket.numero_affiche, statut: libelleStatut(ticket.statut).toLowerCase(),
+    }));
   }
-  if (!options.posteId) throw badRequest('Indique el peluquero al que mover a este cliente.');
+  if (!options.posteId) throw badRequest(t('file.indiquerCoiffeur'));
 
   const cible = await posteParId(options.posteId);
-  if (!cible) throw notFound('Este peluquero ya no existe.');
-  if (!cible.actif) throw conflict('El sillón « ' + cible.nom + ' » está cerrado.');
+  if (!cible) throw notFound(t('file.coiffeurInexistant'));
+  if (!cible.actif) throw conflict(t('file.fauteuilFerme', { poste: cible.nom }));
   if (cible.id === ticket.poste_choisi_id) {
-    throw conflict('Este cliente ya está esperando a ' + (cible.coiffeur || cible.nom) + '.');
+    throw conflict(t('file.dejaChezCeCoiffeur', { nom: cible.coiffeur || cible.nom }));
   }
 
   const depart = ticket.poste_choisi_id ? await posteParId(ticket.poste_choisi_id) : null;
@@ -1071,9 +1093,10 @@ export const transferer = geste('transferer', async ({ tx, ticket, user, reglage
   await tracer(tx, maj, {
     statut: maj.statut,
     user,
-    detail: 'Changement de coiffeur : '
-      + (depart ? (depart.coiffeur || depart.nom) : 'sin peluquero')
-      + ' → ' + (cible.coiffeur || cible.nom) + '.',
+    detail: t('trace.changementCoiffeur', {
+      avant: depart ? (depart.coiffeur || depart.nom) : t('trace.sansCoiffeur'),
+      apres: cible.coiffeur || cible.nom,
+    }),
   });
   maj.poste = cible;
   return maj;
@@ -1082,9 +1105,9 @@ export const transferer = geste('transferer', async ({ tx, ticket, user, reglage
 /** ANNULER un tour. Le seul geste qui sort definitivement un client de la file. */
 export const annuler = geste('annuler', async ({ tx, ticket, user, options }) => {
   if (!STATUTS_ACTIFS.includes(ticket.statut)) {
-    throw conflict('El turno ' + ticket.numero_affiche + ' ya no está en la fila.');
+    throw conflict(t('file.plusDansLaFileCourt', { numero: ticket.numero_affiche }));
   }
-  const motif = String(options.motif || '').trim().slice(0, 300) || 'Turno anulado por el salón.';
+  const motif = String(options.motif || '').trim().slice(0, 300) || t('file.motifAnnulationSalon');
   const maj = await tx.one(
     `UPDATE tickets SET statut = 'CANCELLED', statut_at = now(), termine_at = now(),
             motif = $2, version = version + 1
@@ -1095,9 +1118,9 @@ export const annuler = geste('annuler', async ({ tx, ticket, user, options }) =>
   // Un message qui partirait apres l'annulation ferait revenir le client pour rien.
   await tx.execute(
     `UPDATE envois_whatsapp SET statut = 'DESACTIVE', contenu_enc = NULL,
-            derniere_erreur = 'Turno anulado antes del envío.'
+            derniere_erreur = $2
       WHERE ticket_id = $1 AND statut = 'EN_ATTENTE'`,
-    [ticket.id],
+    [ticket.id, t('trace.envoiAnnuleAvant')],
   );
   return maj;
 });
@@ -1111,29 +1134,29 @@ export const annuler = geste('annuler', async ({ tx, ticket, user, options }) =>
 export async function annulerParClient(jeton) {
   const reglages = await lireTous();
   const ticket = await ticketParJeton(jeton);
-  if (!ticket) throw notFound('Este enlace de seguimiento ya no sirve.');
+  if (!ticket) throw notFound(t('file.lienPerime'));
   if (!STATUTS_ACTIFS.includes(ticket.statut)) {
-    throw conflict('Este turno ya no está en la fila.');
+    throw conflict(t('file.tourPlusDansLaFile'));
   }
   const jour = ticket.jour;
 
   const resultat = await transaction(async (tx) => {
     const journee = await verrouillerJournee(tx, jour);
-    if (!journee || !journee.ouverte) throw conflict('La jornada está cerrada.');
+    if (!journee || !journee.ouverte) throw conflict(t('file.journeeCloseCourt'));
     const verrouille = await verrouillerTicket(tx, ticket.id, jour);
-    if (!STATUTS_ACTIFS.includes(verrouille.statut)) throw conflict('Este turno ya no está en la fila.');
+    if (!STATUTS_ACTIFS.includes(verrouille.statut)) throw conflict(t('file.tourPlusDansLaFile'));
     const maj = await tx.one(
       `UPDATE tickets SET statut = 'CANCELLED', statut_at = now(), termine_at = now(),
-              motif = 'Anulado por el cliente desde su enlace de seguimiento.', version = version + 1
+              motif = $2, version = version + 1
         WHERE id = $1 RETURNING ` + COLONNES,
-      [verrouille.id],
+      [verrouille.id, t('trace.annuleParClientLien')],
     );
-    await tracer(tx, maj, { statut: 'CANCELLED', detail: 'Anulado por el cliente.' });
+    await tracer(tx, maj, { statut: 'CANCELLED', detail: t('trace.annuleParClient') });
     await tx.execute(
       `UPDATE envois_whatsapp SET statut = 'DESACTIVE', contenu_enc = NULL,
-              derniere_erreur = 'Turno anulado por el cliente.'
+              derniere_erreur = $2
         WHERE ticket_id = $1 AND statut = 'EN_ATTENTE'`,
-      [verrouille.id],
+      [verrouille.id, t('trace.envoiAnnuleParClient')],
     );
     await planifierNotifications(tx, jour, reglages);
     tx.apresValidation(() => annoncerChangement(jour));
@@ -1173,8 +1196,8 @@ export async function appelerSuivant({ user = null, posteId = null } = {}) {
 
   if (!suivant) {
     throw badRequest(parFauteuil && posteId
-      ? 'Ahora mismo nadie espera a este peluquero.'
-      : 'Ahora mismo no espera nadie.');
+      ? t('file.personneChezCeCoiffeur')
+      : t('file.personneEnAttente'));
   }
   return appeler(suivant.id, { user, posteId });
 }
@@ -1184,15 +1207,17 @@ export async function ajouterAuComptoir({ prenom, nom, telephone }, { user = nul
   return prendreTour({ prenom, nom, telephone, source: 'COMPTOIR' }, { user });
 }
 
+/**
+ * Le statut, tel qu'il se lit dans une phrase.
+ *
+ * Les cles du dictionnaire portent les codes de la base : un statut ajoute un
+ * jour se signalera par un « statut.NOUVEAU » affiche tel quel, ce qui se voit,
+ * plutot que par un code brut qui passerait pour du texte.
+ */
 export function libelleStatut(statut) {
-  return ({
-    WAITING: 'Esperando',
-    LATE: 'Esperando (ya estuvo ausente)',
-    CALLED: 'Llamado',
-    IN_SERVICE: 'En curso',
-    COMPLETED: 'Atendido',
-    CANCELLED: 'Anulado',
-  })[statut] || statut;
+  const cle = 'statut.' + statut;
+  const lu = t(cle);
+  return lu === cle ? statut : lu;
 }
 
 export { STATUTS_ACTIFS, STATUTS_EN_ATTENTE, STATUTS_EN_COURS };

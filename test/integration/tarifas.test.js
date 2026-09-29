@@ -16,6 +16,33 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { IGNORE, demarrer } from './banc.js';
 
+/**
+ * L'espace INSECABLE qui separe le nombre de son symbole.
+ *
+ * Ce n'est pas une coquetterie : dans la colonne etroite des tarifs, un espace
+ * ordinaire laisse « 24,90 » en fin de ligne et « € » orphelin dessous. Le test
+ * l'ecrit explicitement parce que la difference est invisible a l'oeil dans un
+ * message d'echec — deux chaines qui paraissent identiques et ne le sont pas.
+ */
+const NBSP = '\u00a0';
+const prix = (texte) => texte.replace(' ', NBSP);
+
+/**
+ * DEUX NOMS QUI N'EXISTENT PAS DANS LA FICHE DE DEPART.
+ *
+ * Ce fichier a longtemps cree « Tinte », « Mechas » et « Peinado » : les trois
+ * figurent dans la fiche de quinze lignes que pose le seed, donc les creations
+ * repondaient 409 au lieu de 201 et la moitie du fichier tombait. Personne ne
+ * l'avait vu, parce que ces tests demandent une base et n'avaient jamais tourne.
+ */
+const NOUVEAU = 'Prueba de tinte';
+const NOUVEAU_2 = 'Prueba de mechas';
+const NOUVEAU_3 = 'Prueba de peinado';
+
+/** Une ligne de la fiche de depart, celle du salon : « Corte normal », 7 €. */
+const DEPART = 'Corte normal';
+const DEPART_CTS = 700;
+
 test('la fiche de prix se tient depuis l espace de gestion', { skip: IGNORE }, async (t) => {
   const banc = await demarrer();
   t.after(() => banc.arreter());
@@ -28,32 +55,32 @@ test('la fiche de prix se tient depuis l espace de gestion', { skip: IGNORE }, a
     assert.equal(r.status, 200);
     assert.ok(r.body.items.length >= 5, 'la fiche de depart ne doit pas etre vide');
     assert.equal(r.body.visibles, r.body.items.length);
-    const corte = r.body.items.find((x) => x.nombre === 'Corte de pelo');
+    const corte = r.body.items.find((x) => x.nombre === DEPART);
     assert.ok(corte, 'la coupe simple doit y etre');
-    assert.equal(corte.precioCts, 1400);
-    assert.equal(corte.precio, '14 €');
+    assert.equal(corte.precioCts, DEPART_CTS);
+    assert.equal(corte.precio, prix('7 €'));
   });
 
   await t.test('un prix se tape comme on l ecrit et revient identique', async () => {
-    const r = await gerant.post('/api/tarifas', { nombre: 'Tinte', precio: '24,90', nota: 'Consultar antes' });
+    const r = await gerant.post('/api/tarifas', { nombre: NOUVEAU, precio: '24,90', nota: 'Consultar antes' });
     assert.equal(r.status, 201);
     // Le centime est un ENTIER : aucune derive de flottant sur le chemin.
     assert.equal(r.body.precioCts, 2490);
-    assert.equal(r.body.precio, '24,90 €');
+    assert.equal(r.body.precio, prix('24,90 €'));
     assert.equal(r.body.nota, 'Consultar antes');
     assert.equal(r.body.visible, true);
   });
 
   await t.test('les ecritures tolerees donnent le meme centime', async () => {
-    const avecEuro = await gerant.post('/api/tarifas', { nombre: 'Mechas', precio: '35 €' });
+    const avecEuro = await gerant.post('/api/tarifas', { nombre: NOUVEAU_2, precio: '35 €' });
     assert.equal(avecEuro.status, 201);
     assert.equal(avecEuro.body.precioCts, 3500);
-    assert.equal(avecEuro.body.precio, '35 €');
+    assert.equal(avecEuro.body.precio, prix('35 €'));
 
-    const avecPoint = await gerant.post('/api/tarifas', { nombre: 'Peinado', precio: '12.50' });
+    const avecPoint = await gerant.post('/api/tarifas', { nombre: NOUVEAU_3, precio: '12.50' });
     assert.equal(avecPoint.status, 201);
     assert.equal(avecPoint.body.precioCts, 1250);
-    assert.equal(avecPoint.body.precio, '12,50 €');
+    assert.equal(avecPoint.body.precio, prix('12,50 €'));
   });
 
   await t.test('un prix qui n en est pas un est refuse, pas devine', async () => {
@@ -64,22 +91,23 @@ test('la fiche de prix se tient depuis l espace de gestion', { skip: IGNORE }, a
   });
 
   await t.test('deux lignes du meme nom sont impossibles', async () => {
-    const r = await gerant.post('/api/tarifas', { nombre: 'corte DE pelo', precio: '9' });
+    // La casse ne protege de rien : l'index unique travaille sur le nom normalise.
+    const r = await gerant.post('/api/tarifas', { nombre: DEPART.toUpperCase(), precio: '9' });
     assert.equal(r.status, 409);
     assert.equal(r.body.error.code, 'TARIFA_DUPLICADA');
   });
 
   await t.test('renommer vers un nom deja pris est refuse aussi', async () => {
     const liste = (await gerant.get('/api/tarifas')).body.items;
-    const tinte = liste.find((x) => x.nombre === 'Tinte');
-    const r = await gerant.patch('/api/tarifas/' + tinte.id, { nombre: 'Corte de pelo' });
+    const tinte = liste.find((x) => x.nombre === NOUVEAU);
+    const r = await gerant.patch('/api/tarifas/' + tinte.id, { nombre: DEPART });
     assert.equal(r.status, 409);
     assert.equal(r.body.error.code, 'TARIFA_DUPLICADA');
   });
 
   await t.test('une ligne masquee sort de la vitrine sans perdre son prix', async () => {
     const liste = (await gerant.get('/api/tarifas')).body.items;
-    const mechas = liste.find((x) => x.nombre === 'Mechas');
+    const mechas = liste.find((x) => x.nombre === NOUVEAU_2);
 
     const cache = await gerant.patch('/api/tarifas/' + mechas.id, { visible: false });
     assert.equal(cache.status, 200);
@@ -92,8 +120,8 @@ test('la fiche de prix se tient depuis l espace de gestion', { skip: IGNORE }, a
     // La vitrine ne la montre plus.
     const accueil = await banc.client().get('/');
     assert.equal(accueil.status, 200);
-    assert.ok(!accueil.body.includes('Mechas'), 'une ligne masquee ne doit pas sortir en vitrine');
-    assert.ok(accueil.body.includes('Corte de pelo'), 'les lignes visibles, si');
+    assert.ok(!accueil.body.includes(NOUVEAU_2), 'une ligne masquee ne doit pas sortir en vitrine');
+    assert.ok(accueil.body.includes(DEPART), 'les lignes visibles, si');
   });
 
   await t.test('l ordre affiche est celui de la vitrine, et les fleches le changent', async () => {
@@ -125,11 +153,30 @@ test('la fiche de prix se tient depuis l espace de gestion', { skip: IGNORE }, a
 
     const r = await gerant.post('/api/tarifas/orden', { ids: inverse });
     assert.equal(r.status, 200);
-    assert.deepEqual(r.body.items.map((x) => x.id), inverse);
+
+    /*
+     * LES LIGNES MASQUEES PASSENT EN DERNIER, QUEL QUE SOIT L'ORDRE ENVOYE.
+     *
+     * La liste du gerant est triee « visible d'abord, puis ordre » : une ligne
+     * retiree de la vitrine descend en bas de l'ecran, ou elle ne gene plus la
+     * lecture de celles qui comptent. Le rang qu'on lui donne est bien
+     * enregistre — il la replacera au bon endroit le jour ou elle revient — mais
+     * il ne la fait pas remonter tant qu'elle est masquee.
+     *
+     * Ce test attendait l'ordre envoye tel quel, ce qui n'a jamais pu passer des
+     * lors qu'une ligne etait masquee juste avant. Il verifie maintenant le vrai
+     * contrat : l'ordre demande, a l'interieur de chaque groupe.
+     */
+    const visibles = new Map(avant.map((x) => [x.id, x.visible]));
+    const attendu = [
+      ...inverse.filter((id) => visibles.get(id)),
+      ...inverse.filter((id) => !visibles.get(id)),
+    ];
+    assert.deepEqual(r.body.items.map((x) => x.id), attendu);
 
     // Et l'ordre tient apres relecture : il est en base, pas a l'ecran.
     const relu = (await gerant.get('/api/tarifas')).body.items.map((x) => x.id);
-    assert.deepEqual(relu, inverse);
+    assert.deepEqual(relu, attendu);
   });
 
   await t.test('un ordre qui ne correspond plus a la fiche est refuse', async () => {

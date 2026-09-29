@@ -5,6 +5,7 @@
  * 401 ramene a l'ecran de connexion sans jamais perdre le travail en cours :
  * il n'y a rien a perdre, la file est en base.
  */
+import { t } from '../langue.js';
 
 let csrf = null;
 const auditeurs = new Set();
@@ -43,7 +44,7 @@ async function requete(methode, chemin, corps) {
       credentials: 'same-origin',
     });
   } catch {
-    throw new ErreurApi('No se puede contactar con el salón. Comprueba la conexión a internet.', { statut: 0 });
+    throw new ErreurApi(t('commun.salonInjoignable'), { statut: 0 });
   }
 
   if (reponse.status === 204) return null;
@@ -62,7 +63,7 @@ async function requete(methode, chemin, corps) {
 
   if (!reponse.ok) {
     throw new ErreurApi(
-      donnees?.error?.message || 'Ha ocurrido un error (' + reponse.status + ').',
+      donnees?.error?.message || t('commun.erreurAvecCode', { statut: reponse.status }),
       { statut: reponse.status, code: donnees?.error?.code ?? null, champs: donnees?.error?.details?.fields ?? null },
     );
   }

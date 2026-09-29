@@ -11,6 +11,7 @@
  */
 import { notFound, forbidden, unauthorized, AppError } from '../core/errors.js';
 import { aLeRole } from '../core/roles.js';
+import { t } from '../core/langue.js';
 
 /** @typedef {import('./context.js').Context} Context */
 
@@ -146,20 +147,20 @@ export function enforceRouteRequirements(route, ctx) {
   if (options.public) return;
 
   if (!ctx.user) {
-    throw unauthorized('Tu sesión ha caducado. Vuelve a entrar.');
+    throw unauthorized(t('acces.sessionCaduque'));
   }
   if (ctx.user.actif === false) {
-    throw forbidden('Tu cuenta ha sido desactivada.');
+    throw forbidden(t('acces.compteDesactive'));
   }
   // Un changement de mot de passe impose ne laisse passer que les routes
   // permettant precisement de le changer.
   if (ctx.user.doitChangerMotDePasse && !options.allowDuringPasswordChange) {
-    throw new AppError(403, 'Primero tienes que definir una contraseña nueva.', { code: 'MOT_DE_PASSE_A_CHANGER' });
+    throw new AppError(403, t('acces.motDePasseADefinir'), { code: 'MOT_DE_PASSE_A_CHANGER' });
   }
 
   if (!options.role) return;
   if (!aLeRole(ctx.user, options.role)) {
-    throw forbidden('Esta acción está reservada al gerente del salón.');
+    throw forbidden(t('acces.reserveGerant'));
   }
 }
 

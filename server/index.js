@@ -34,6 +34,10 @@ import { ping, closePool } from './db/index.js';
 import { brancher, demarrerBattement, arreterBattement, fermerTout } from './core/flux.js';
 import { chargerEtat, pourSalon, pourClient, pourPantalla } from './domain/file.js';
 import { pageErreur } from './site/mise-en-page.js';
+import { lireTous } from './core/reglages.js';
+import { traduire, langueActive, t } from './core/langue.js';
+import { deviseActive, DEVISES } from './core/devise.js';
+import { escapeHtml } from './core/text.js';
 import { buildRouter } from './app.js';
 import { demarrerTaches, arreterTaches } from './core/taches.js';
 import { signalerErreur } from './core/sentry.js';
@@ -51,6 +55,53 @@ brancher({
 
 /** Une adresse dont le dernier segment porte une extension designe un fichier. */
 const ressembleAUnFichier = (chemin) => /\.[A-Za-z0-9]{1,8}$/.test(chemin.split('/').pop() || '');
+
+/**
+ * LA COQUILLE DE L'ESPACE DE GESTION, DANS LA LANGUE DU SALON.
+ *
+ * C'est une application monopage : tout est construit par app.js. Mais la page
+ * qui la porte doit deja dire sa langue — `<html lang>` gouverne la
+ * prononciation des lecteurs d'ecran et la cesure des mots, et le script n'a
+ * aucun autre moyen d'apprendre la langue : la politique de securite du contenu
+ * interdit le moindre script en ligne, et un appel supplementaire au serveur
+ * pour demander « quelle langue ? » retarderait le premier affichage.
+ *
+ * Les marqueurs sont remplis ici plutot que par un gabarit : il y en a cinq, et
+ * une bibliotheque de modeles pour cinq substitutions serait une dependance
+ * ajoutee a un projet qui n'en a qu'une.
+ *
+ * Si les reglages ne se lisent pas — base en train de demarrer, par exemple — la
+ * coquille sort quand meme, dans la langue par defaut. Un coiffeur devant un
+ * ecran blanc ne sait pas quoi faire ; devant une page en espagnol qui se
+ * charge, il attend.
+ */
+async function coquilleGestion() {
+  const brut = await loadHtml('gestion.html');
+  if (!brut) return null;
+
+  let nom = 'Peluquería HARON';
+  try {
+    const reglages = await lireTous();
+    nom = reglages['salon.nom'] || nom;
+  } catch {
+    // On garde les valeurs par defaut : la langue active est celle du dernier
+    // chargement reussi des reglages, ou l'espagnol au tout premier demarrage.
+  }
+
+  const tr = traduire(langueActive());
+  const devise = deviseActive();
+  const valeurs = {
+    langue: tr.htmlLang,
+    devise,
+    symbole: DEVISES[devise].symbole,
+    titre: tr('gestion.titrePage', { nom }),
+    saut: tr('saut.contenu'),
+    chargement: tr('gestion.chargement'),
+  };
+  return brut.replace(/\{\{(\w+)\}\}/g, (entier, cle) => (
+    Object.hasOwn(valeurs, cle) ? escapeHtml(valeurs[cle]) : entier
+  ));
+}
 
 const DERNIER_REFUS = new Map();
 function premierRefusDeLaMinute(ip) {
@@ -70,7 +121,7 @@ export async function handle(ctx) {
         const limite = consume('statique:' + ctx.ip, PROFILES.statique);
         if (!limite.allowed) {
           ctx.res.setHeader('Retry-After', String(limite.retryAfterSeconds));
-          throw new AppError(429, 'Demasiadas peticiones. Espere unos instantes.', { details: { retryAfter: limite.retryAfterSeconds } });
+          throw new AppError(429, t('http.tropDeDemandes'), { details: { retryAfter: limite.retryAfterSeconds } });
         }
       },
     });
@@ -82,7 +133,7 @@ export async function handle(ctx) {
   if (!limit.allowed) {
     ctx.res.setHeader('Retry-After', String(limit.retryAfterSeconds));
     if (premierRefusDeLaMinute(ctx.ip)) log.warn('Debit general atteint', { ip: ctx.ip, path: ctx.path });
-    throw new AppError(429, 'Demasiadas peticiones. Espere unos instantes.', { details: { retryAfter: limit.retryAfterSeconds } });
+    throw new AppError(429, t('http.tropDeDemandes'), { details: { retryAfter: limit.retryAfterSeconds } });
   }
 
   // --- 4. route
@@ -92,7 +143,7 @@ export async function handle(ctx) {
     if ((ctx.method === 'GET' || ctx.method === 'HEAD')
       && (ctx.path === '/gestion' || ctx.path.startsWith('/gestion/'))
       && !ressembleAUnFichier(ctx.path)) {
-      const coquille = await loadHtml('gestion.html');
+      const coquille = await coquilleGestion();
       if (coquille) {
         ctx.res.setHeader('X-Robots-Tag', 'noindex, nofollow');
         ctx.html(200, coquille);
@@ -102,7 +153,7 @@ export async function handle(ctx) {
     const allowed = router.allowedMethods(ctx.path);
     if (allowed.length) {
       ctx.res.setHeader('Allow', allowed.join(', '));
-      throw new AppError(405, 'Método no permitido para esta dirección.');
+      throw new AppError(405, t('http.methodeInterdite'));
     }
 
     // Aucune route, et ce n'est pas l'espace de gestion : c'est une adresse qui
@@ -118,9 +169,9 @@ export async function handle(ctx) {
       if (premierRefusDeLaMinute('inconnu:' + ctx.ip)) {
         log.warn('Exploration d adresses inexistantes', { ip: ctx.ip, path: ctx.path });
       }
-      throw new AppError(429, 'Demasiadas peticiones. Espere unos instantes.', { details: { retryAfter: inconnu.retryAfterSeconds } });
+      throw new AppError(429, t('http.tropDeDemandes'), { details: { retryAfter: inconnu.retryAfterSeconds } });
     }
-    throw new AppError(404, 'Dirección desconocida.');
+    throw new AppError(404, t('http.adresseInconnue'));
   }
 
   const { route, params } = matched;
@@ -144,16 +195,16 @@ export async function handle(ctx) {
     const origin = checkOrigin(ctx.req, hostPourOrigine(ctx.req));
     if (!origin.ok) {
       log.warn('Requete mutante refusee : origine invalide', { path: ctx.path, ip: ctx.ip, reason: origin.reason });
-      throw new AppError(403, 'Petición rechazada: origen no reconocido.', { code: 'ORIGINE_REFUSEE' });
+      throw new AppError(403, t('http.origineRefusee'), { code: 'ORIGINE_REFUSEE' });
     }
     // Une route publique n'a pas de session a detourner : le controle d'origine
     // et la limitation de debit la protegent.
     if (!route.options.skipCsrf && !route.options.public) {
       if (!ctx.session && token) {
-        throw new AppError(401, 'Tu sesión ha caducado o se ha cerrado: vuelve a entrar.', { code: 'SESSION_INVALIDE' });
+        throw new AppError(401, t('http.sessionExpiree'), { code: 'SESSION_INVALIDE' });
       }
       if (!ctx.session || !verifyCsrfToken(ctx.session, ctx.req.headers['x-csrf-token'])) {
-        throw new AppError(403, 'Falta el testigo de seguridad o no es válido. Recarga la página.', { code: 'CSRF_INVALIDE' });
+        throw new AppError(403, t('http.csrf'), { code: 'CSRF_INVALIDE' });
       }
     }
   }
@@ -165,7 +216,7 @@ export async function handle(ctx) {
     const r = consume(cle, route.options.rateLimit);
     if (!r.allowed) {
       ctx.res.setHeader('Retry-After', String(r.retryAfterSeconds));
-      throw new AppError(429, 'Demasiadas peticiones en esta operación. Espere un instante.', { details: { retryAfter: r.retryAfterSeconds } });
+      throw new AppError(429, t('http.tropDeDemandesOperation'), { details: { retryAfter: r.retryAfterSeconds } });
     }
   }
 
@@ -209,7 +260,7 @@ export async function respondWithError(ctx, err) {
       const html = pageErreur({
         base: ctx.base,
         statut: err.status,
-        titre: err.status === 404 ? 'Página no encontrada' : 'Un momento',
+        titre: t(err.status === 404 ? 'erreur.pageIntrouvable' : 'erreur.unMoment'),
         message: err.message,
       });
       ctx.html(err.status, html);
@@ -231,15 +282,15 @@ export async function respondWithError(ctx, err) {
     ctx.html(500, pageErreur({
       base: ctx.base,
       statut: 500,
-      titre: 'Ha ocurrido un error',
-      message: 'Inténtalo en un instante. Si el problema continúa, dile al salón la referencia ' + ctx.requestId + '.',
+      titre: t('erreur.unMoment'),
+      message: t('erreur.reessayer', { ref: ctx.requestId }),
     }));
     return;
   }
   ctx.json(500, {
     error: {
       code: 'ERREUR_SERVEUR',
-      message: 'Ha ocurrido un error inesperado. Si continúa, comunique la referencia ' + ctx.requestId + ' a su administrador.',
+      message: t('erreur.inattendue', { ref: ctx.requestId }),
       requestId: ctx.requestId,
     },
   });

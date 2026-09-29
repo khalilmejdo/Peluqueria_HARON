@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 
 import {
   jourLocal, heureLocale, instantLocal, heureEnMinutes, heureValide,
-  attenteLisible, dateLongueFr, jourSemaine, minutesDepuisMinuit,
+  attenteLisible, attenteNue, attenteCourte, dateLongue, jourSemaine, minutesDepuisMinuit,
 } from '../../server/core/temps.js';
 import { telephoneInternational, formatTelephone, telephoneMasque, capitaliserNom, escapeHtml } from '../../server/core/text.js';
 import { validate, rules } from '../../server/core/validate.js';
@@ -90,13 +90,50 @@ test('les heures se lisent et se comptent', () => {
 });
 
 test('l attente se dit comme on la dit a un client', () => {
-  assert.equal(attenteLisible(0), 'unos minutos');
-  assert.equal(attenteLisible(1), 'unos 1 minuto');
-  assert.equal(attenteLisible(25), 'unos 25 minutos');
-  assert.equal(attenteLisible(60), 'alrededor de 1 h');
-  assert.equal(attenteLisible(95), 'alrededor de 1 h 35');
-  // La forme espagnole intercale « de » deux fois.
-  assert.equal(dateLongueFr('2026-09-23'), 'miércoles 23 de septiembre de 2026');
+  assert.equal(attenteLisible(0, 'es'), 'unos minutos');
+  assert.equal(attenteLisible(1, 'es'), 'unos 1 minuto');
+  assert.equal(attenteLisible(25, 'es'), 'unos 25 minutos');
+  assert.equal(attenteLisible(60, 'es'), 'alrededor de 1 h');
+  assert.equal(attenteLisible(95, 'es'), 'alrededor de 1 h 35');
+
+  // L'espagnol change de tournure au-dela de l'heure (« unos » ne s'accorderait
+  // plus), le francais garde « environ » dans les deux cas.
+  assert.equal(attenteLisible(0, 'fr'), 'quelques minutes');
+  assert.equal(attenteLisible(1, 'fr'), 'environ 1 minute');
+  assert.equal(attenteLisible(25, 'fr'), 'environ 25 minutes');
+  assert.equal(attenteLisible(95, 'fr'), 'environ 1 h 35');
+});
+
+/**
+ * La duree NUE : celle qui se compose dans une phrase.
+ *
+ * Trois endroits decoupaient la phrase complete a l'expression reguliere
+ * (« attenteLisible(...).replace(/^unos /, '≈ ') »). En francais, « unos » ne
+ * s'y trouve pas : le remplacement n'aurait rien fait, et la page aurait affiche
+ * « Attente estimée : environ 25 minutes » la ou on voulait « ≈ 25 minutes ».
+ */
+test('la duree nue se compose, elle ne se decoupe pas', () => {
+  assert.equal(attenteNue(25, 'es'), '25 minutos');
+  assert.equal(attenteNue(25, 'fr'), '25 minutes');
+  assert.equal(attenteNue(1, 'fr'), '1 minute');
+  assert.equal(attenteNue(60, 'fr'), '1 h');
+  assert.equal(attenteNue(95, 'fr'), '1 h 35');
+  // Zero minute reste un nombre, pas « quelques minutes » : c'est a la phrase
+  // qui l'emploie de decider, pas a la duree.
+  assert.equal(attenteNue(0, 'fr'), '0 minute');
+  assert.equal(attenteNue(0, 'es'), '0 minutos');
+
+  assert.equal(attenteCourte(0, 'es'), 'ahora mismo');
+  assert.equal(attenteCourte(0, 'fr'), 'tout de suite');
+  assert.equal(attenteCourte(25, 'fr'), '25 min');
+  assert.equal(attenteCourte(100, 'fr'), '1 h 40');
+});
+
+test('la date longue suit la forme de chaque langue', () => {
+  // La forme espagnole intercale « de » deux fois, la francaise n'en met aucun.
+  assert.equal(dateLongue('2026-09-23', 'es'), 'miércoles 23 de septiembre de 2026');
+  assert.equal(dateLongue('2026-09-23', 'fr'), 'mercredi 23 septembre 2026');
+  assert.equal(dateLongue('pas une date', 'fr'), '');
 });
 
 /* ------------------------------------------------------------------ */

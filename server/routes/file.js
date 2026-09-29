@@ -27,6 +27,7 @@ import {
 import { cloturer } from '../domain/journee.js';
 import { detailTicket } from '../domain/statistiques.js';
 import { lienWhatsappCoiffeur, texteMessage } from '../domain/notifications.js';
+import { t } from '../core/langue.js';
 
 export const fileRoutes = new Router();
 
@@ -163,7 +164,7 @@ fileRoutes.post('/comptoir', async (ctx) => {
 /** L'historique complet d'un ticket : qui a fait quoi, et quand. */
 fileRoutes.get('/:id', async (ctx) => {
   const detail = await detailTicket(idDe(ctx));
-  if (!detail) throw notFound('Turno no encontrado.');
+  if (!detail) throw notFound(t('journee.tourIntrouvable'));
   ctx.ok({
     ticket: {
       id: detail.ticket.id,
@@ -253,7 +254,7 @@ fileRoutes.get('/:id/whatsapp', async (ctx) => {
     'SELECT id, prenom, numero_affiche, telephone_enc, jeton_enc, statut, retards FROM tickets WHERE id = $1',
     [id],
   );
-  if (!ticket) throw notFound('Turno no encontrado.');
+  if (!ticket) throw notFound(t('journee.tourIntrouvable'));
 
   const reglages = await lireTous();
   const base = adressePublique(reglages, ctx.base);
@@ -300,7 +301,7 @@ fileRoutes.get('/:id/whatsapp', async (ctx) => {
 fileRoutes.post('/cloturer', async (ctx) => {
   const jour = jourLocal();
   const bilan = await transaction(async (tx) => {
-    const resultat = await cloturer(tx, jour, { par: ctx.user.identifiant, motif: 'Jornada cerrada por el salón.' });
+    const resultat = await cloturer(tx, jour, { par: ctx.user.identifiant, motif: t('journee.fermeeParSalon') });
     // Les telephones encore ouverts sur un suivi doivent l'apprendre tout de
     // suite, et seulement si la cloture a bien ete validee.
     tx.apresValidation(() => annoncerChangement(jour));

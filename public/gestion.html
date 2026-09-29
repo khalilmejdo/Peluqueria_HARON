@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es" class="theme-gestion">
+<html lang="{{langue}}" data-devise="{{devise}}" data-symbole="{{symbole}}" class="theme-gestion">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Salón — Peluquería HARON</title>
+<title>{{titre}}</title>
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#0e1013">
 <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
@@ -14,15 +14,20 @@
 <link rel="stylesheet" href="/css/gestion.css">
 </head>
 <body class="gestion">
-<a class="saut" href="#principal">Ir al contenido</a>
+<a class="saut" href="#principal">{{saut}}</a>
 
 <!--
   La coquille est vide : tout est construit par /js/gestion/app.js.
   Aucun script en ligne, aucun style en ligne : la politique de sécurité du
   contenu est stricte, et c'est elle qui rend une injection inoffensive.
+
+  Les {{marqueurs}} sont remplis par le serveur au moment de servir la page —
+  voir coquilleGestion() dans server/index.js. C'est le seul moyen de donner sa
+  langue à une application monopage sans script en ligne : l'attribut « lang »
+  est déjà là quand le premier octet arrive, et app.js le lit.
 -->
 <div id="application" class="gestion__racine">
-  <p class="chargement" id="chargement">Cargando la fila…</p>
+  <p class="chargement" id="chargement">{{chargement}}</p>
 </div>
 
 <div id="annonces" class="visuellement-cache" role="status" aria-live="polite"></div>

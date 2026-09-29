@@ -10,20 +10,27 @@
  * l'acces au lieu de l'ouvrir (voir enforceRouteRequirements).
  */
 
-export const ROLES = {
-  COIFFEUR: {
-    code: 'COIFFEUR',
-    libelle: 'Peluquero',
-    description: 'Lleva la fila del día: llamar, atender, marcar ausente, anular.',
-  },
-  GERANT: {
-    code: 'GERANT',
-    libelle: 'Gerente',
-    description: 'Todo lo que hace el peluquero, más los ajustes, las cuentas y el historial.',
-  },
-};
+import { t } from './langue.js';
 
-export const CODES_ROLES = Object.keys(ROLES);
+export const CODES_ROLES = ['COIFFEUR', 'GERANT'];
+
+/**
+ * Les deux roles, dits dans la langue du salon.
+ *
+ * C'EST UNE FONCTION, PAS UNE CONSTANTE. Un objet fige au chargement du module
+ * aurait porte les libelles de la langue du demarrage, et un salon qui passe en
+ * francais aurait garde « Peluquero » dans son ecran des comptes jusqu'au
+ * prochain redemarrage — le genre d'incoherence qu'on met une heure a
+ * s'expliquer.
+ */
+export const roles = () => CODES_ROLES.map((code) => ({
+  code,
+  libelle: t('role.' + code + '.libelle'),
+  description: t('role.' + code + '.description'),
+}));
+
+/** Un seul role, par son code. */
+export const role = (code) => roles().find((r) => r.code === code) ?? null;
 
 /** Le gerant fait tout ce que fait le coiffeur ; l'inverse est faux. */
 export function aLeRole(user, requis) {

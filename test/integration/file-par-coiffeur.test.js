@@ -248,9 +248,16 @@ test('le salon peut donner une file a chaque coiffeur', { skip: IGNORE }, async 
     const avantLigne = await banc.db.one('SELECT rang FROM tickets WHERE numero_affiche = $1', [premier.numero]);
     assert.ok(ligne.rang > avantLigne.rang, 'l’ordre d’arrivée est conservé');
 
-    // Et le changement est ecrit dans son historique.
+    // Et le changement est ecrit dans son historique, DANS LA LANGUE DU SALON.
+    //
+    // Ce test attendait « Changement de coiffeur » — du francais, dans un salon
+    // espagnol. Ce n'etait pas une exigence, c'etait le constat d'une
+    // incoherence : l'historique melangeait « Cliente llamado al sillón » et
+    // « Tour pris (en ligne) », selon l'humeur de la ligne. Une trace s'ecrit
+    // maintenant dans la langue du salon au moment du geste, et elle ne se
+    // retraduit jamais apres coup — c'est ce qui en fait une trace.
     const detail = await coiffeur.get('/api/file/' + cible.id);
-    assert.match(detail.body.evenements.at(-1).detail, /Changement de coiffeur/);
+    assert.match(detail.body.evenements.at(-1).detail, /Cambio de peluquero/);
     assert.match(detail.body.evenements.at(-1).detail, /Haron/);
   });
 

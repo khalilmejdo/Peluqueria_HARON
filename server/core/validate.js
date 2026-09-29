@@ -15,6 +15,7 @@ import { isUuid } from './crypto.js';
 import { config } from './config.js';
 import { cleanSpaces, isValidIsoDate, capitaliserNom, telephoneInternational } from './text.js';
 import { heureValide } from './temps.js';
+import { t } from './langue.js';
 
 /** Entier strict : « 12 » oui, « 12abc », « 1e3 », « 12.5 » non. */
 export function entierStrict(value) {
@@ -32,36 +33,45 @@ export function entierStrict(value) {
  */
 const NOM_RE = /^[\p{L}\p{M}][\p{L}\p{M} '’.-]*$/u;
 
+/**
+ * L'exemple montre au client quand son numero est refuse.
+ *
+ * Les mobiles espagnols et marocains commencent tous deux par 6 : l'exemple
+ * tombe juste dans les deux pays. Il est nomme ici pour que le jour ou un pays
+ * aux numeros differents arrive, il n'y ait qu'un endroit a corriger.
+ */
+const EXEMPLE_NUMERO = '612 345 678';
+
 const CONVERTERS = {
   string(value, rule) {
-    if (typeof value === 'object') return { error: 'Se espera un texto.' };
+    if (typeof value === 'object') return { error: t('valid.texteAttendu') };
     let text = String(value);
     if (rule.trim !== false) text = cleanSpaces(text);
     if (rule.upper) text = text.toUpperCase();
     if (rule.lower) text = text.toLowerCase();
-    if (rule.min !== undefined && text.length < rule.min) return { error: 'Este campo debe tener al menos ' + rule.min + ' caracteres.' };
-    if (rule.max !== undefined && text.length > rule.max) return { error: 'Este campo no puede pasar de ' + rule.max + ' caracteres.' };
-    if (rule.pattern && !rule.pattern.test(text)) return { error: rule.patternMessage || 'El formato no es válido.' };
+    if (rule.min !== undefined && text.length < rule.min) return { error: t('valid.nomMin', { min: rule.min }) };
+    if (rule.max !== undefined && text.length > rule.max) return { error: t('valid.nomMax', { max: rule.max }) };
+    if (rule.pattern && !rule.pattern.test(text)) return { error: rule.patternMessage || t('valid.formatInvalide') };
     return { value: text };
   },
 
   text(value, rule) {
-    if (typeof value === 'object') return { error: 'Se espera un texto.' };
+    if (typeof value === 'object') return { error: t('valid.texteAttendu') };
     const text = String(value).replace(/\r\n/g, '\n').trim();
-    if (rule.min !== undefined && text.length < rule.min) return { error: 'Este texto debe tener al menos ' + rule.min + ' caracteres.' };
-    if (rule.max !== undefined && text.length > rule.max) return { error: 'Este texto no puede pasar de ' + rule.max + ' caracteres.' };
+    if (rule.min !== undefined && text.length < rule.min) return { error: t('valid.texteMin', { min: rule.min }) };
+    if (rule.max !== undefined && text.length > rule.max) return { error: t('valid.texteMax', { max: rule.max }) };
     return { value: text };
   },
 
   /** Prenom ou nom de famille, remis en forme « Ahmed Benali ». */
   nom(value, rule) {
-    if (typeof value === 'object') return { error: 'Se espera un texto.' };
+    if (typeof value === 'object') return { error: t('valid.texteAttendu') };
     const brut = cleanSpaces(value);
     const min = rule.min ?? 2;
     const max = rule.max ?? 40;
-    if (brut.length < min) return { error: 'Este campo debe tener al menos ' + min + ' caracteres.' };
-    if (brut.length > max) return { error: 'Este campo no puede pasar de ' + max + ' caracteres.' };
-    if (!NOM_RE.test(brut)) return { error: 'Solo se aceptan letras, espacio, apóstrofo y guion.' };
+    if (brut.length < min) return { error: t('valid.nomMin', { min }) };
+    if (brut.length > max) return { error: t('valid.nomMax', { max }) };
+    if (!NOM_RE.test(brut)) return { error: t('valid.nomLettres') };
     return { value: capitaliserNom(brut) };
   },
 
@@ -71,19 +81,22 @@ const CONVERTERS = {
    * laquelle l'index aveugle est calcule. La saisie du client reste libre.
    */
   whatsapp(value) {
-    if (typeof value === 'object') return { error: 'Se espera un número.' };
+    if (typeof value === 'object') return { error: t('valid.numeroAttendu') };
     const numero = telephoneInternational(value, config.indicatifDefaut);
     if (!numero) {
-      return { error: 'Número de WhatsApp no válido. Ejemplo: 612 345 678, o +34 612 345 678 desde el extranjero.' };
+      // L'indicatif vient de la configuration : le message d'un salon marocain
+      // doit montrer « +212 », pas « +34 ». C'etait ecrit en dur, et un client
+      // de Casablanca aurait lu un exemple espagnol.
+      return { error: t('valid.whatsappInvalide', { exemple: EXEMPLE_NUMERO, indicatif: config.indicatifDefaut }) };
     }
     return { value: numero };
   },
 
   int(value, rule) {
     const n = entierStrict(value);
-    if (!Number.isSafeInteger(n)) return { error: 'Se espera un número entero.' };
-    if (rule.min !== undefined && n < rule.min) return { error: 'El valor debe ser mayor o igual que ' + rule.min + '.' };
-    if (rule.max !== undefined && n > rule.max) return { error: 'El valor debe ser menor o igual que ' + rule.max + '.' };
+    if (!Number.isSafeInteger(n)) return { error: t('valid.entierAttendu') };
+    if (rule.min !== undefined && n < rule.min) return { error: t('valid.intMin', { min: rule.min }) };
+    if (rule.max !== undefined && n > rule.max) return { error: t('valid.intMax', { max: rule.max }) };
     return { value: n };
   },
 
@@ -92,12 +105,12 @@ const CONVERTERS = {
     const text = String(value).trim().toLowerCase();
     if (['1', 'true', 'oui', 'yes', 'on'].includes(text)) return { value: true };
     if (['0', 'false', 'non', 'no', 'off'].includes(text)) return { value: false };
-    return { error: 'Se espera sí o no.' };
+    return { error: t('valid.ouiNon') };
   },
 
   uuid(value) {
     const text = String(value).trim();
-    if (!isUuid(text)) return { error: 'Identificador no válido.' };
+    if (!isUuid(text)) return { error: t('valid.identifiant') };
     return { value: text.toLowerCase() };
   },
 
@@ -105,43 +118,43 @@ const CONVERTERS = {
     const brut = String(value).trim();
     const ISO = /^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/;
     const text = ISO.test(brut) ? brut.slice(0, 10) : brut;
-    if (!isValidIsoDate(text)) return { error: 'Fecha no válida. Formato esperado: AAAA-MM-DD' };
-    if (rule.min && text < rule.min) return { error: 'La fecha no puede ser anterior al ' + rule.min + '.' };
-    if (rule.max && text > rule.max) return { error: 'La fecha no puede ser posterior al ' + rule.max + '.' };
+    if (!isValidIsoDate(text)) return { error: t('valid.dateInvalide') };
+    if (rule.min && text < rule.min) return { error: t('valid.dateMin', { min: rule.min }) };
+    if (rule.max && text > rule.max) return { error: t('valid.dateMax', { max: rule.max }) };
     return { value: text };
   },
 
   time(value) {
     const brut = String(value).trim();
     const text = /^\d{2}:\d{2}(:\d{2})?$/.test(brut) ? brut.slice(0, 5) : brut;
-    if (!heureValide(text)) return { error: 'Hora no válida. Formato esperado: HH:MM' };
+    if (!heureValide(text)) return { error: t('valid.heureInvalide') };
     return { value: text };
   },
 
   /** Adresse publique du salon (PUBLIC_URL, page de suivi partagee). */
   url(value, rule) {
     const text = String(value).trim().replace(/\/+$/, '');
-    if (text.length > (rule.max ?? 300)) return { error: 'Dirección demasiado larga.' };
+    if (text.length > (rule.max ?? 300)) return { error: t('valid.urlTropLongue') };
     try {
       const u = new URL(text);
-      if (u.protocol !== 'http:' && u.protocol !== 'https:') return { error: 'La dirección debe empezar por http:// o https://' };
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return { error: t('valid.urlProtocole') };
       return { value: text };
     } catch {
-      return { error: 'Dirección no válida. Ejemplo: https://file.peluqueria-haron.com' };
+      return { error: t('valid.url') };
     }
   },
 
   enum(value, rule) {
     let text = String(value).trim();
     if (rule.upper) text = text.toUpperCase();
-    if (!rule.values.includes(text)) return { error: 'Valor esperado entre: ' + rule.values.join(', ') + '.' };
+    if (!rule.values.includes(text)) return { error: t('valid.choix', { valeurs: rule.values.join(', ') }) };
     return { value: text };
   },
 
   array(value, rule, path) {
-    if (!Array.isArray(value)) return { error: 'Se espera una lista.' };
-    if (rule.min !== undefined && value.length < rule.min) return { error: 'Se requiere(n) al menos ' + rule.min + ' elemento(s).' };
-    if (rule.max !== undefined && value.length > rule.max) return { error: 'No se permiten más de ' + rule.max + ' elemento(s).' };
+    if (!Array.isArray(value)) return { error: t('valid.listeAttendue') };
+    if (rule.min !== undefined && value.length < rule.min) return { error: t('valid.listeMin', { min: rule.min }) };
+    if (rule.max !== undefined && value.length > rule.max) return { error: t('valid.listeMax', { max: rule.max }) };
     const items = [];
     const errors = {};
     value.forEach((item, index) => {
@@ -168,7 +181,7 @@ const CONVERTERS = {
   },
 
   object(value, rule, path) {
-    if (value === null || typeof value !== 'object' || Array.isArray(value)) return { error: 'Se espera un objeto.' };
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return { error: t('valid.objetAttendu') };
     if (!rule.of) return { value };
     try {
       return { value: validate(value, rule.of, { path }) };
@@ -207,7 +220,13 @@ export function validate(input, schema, opts = {}) {
     if (EMPTY(raw)) {
       if (partial && !present) continue;
       if (rule.required) {
-        errors[fieldPath] = rule.requiredMessage || 'Este campo es obligatorio.';
+        // Le message peut etre une FONCTION : les regles reutilisables ci-dessous
+        // sont construites une seule fois au chargement du module, et un texte
+        // fige a cet instant serait celui de la langue du demarrage, pas celle
+        // du salon. Le meme mecanisme existe deja pour « default ».
+        errors[fieldPath] = (typeof rule.requiredMessage === 'function'
+          ? rule.requiredMessage()
+          : rule.requiredMessage) || t('valid.requis');
         continue;
       }
       if (rule.default !== undefined) {
@@ -233,8 +252,8 @@ export const validatePartial = (input, schema) => validate(input, schema, { part
 /** Regles reutilisables. */
 export const rules = {
   id: { type: 'uuid', required: true },
-  prenom: { type: 'nom', required: true, max: 40, requiredMessage: 'Tu nombre es obligatorio.' },
-  nomFamille: { type: 'nom', required: true, max: 40, requiredMessage: 'Tu apellido es obligatorio.' },
-  whatsapp: { type: 'whatsapp', required: true, requiredMessage: 'Tu número de WhatsApp es obligatorio: es donde recibirás tu enlace de seguimiento.' },
+  prenom: { type: 'nom', required: true, max: 40, requiredMessage: () => t('valid.prenomRequis') },
+  nomFamille: { type: 'nom', required: true, max: 40, requiredMessage: () => t('valid.nomRequis') },
+  whatsapp: { type: 'whatsapp', required: true, requiredMessage: () => t('valid.whatsappRequis') },
   motif: { type: 'text', max: 300 },
 };
