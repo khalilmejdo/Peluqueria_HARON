@@ -9,9 +9,18 @@
  */
 
 .theme-gestion {
-  --fond: #0e1013;
-  --fond-carte: #15181e;
-  --fond-carte-2: #1e222a;
+  /*
+   * L espace de travail parle la voix de l OUTIL : toute la Cormorant de la
+   * vitrine rebascule en Manrope d une seule variable. Un tableau de bord en
+   * serif de menu se lit mal, et le coiffeur le lit cent fois par jour.
+   * Les PRENOMS des clients, eux, restent en serif (plus bas) : ce sont des
+   * personnes, pas des compteurs — et c est la touche de la maison dans
+   * l outil.
+   */
+  --police-titre: var(--police-ui);
+  --fond: #0a0b0e;
+  --fond-carte: #101218;
+  --fond-carte-2: #161923;
   --texte: #f7f2e8;
   --texte-doux: #a9a294;
   --bordure: #2b303a;
@@ -34,6 +43,12 @@
 /* ------------------------------------------------------------------ */
 
 .connexion { display: grid; gap: 0.5rem; }
+/* Sur la porte d'entree, l'enseigne parle avec sa voix de maison. */
+.connexion .titre-page {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
 .connexion .carte { margin-top: 1rem; }
 
 /* ------------------------------------------------------------------ */
@@ -197,8 +212,11 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Le nom, énorme : lisible depuis l'autre bout du salon. */
+/* Le nom, énorme : lisible depuis l'autre bout du salon — et en serif :
+   c'est une personne, pas un compteur. */
 .actuel__nom {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 600;
   font-size: clamp(2rem, 9vw, 3.4rem);
   line-height: 1.05;
   text-wrap: balance;
@@ -632,7 +650,14 @@
   padding: 0.15rem 0.6rem;
 }
 
-.carte-file__nom { font-family: var(--police-titre); font-weight: 700; font-size: 1.25rem; }
+/* Le nom du client en serif : c'est une personne, pas un compteur. Seul
+   endroit de l'outil où la voix de la maison se fait entendre. */
+.carte-file__nom {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 600;
+  font-size: 1.5rem;
+  letter-spacing: 0.01em;
+}
 
 .carte-file__meta {
   display: flex;

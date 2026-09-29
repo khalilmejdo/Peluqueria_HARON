@@ -184,3 +184,31 @@ if (mouvementAccepte && 'IntersectionObserver' in window) {
     }
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  La barre d'appel, sur téléphone                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Elle ne se montre que quand le bouton du héros a quitté l'écran.
+ *
+ * Deux boutons identiques visibles en même temps font douter : le client se
+ * demande s'ils mènent au même endroit. La barre n'a donc de raison d'être
+ * qu'une fois le premier bouton derrière lui — c'est-à-dire pendant qu'il lit
+ * les tarifs, le moment exact où il se décide.
+ *
+ * La classe de repli est posée PAR LE SCRIPT, jamais dans le HTML : si le
+ * JavaScript n'arrive pas, la barre reste visible. Un doublon vaut mieux qu'un
+ * bouton escamoté.
+ */
+const barreAppel = document.querySelector('.appel-fixe');
+const appelDuHero = document.querySelector('.hero .bouton--geant');
+
+if (barreAppel && appelDuHero && 'IntersectionObserver' in window) {
+  const veille = new IntersectionObserver((entrees) => {
+    for (const entree of entrees) {
+      barreAppel.classList.toggle('appel-fixe--repli', entree.isIntersecting);
+    }
+  }, { rootMargin: '-8px 0px 0px 0px' });
+  veille.observe(appelDuHero);
+}

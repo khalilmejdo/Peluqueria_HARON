@@ -499,6 +499,12 @@ siteRoutes.get('/', async (ctx) => {
     + '<p class="bandeau-qr__texte">Escanea el código QR del escaparate y entras en la misma fila.</p>'
     + '</div>'
     + '</section>'
+    // L'appel qui suit le pouce, sur téléphone. Seulement quand on peut
+    // vraiment prendre un tour : une barre qui mène à un refus est pire que
+    // pas de barre du tout.
+    + (prise.ouverte
+      ? '<div class="appel-fixe"><a class="bouton bouton--principal" href="/join">Pedir mi turno</a></div>'
+      : '')
     + '</main>';
 
   ctx.html(200, page({
@@ -507,7 +513,7 @@ siteRoutes.get('/', async (ctx) => {
     corps,
     base: ctx.base,
     chemin: '/',
-    classe: 'theme-sombre',
+    classe: 'theme-sombre page-accueil',
     scripts: ['/js/accueil.js'],
     pied: piedDePage({
       horaires: reglages['horaires.actifs'] ? horairesLisibles(reglages) : null,

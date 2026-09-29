@@ -17,9 +17,9 @@
 /* ------------------------------------------------------------------ */
 
 :root {
-  --encre: #0e1013;
-  --encre-2: #15181e;
-  --encre-3: #1e222a;
+  --encre: #0a0b0e;
+  --encre-2: #101218;
+  --encre-3: #161923;
   --creme: #f7f2e8;
   --creme-doux: #ded7c8;
   --laiton: #c8a24a;
@@ -39,9 +39,12 @@
   --accent: var(--laiton);
   --accent-texte: #14161a;
 
-  --r-petit: 10px;
-  --r: 16px;
-  --r-grand: 24px;
+  --r-petit: 6px;
+  --r: 10px;
+  --r-grand: 14px;
+  /* Le filet d or : LA ligne de la maison. Assez pale pour encadrer sans
+     enfermer — un cadre dore vif ferait bijouterie de centre commercial. */
+  --filet-or: color-mix(in srgb, var(--laiton) 26%, transparent);
   --ombre: 0 18px 50px -24px rgb(0 0 0 / 70%);
   --ombre-douce: 0 2px 14px -8px rgb(0 0 0 / 60%);
 
@@ -49,10 +52,25 @@
   --largeur: 68rem;
   --largeur-etroite: 34rem;
 
-  --police-titre: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  /*
+   * Deux voix, et jamais l une pour l autre.
+   *
+   *   Cormorant Garamond   la voix de l ETABLISSEMENT : titres, prix, devise,
+   *                        prenoms. Une garalde a fort contraste, celle des
+   *                        cartes de grandes maisons.
+   *   Manrope              la voix de l OUTIL : boutons, compteurs, numeros,
+   *                        formulaires — tout ce qui se lit vite ou de loin.
+   *
+   * Une serif elegante dans un tableau de bord fait carte de restaurant mal
+   * placee ; une grotesque en titre de vitrine fait application. La gestion et
+   * l ecran du salon rebasculent d une seule variable, plus bas.
+   */
+  --police-titre: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --police-ui: 'Manrope', 'Segoe UI', system-ui, sans-serif;
   --police: 'Manrope', 'Segoe UI', system-ui, -apple-system, sans-serif;
 
-  --transition: 160ms cubic-bezier(0.32, 0.72, 0, 1);
+  /* Un poil plus lent qu une application : le luxe ne se presse pas. */
+  --transition: 240ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .theme-clair {
@@ -168,7 +186,7 @@ body::after {
   inset: -40%;
   background: repeating-linear-gradient(
     -55deg,
-    color-mix(in srgb, var(--laiton) 6%, transparent) 0 7px,
+    color-mix(in srgb, var(--laiton) 4%, transparent) 0 7px,
     transparent 7px 40px
   );
 }
@@ -216,9 +234,11 @@ body::after {
 
 h1, h2, h3 {
   font-family: var(--police-titre);
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  /* 600, pas 700 : le gras ecrase le contraste des pleins et des delies, et
+     c est ce contraste qui fait toute l elegance d une garalde. */
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: 0.005em;
   margin: 0;
 }
 
@@ -319,8 +339,9 @@ main { flex: 1; }
 
 .marque__haron {
   font-family: var(--police-titre);
-  font-weight: 800;
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  /* Des capitales espacees : la gravure d une enseigne, pas un logo d appli. */
+  letter-spacing: 0.24em;
   color: var(--texte);
 }
 
@@ -450,8 +471,8 @@ main { flex: 1; }
   background:
     repeating-linear-gradient(
       -55deg,
-      color-mix(in srgb, var(--laiton) 8%, transparent) 0 10px,
-      transparent 10px 34px
+      color-mix(in srgb, var(--laiton) 5%, transparent) 0 8px,
+      transparent 8px 38px
     );
   mask-image: radial-gradient(120% 70% at 50% 0%, #000 0%, transparent 72%);
 }
@@ -473,9 +494,18 @@ main { flex: 1; }
   gap: clamp(1.25rem, 4vw, 2rem);
 }
 
+/*
+ * L accroche est en ITALIQUE : c est la phrase de la maison, pas un titre de
+ * rubrique. L italique d une garalde est ce qu elle a de plus beau, et c est
+ * le seul endroit de la page qui y a droit — partout, il ferait carton
+ * d invitation surcharge.
+ */
 .hero__accroche {
-  font-size: clamp(1.75rem, 7vw, 3.1rem);
-  max-width: 16ch;
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(2.1rem, 8vw, 3.6rem);
+  letter-spacing: 0.01em;
+  max-width: 18ch;
   text-wrap: balance;
 }
 
@@ -486,23 +516,30 @@ main { flex: 1; }
   text-wrap: balance;
 }
 
-/* Affluence : la seule donnée de la page d'accueil. */
+/*
+ * L affluence : la seule donnee de la page d accueil, et elle respire.
+ *
+ * La version precedente l enfermait dans une gelule grise — un composant
+ * d application au milieu d une vitrine. Ici, pas de boite : deux filets d or
+ * au-dessus et au-dessous, comme une mention sur un carton, et le chiffre en
+ * grand. Ce qu on encadre a l air d un widget ; ce qu on grave a l air vrai.
+ */
 .affluence {
   display: grid;
-  gap: 0.15rem;
-  padding: 0.85rem 1.4rem;
-  border: 1px solid var(--bordure);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--fond-carte) 80%, transparent);
+  justify-items: center;
+  gap: 0.2rem;
+  padding: 1.1rem 2.25rem;
+  border-block: 1px solid var(--filet-or);
   animation: apparition var(--transition) both;
 }
 
 .affluence__forte {
   font-family: var(--police-titre);
-  font-weight: 700;
-  font-size: 1.05rem;
+  font-weight: 600;
+  font-size: clamp(1.5rem, 5.5vw, 2.1rem);
+  letter-spacing: 0.01em;
 }
-.affluence__detail { color: var(--texte-doux); font-size: 0.85rem; }
+.affluence__detail { color: var(--texte-doux); font-size: 0.9rem; }
 
 /* Salon fermé, congés, prises de tour arrêtées : dit avant le bouton. */
 .avis-ferme {
@@ -518,8 +555,8 @@ main { flex: 1; }
 
 .avis-ferme__titre {
   font-family: var(--police-titre);
-  font-weight: 700;
-  font-size: 1.15rem;
+  font-weight: 600;
+  font-size: 1.45rem;
   color: var(--ambre);
 }
 .avis-ferme__texte { color: var(--texte); text-wrap: balance; }
@@ -536,6 +573,52 @@ main { flex: 1; }
   color: var(--texte-doux);
   font-size: 0.9rem;
   text-wrap: balance;
+}
+
+/*
+ * L APPEL QUI SUIT LE POUCE, sur telephone seulement.
+ *
+ * Sur un ecran d ordinateur, le bouton du heros suffit : tout tient dans la
+ * premiere vue. Sur un telephone, le client qui a defile jusqu aux tarifs a
+ * laisse le bouton trois ecrans plus haut — et c est justement en lisant les
+ * prix qu on se decide. La barre reste donc posee en bas, toujours a un pouce.
+ *
+ * Elle n existe que sur la page d accueil (html.page-accueil), et le bas de
+ * page recoit la marge qu elle occupe : un bouton fixe qui recouvre le pied
+ * de page est un bouton qu on paie en texte illisible.
+ */
+.appel-fixe { display: none; }
+
+@media (max-width: 46rem) {
+  .page-accueil body { padding-bottom: 6.25rem; }
+
+  .appel-fixe {
+    display: block;
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 30;
+    padding: 0.85rem var(--pas) calc(0.85rem + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, var(--encre) 55%, transparent);
+  }
+
+  .appel-fixe .bouton {
+    width: 100%;
+    min-height: 3.5rem;
+  }
+
+  /*
+   * Repliee tant que le bouton du heros est a l ecran : deux boutons
+   * identiques visibles en meme temps, c est un doublon qui fait douter — le
+   * client se demande s ils font la meme chose.
+   *
+   * La classe est posee PAR LE SCRIPT. Sans JavaScript, la barre reste
+   * simplement visible : mieux vaut un doublon qu un bouton disparu.
+   */
+  .appel-fixe--repli {
+    transform: translateY(130%);
+    transition: transform var(--transition);
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -760,8 +843,12 @@ main { flex: 1; }
 
 .seccion__tete {
   display: grid;
-  gap: 0.35rem;
-  margin-bottom: clamp(1.25rem, 4vw, 2rem);
+  gap: 0.4rem;
+  /* Centre, comme l en-tete d un menu grave. Une vitrine n est pas une
+     documentation : rien n oblige a coller les titres a gauche. */
+  justify-items: center;
+  text-align: center;
+  margin-bottom: clamp(1.5rem, 5vw, 2.75rem);
 }
 
 /*
@@ -772,22 +859,29 @@ main { flex: 1; }
 .seccion__titulo {
   margin: 0;
   font-family: var(--police-titre);
-  font-weight: 800;
-  font-size: clamp(1.6rem, 5.5vw, 2.2rem);
-  letter-spacing: -0.015em;
+  font-weight: 600;
+  font-size: clamp(2rem, 6.5vw, 2.9rem);
+  letter-spacing: 0.01em;
 }
+/* Le double filet des menus graves : une ligne longue, une courte. */
 .seccion__titulo::before {
   content: '';
   display: block;
-  width: 2.5rem;
-  height: 3px;
-  margin-bottom: 0.9rem;
-  border-radius: 2px;
-  background: var(--accent);
+  width: 4.5rem;
+  height: 6px;
+  margin: 0 auto 1.1rem;
+  background:
+    linear-gradient(var(--laiton), var(--laiton)) top center / 100% 1px no-repeat,
+    linear-gradient(var(--laiton), var(--laiton)) bottom center / 55% 1px no-repeat;
+  opacity: 0.75;
 }
 .seccion__intro {
   margin: 0;
   color: var(--texte-doux);
+  font-family: var(--police-titre);
+  font-style: italic;
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
 }
 
 /* ------------------------------------------------------------------ */
@@ -860,7 +954,7 @@ main { flex: 1; }
  */
 .medaillon__texte {
   fill: var(--laiton);
-  font-family: var(--police-titre);
+  font-family: var(--police-ui);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 2.2px;
@@ -870,14 +964,14 @@ main { flex: 1; }
 /* La plaque « Barbería & estilo », en creux. */
 .tarifas__bandeau {
   padding: 0.3rem 1.1rem;
-  border: 1px solid color-mix(in srgb, var(--laiton) 50%, transparent);
-  border-radius: var(--r-petit);
-  background: color-mix(in srgb, var(--laiton) 12%, transparent);
+  border: 1px solid var(--filet-or);
+  border-radius: 3px;
+  background: transparent;
   color: var(--laiton-clair);
-  font-family: var(--police-titre);
+  font-family: var(--police-ui);
   font-weight: 700;
-  font-size: 0.7rem;
-  letter-spacing: 0.22em;
+  font-size: 0.68rem;
+  letter-spacing: 0.3em;
   text-transform: uppercase;
 }
 
@@ -900,13 +994,16 @@ main { flex: 1; }
   margin: 1.4rem auto 0;
   width: fit-content;
   padding: 0.45rem 1.4rem;
-  border: 1px solid color-mix(in srgb, var(--laiton) 40%, transparent);
-  border-radius: var(--r-petit);
-  background: color-mix(in srgb, var(--laiton) 8%, transparent);
+  border: 0;
+  border-block: 1px solid var(--filet-or);
+  border-radius: 0;
+  background: transparent;
   color: var(--creme-doux);
   font-family: var(--police-titre);
   font-style: italic;
-  font-size: 0.92rem;
+  font-weight: 500;
+  font-size: 1.2rem;
+  letter-spacing: 0.03em;
   text-align: center;
 }
 
@@ -967,8 +1064,9 @@ main { flex: 1; }
 
 .tarifa__nombre {
   font-family: var(--police-titre);
-  font-weight: 700;
-  font-size: clamp(1rem, 3.4vw, 1.1rem);
+  font-weight: 600;
+  font-size: clamp(1.15rem, 3.8vw, 1.3rem);
+  letter-spacing: 0.01em;
 }
 
 .tarifa__filete {
@@ -982,24 +1080,26 @@ main { flex: 1; }
 .tarifa__precio {
   flex: none;
   font-family: var(--police-titre);
-  font-weight: 800;
-  font-size: clamp(1.05rem, 3.6vw, 1.2rem);
-  color: var(--accent);
-  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: clamp(1.2rem, 4vw, 1.4rem);
+  color: var(--creme);
 }
 
 /* La note occupe toute la ligne suivante : elle ne pousse jamais le prix. */
 .tarifa__nota {
   flex: 1 0 100%;
-  margin-top: 0.15rem;
-  font-size: 0.82rem;
-  color: var(--texte-doux);
+  margin: 0.1rem 0 0 1.95rem;
+  font-family: var(--police-titre);
+  font-style: italic;
+  font-size: 0.95rem;
+  color: color-mix(in srgb, var(--laiton-clair) 70%, var(--texte-doux));
 }
 
 .tarifas__nota {
   margin: 1.25rem 0 0;
   font-size: 0.85rem;
   color: var(--texte-doux);
+  text-align: center;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1052,7 +1152,7 @@ main { flex: 1; }
 }
 .contacto__valeur {
   font-family: var(--police-titre);
-  font-weight: 700;
+  font-weight: 600;
   font-size: 1.02rem;
   text-wrap: balance;
 }
@@ -1073,7 +1173,7 @@ main { flex: 1; }
 }
 .horario__titre {
   margin: 0 0 0.75rem;
-  font-family: var(--police-titre);
+  font-family: var(--police-ui);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.18em;
@@ -1245,7 +1345,7 @@ main { flex: 1; }
   align-items: center;
   gap: 0.55rem;
   font-family: var(--police-titre);
-  font-weight: 700;
+  font-weight: 600;
   font-size: clamp(1.15rem, 4vw, 1.5rem);
   line-height: 1.25;
 }
@@ -1338,23 +1438,30 @@ main { flex: 1; }
 .paso {
   position: relative;
   overflow: hidden;
-  padding: 1.5rem 1.4rem;
+  padding: 1.85rem 1.5rem;
   border: 1px solid var(--bordure);
   border-radius: var(--r);
   background: var(--fond-carte);
   display: grid;
   gap: 0.5rem;
   align-content: start;
+  justify-items: center;
+  text-align: center;
 }
 
-/* Un filet de laiton en haut de chaque carte : le rappel du mât, trois fois. */
+.paso__marque { justify-content: center; }
+
+/* Un court filet d'or centre en tete de carte : une gravure, pas un neon. */
 .paso::before {
   content: '';
   position: absolute;
-  inset-inline: 0;
   top: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--laiton), transparent 70%);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3.5rem;
+  height: 1px;
+  background: var(--laiton);
+  opacity: 0.7;
 }
 
 /* L'icône et le chiffre côte à côte : l'icône dit QUOI, le chiffre dit QUAND. */
@@ -1367,7 +1474,7 @@ main { flex: 1; }
 
 .paso__num {
   font-family: var(--police-titre);
-  font-weight: 800;
+  font-weight: 600;
   font-size: 0.95rem;
   width: 1.8rem;
   height: 1.8rem;
@@ -1382,8 +1489,9 @@ main { flex: 1; }
 .paso__titulo {
   margin: 0;
   font-family: var(--police-titre);
-  font-weight: 700;
-  font-size: 1.1rem;
+  font-weight: 600;
+  font-size: 1.45rem;
+  letter-spacing: 0.01em;
 }
 
 .paso__texto {
@@ -1427,7 +1535,7 @@ main { flex: 1; }
 .bandeau-qr__titre {
   margin: 0;
   font-family: var(--police-titre);
-  font-weight: 700;
+  font-weight: 600;
   font-size: clamp(1.15rem, 3.6vw, 1.45rem);
 }
 .bandeau-qr__texte { margin: 0; color: var(--texte-doux); }
@@ -1445,11 +1553,14 @@ main { flex: 1; }
   min-height: 3rem;
   padding: 0.85rem 1.6rem;
   border: 1px solid transparent;
-  border-radius: 999px;
-  font-family: var(--police-titre);
-  font-size: 1rem;
+  /* Un rectangle a peine adouci, pas une gelule : les gelules disent
+     application mobile, les rectangles disent maison etablie. */
+  border-radius: 4px;
+  font-family: var(--police-ui);
+  font-size: 0.82rem;
   font-weight: 700;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   text-decoration: none;
   cursor: pointer;
   transition: transform var(--transition), background-color var(--transition), border-color var(--transition), opacity var(--transition);
@@ -1468,19 +1579,20 @@ main { flex: 1; }
 .bouton--principal:hover { background: var(--laiton-clair); }
 
 .bouton--geant {
-  min-height: 3.65rem;
+  min-height: 3.75rem;
   width: 100%;
   max-width: 24rem;
-  font-size: 1.15rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.2em;
 }
 
 .bouton--discret {
   background: transparent;
-  border-color: var(--bordure);
-  color: var(--texte-doux);
+  border-color: var(--filet-or);
+  color: var(--creme-doux);
   font-weight: 600;
 }
-.bouton--discret:hover { color: var(--texte); border-color: var(--laiton); }
+.bouton--discret:hover { color: var(--laiton-clair); border-color: var(--laiton); }
 
 /* ------------------------------------------------------------------ */
 /*  Cartes, pastilles, alertes                                         */
@@ -1508,7 +1620,7 @@ main { flex: 1; }
 .carte--centree { display: grid; gap: 1rem; justify-items: center; text-align: center; }
 
 .titre-page {
-  font-size: clamp(1.5rem, 6vw, 2.1rem);
+  font-size: clamp(1.9rem, 7vw, 2.7rem);
   margin-bottom: 0.4rem;
 }
 
@@ -1516,14 +1628,15 @@ main { flex: 1; }
 
 .pastille {
   display: inline-block;
-  padding: 0.3rem 0.8rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
+  width: fit-content;
+  padding: 0.35rem 0.9rem;
+  border-radius: 3px;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.26em;
   text-transform: uppercase;
-  border: 1px solid var(--bordure);
-  color: var(--texte-doux);
+  border: 1px solid var(--filet-or);
+  color: var(--laiton);
   margin-bottom: 0.75rem;
 }
 
@@ -1705,19 +1818,19 @@ main { flex: 1; }
 
 .ticket__prenom {
   font-family: var(--police-titre);
-  font-weight: 700;
-  font-size: clamp(1.4rem, 5vw, 1.75rem);
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(1.55rem, 5.5vw, 1.95rem);
 }
 
 .ticket__numero {
   font-family: var(--police-titre);
-  font-weight: 800;
-  font-size: clamp(3.75rem, 19vw, 5.75rem);
+  font-weight: 600;
+  font-size: clamp(4rem, 20vw, 6rem);
   line-height: 1;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.05em;
   color: var(--laiton);
   margin-block: 0.25rem 0.75rem;
-  font-variant-numeric: tabular-nums;
 }
 
 .ticket--tour .ticket__numero { color: var(--vert); }
@@ -1726,8 +1839,8 @@ main { flex: 1; }
 
 .ticket__titre {
   font-family: var(--police-titre);
-  font-weight: 700;
-  font-size: clamp(1.2rem, 4.5vw, 1.5rem);
+  font-weight: 600;
+  font-size: clamp(1.55rem, 6vw, 1.9rem);
   text-wrap: balance;
 }
 .ticket__detail { color: var(--texte-doux); text-wrap: balance; }
@@ -1755,9 +1868,9 @@ main { flex: 1; }
 }
 .ticket__chiffres dd {
   margin: 0;
-  font-family: var(--police-titre);
-  font-weight: 700;
-  font-size: 1.35rem;
+  font-family: var(--police-ui);
+  font-weight: 800;
+  font-size: 1.3rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1813,7 +1926,7 @@ main { flex: 1; }
 
 .lien__titre {
   font-family: var(--police-titre);
-  font-weight: 700;
+  font-weight: 600;
   font-size: 1.05rem;
 }
 .lien--neuf .lien__titre { color: var(--laiton-clair); }
@@ -1876,7 +1989,7 @@ main { flex: 1; }
 
 .affiche__titre {
   font-family: var(--police-titre);
-  font-weight: 800;
+  font-weight: 600;
   font-size: clamp(1.5rem, 5vw, 2rem);
   margin-top: 0.75rem;
 }
@@ -1897,8 +2010,8 @@ main { flex: 1; }
 }
 
 .affiche__adresse {
-  font-family: var(--police-titre);
-  font-weight: 600;
+  font-family: var(--police-ui);
+  font-weight: 700;
   font-size: 0.85rem;
   letter-spacing: 0.04em;
   color: var(--laiton-sombre);
@@ -1966,7 +2079,10 @@ main { flex: 1; }
  * sur un 24 pouces au comptoir et sur un 55 pouces au mur. Une taille fixe
  * imposerait de rouvrir la feuille de style à chaque changement d'écran.
  */
-.page-pantalla { overflow: hidden; }
+/* L ecran se lit a quatre metres : la voix de l outil, pas celle du menu.
+   Seul le prenom du client appele garde la serif — c est un nom, pas un
+   compteur. */
+.page-pantalla { --police-titre: var(--police-ui); overflow: hidden; }
 .page-pantalla body { min-height: 100svh; }
 
 .pantalla {
@@ -1986,7 +2102,7 @@ main { flex: 1; }
 
 .pantalla__horloge {
   font-family: var(--police-titre);
-  font-weight: 700;
+  font-weight: 600;
   font-size: clamp(1.1rem, 3.4vmin, 2.4rem);
   color: var(--texte-doux);
   font-variant-numeric: tabular-nums;
@@ -2039,7 +2155,7 @@ main { flex: 1; }
 
 .tours--vedette .tour__numero {
   font-family: var(--police-titre);
-  font-weight: 800;
+  font-weight: 600;
   /*
    * ÉNORME, et c'est le point. Le numéro doit se lire depuis le fond de la
    * salle, par quelqu'un qui lève les yeux une seconde.
@@ -2051,10 +2167,10 @@ main { flex: 1; }
 }
 
 .tours--vedette .tour__prenom {
-  font-family: var(--police-titre);
-  font-weight: 700;
-  font-size: clamp(1.25rem, 5vmin, 3.5rem);
-  line-height: 1.1;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 600;
+  font-size: clamp(1.5rem, 5.6vmin, 4rem);
+  line-height: 1.05;
 }
 
 .tours--vedette .tour__poste {
@@ -2082,7 +2198,7 @@ main { flex: 1; }
 
 .pantalla__vide {
   font-family: var(--police-titre);
-  font-weight: 700;
+  font-weight: 600;
   font-size: clamp(1.1rem, 3.5vmin, 2.4rem);
   color: var(--texte-doux);
 }
@@ -2104,7 +2220,7 @@ main { flex: 1; }
 
 .tours--suite .tour__numero {
   font-family: var(--police-titre);
-  font-weight: 700;
+  font-weight: 600;
   font-size: clamp(1rem, 3.2vmin, 2.2rem);
   color: var(--laiton);
   font-variant-numeric: tabular-nums;
@@ -2158,7 +2274,7 @@ main { flex: 1; }
 
 .pantalla__appel-titre {
   font-family: var(--police-titre);
-  font-weight: 700;
+  font-weight: 600;
   font-size: clamp(1rem, 3.2vmin, 2.2rem);
 }
 .pantalla__appel-texte {
@@ -2219,7 +2335,7 @@ main { flex: 1; }
 
 .alerte-conges__titre {
   font-family: var(--police-titre);
-  font-weight: 700;
+  font-weight: 600;
   font-size: clamp(1rem, 3.5vw, 1.35rem);
 }
 
@@ -2396,6 +2512,7 @@ main { flex: 1; }
 }
 
 .prestas__titre {
+  font-family: var(--police-ui);
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
@@ -2458,8 +2575,18 @@ main { flex: 1; }
 }
 .presta:hover { border-color: color-mix(in srgb, var(--laiton) 50%, var(--bordure)); }
 
-.presta__nombre { font-weight: 600; font-size: 0.92rem; }
-.presta__meta { font-size: 0.74rem; color: var(--texte-doux); font-variant-numeric: tabular-nums; }
+.presta__nombre {
+  font-family: var(--police-titre);
+  font-weight: 600;
+  font-size: 1.1rem;
+  letter-spacing: 0.01em;
+}
+.presta__meta {
+  font-family: var(--police-ui);
+  font-size: 0.74rem;
+  color: var(--texte-doux);
+  font-variant-numeric: tabular-nums;
+}
 
 /* Coché : le laiton, et rien d'autre — pas de coche dessinée qui volerait de
    la place au nom. L'état se lit au fond et à la bordure. */

@@ -85,7 +85,7 @@ export function marque({ taille = 'grand', lien = true } = {}) {
 
 export function embleme() {
   return '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true" focusable="false">'
-    + '<rect x="3" y="3" width="42" height="42" rx="12" class="embleme__fond"/>'
+    + '<circle cx="24" cy="24" r="21" class="embleme__fond"/>'
     + '<path d="M10 34 L26 10" class="embleme__raie"/>'
     + '<path d="M17 38 L33 14" class="embleme__raie embleme__raie--2"/>'
     + '<circle cx="17" cy="32" r="4.2" class="embleme__lame"/>'
