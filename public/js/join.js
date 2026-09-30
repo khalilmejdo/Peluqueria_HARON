@@ -106,13 +106,17 @@ if (formulaire) {
     }
     const bouton = formulaire.querySelector('button[type="submit"]');
     if (bouton) {
+      // Le libelle d'origine est MEMORISE, pas reecrit : il etait remis en dur
+      // (« Prendre mon tour », en francais) et un client espagnol voyait son
+      // bouton changer de langue au bout de douze secondes hors ligne.
+      const libelle = bouton.textContent;
       bouton.disabled = true;
-      bouton.textContent = 'Un momento…';
+      bouton.textContent = t('commun.unMoment');
       // Si la navigation echoue (hors ligne), le bouton doit redevenir
       // utilisable : sinon le client reste bloque devant un ecran mort.
       setTimeout(() => {
         bouton.disabled = false;
-        bouton.textContent = 'Prendre mon tour';
+        bouton.textContent = libelle;
       }, 12000);
     }
   });
@@ -152,7 +156,9 @@ if (totalPrestations) {
     const centimes = cochees.reduce((n, c) => n + Number(c.dataset.precio || 0), 0);
     // montant() et non un « + ' €' » ecrit ici : le symbole vient de la monnaie
     // du salon, et il etait ecrit deux fois en dur a cet endroit.
-    totalPrestations.textContent = t('join.total', {
+    // Sans prix publies (aucun data-precio), le total ne dit que le temps.
+    const avecPrix = cochees.some((c) => c.dataset.precio !== undefined);
+    totalPrestations.textContent = t(avecPrix ? 'join.total' : 'join.totalSansPrix', {
       n: cochees.length,
       duree: dureeCourte(minutes),
       prix: montant(centimes),

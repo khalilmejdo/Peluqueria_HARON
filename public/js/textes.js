@@ -126,6 +126,10 @@ export const TEXTES = {
     es: '{n} servicio · {duree} · {prix} aprox.|{n} servicios · {duree} · {prix} aprox.',
     fr: '{n} prestation · {duree} · {prix} env.|{n} prestations · {duree} · {prix} env.',
   },
+  'join.totalSansPrix': {
+    es: '{n} servicio · {duree}|{n} servicios · {duree}',
+    fr: '{n} prestation · {duree}|{n} prestations · {duree}',
+  },
   'join.prenomRequis': { es: 'Tu nombre es obligatorio.', fr: 'Votre prénom est obligatoire.' },
   'join.nomRequis': { es: 'Tu apellido es obligatorio.', fr: 'Votre nom est obligatoire.' },
   'join.nomLettres': {
@@ -173,7 +177,83 @@ export const TEXTES = {
   'nav.conges': { es: 'Vacaciones', fr: 'Congés' },
   'nav.reglages': { es: 'Ajustes', fr: 'Réglages' },
   'nav.comptes': { es: 'Cuentas', fr: 'Comptes' },
+  'nav.galerie': { es: 'Galería', fr: 'Galerie' },
   'nav.sections': { es: 'Secciones', fr: 'Sections' },
+
+  /* ---------------------------------------------------------------- */
+  /*  La galerie, cote gestion                                        */
+  /* ---------------------------------------------------------------- */
+
+  'galerie.titre': { es: 'Galería', fr: 'Galerie' },
+  'galerie.intro': {
+    es: 'Las fotos del salón que se ven en la página de inicio. La primera que marques como portada se muestra en grande, arriba del todo.',
+    fr: 'Les photos du salon qui s’affichent sur la page d’accueil. Celle que vous choisissez comme couverture s’affiche en grand, tout en haut.',
+  },
+  'galerie.interrupteur': { es: 'Mostrar la galería en la página de inicio', fr: 'Afficher la galerie sur la page d’accueil' },
+  'galerie.interrupteurAide': {
+    es: 'Desactivada, la sección desaparece de la página sin borrar ninguna foto. La portada sigue mostrándose arriba.',
+    fr: 'Désactivée, la section disparaît de la page sans effacer aucune photo. La couverture reste affichée en haut.',
+  },
+  'galerie.sectionAffichee': { es: 'La galería se muestra en la página de inicio.', fr: 'La galerie s’affiche sur la page d’accueil.' },
+  'galerie.sectionMasquee': { es: 'La galería ya no se muestra en la página de inicio.', fr: 'La galerie ne s’affiche plus sur la page d’accueil.' },
+  'galerie.photos': { es: 'Fotos ({n} de {max})', fr: 'Photos ({n} sur {max})' },
+  'galerie.ajouter': { es: 'Añadir fotos', fr: 'Ajouter des photos' },
+  'galerie.conseil': {
+    es: 'Directamente desde el móvil. Cada foto se reduce antes de enviarla: sale rápido incluso con poca cobertura. Las fotos horizontales quedan mejor.',
+    fr: 'Directement depuis le téléphone. Chaque photo est réduite avant l’envoi : elle part vite même avec peu de réseau. Les photos à l’horizontale rendent mieux.',
+  },
+  'galerie.envoiEnCours': { es: 'Enviando la foto {n} de {total}…', fr: 'Envoi de la photo {n} sur {total}…' },
+  'galerie.envoyees': { es: '{n} foto añadida.|{n} fotos añadidas.', fr: '{n} photo ajoutée.|{n} photos ajoutées.' },
+  'galerie.echec': { es: 'La acción no se ha completado.', fr: 'L’action n’a pas abouti.' },
+  'galerie.vide': {
+    es: 'Todavía no hay ninguna foto. Mientras tanto, la página muestra un dibujo del salón en lugar de la portada.',
+    fr: 'Aucune photo pour l’instant. En attendant, la page affiche un dessin du salon à la place de la couverture.',
+  },
+  'galerie.legende': { es: 'Leyenda', fr: 'Légende' },
+  'galerie.legendeExemple': { es: 'Leyenda (opcional)', fr: 'Légende (facultative)' },
+  'galerie.legendeEnregistree': { es: 'Leyenda guardada.', fr: 'Légende enregistrée.' },
+  'galerie.couverture': { es: 'Portada', fr: 'Couverture' },
+  'galerie.masquee': { es: 'Oculta', fr: 'Masquée' },
+  'galerie.mettreEnCouverture': { es: 'Poner de portada', fr: 'Mettre en couverture' },
+  'galerie.couvertureChoisie': { es: 'Portada cambiada.', fr: 'Couverture changée.' },
+  'galerie.masquer': { es: 'Ocultar', fr: 'Masquer' },
+  'galerie.afficher': { es: 'Mostrar', fr: 'Afficher' },
+  'galerie.avancer': { es: 'Subir la foto', fr: 'Avancer la photo' },
+  'galerie.reculer': { es: 'Bajar la foto', fr: 'Reculer la photo' },
+  'galerie.confirmerSuppression': {
+    es: '¿Borrar esta foto? Desaparece de la página y del servidor.',
+    fr: 'Supprimer cette photo ? Elle disparaît de la page et du serveur.',
+  },
+  'galerie.supprimee': { es: 'Foto borrada.', fr: 'Photo supprimée.' },
+  'galerie.dossierFerme': {
+    es: 'El servidor no puede guardar fotos todavía: la carpeta de fotos no admite escritura. En el servidor: sudo chown -R 1000:1000 /opt/haron/photos',
+    fr: 'Le serveur ne peut pas encore enregistrer de photos : le dossier des photos n’est pas accessible en écriture. Sur le serveur : sudo chown -R 1000:1000 /opt/haron/photos',
+  },
+
+  /* ---------------------------------------------------------------- */
+  /*  Le bilan de la vitrine                                          */
+  /* ---------------------------------------------------------------- */
+
+  'bilan.titre': { es: 'Tu página de inicio', fr: 'Votre vitrine' },
+  'bilan.intro': {
+    es: 'Lo que ven los clientes, sección por sección. Una sección sin datos no aparece: aquí se ve qué falta.',
+    fr: 'Ce que voient les clients, section par section. Une section sans informations n’apparaît pas : voici ce qui manque.',
+  },
+  'bilan.visible': { es: 'Visible', fr: 'Visible' },
+  'bilan.corriger': { es: 'Completar', fr: 'Compléter' },
+  'bilan.section.couverture': { es: 'Foto de portada', fr: 'Photo de couverture' },
+  'bilan.section.horaires': { es: 'Abierto / cerrado ahora', fr: 'Ouvert / fermé maintenant' },
+  'bilan.section.tarifs': { es: 'Tarifas', fr: 'Tarifs' },
+  'bilan.section.galerie': { es: 'Galería', fr: 'Galerie' },
+  'bilan.section.localisation': { es: 'Mapa y cómo llegar', fr: 'Carte et itinéraire' },
+  'bilan.section.contact': { es: 'Contacto y horario', fr: 'Contact et horaires' },
+  'bilan.raison.desactivee': { es: 'Desactivada en los ajustes', fr: 'Désactivée dans les réglages' },
+  'bilan.raison.aucuneCouverture': { es: 'Sin foto: se muestra un dibujo', fr: 'Pas de photo : un dessin la remplace' },
+  'bilan.raison.aucunTarif': { es: 'Ningún servicio visible', fr: 'Aucune prestation visible' },
+  'bilan.raison.aucunePhoto': { es: 'Ninguna foto todavía', fr: 'Aucune photo pour l’instant' },
+  'bilan.raison.adresseManquante': { es: 'Falta la dirección', fr: 'Il manque l’adresse' },
+  'bilan.raison.contactManquant': { es: 'Faltan el teléfono y el horario', fr: 'Il manque le téléphone et les horaires' },
+  'bilan.raison.horairesInactifs': { es: 'Horario no activado', fr: 'Horaires non activés' },
   'nav.fermerMenu': { es: 'Cerrar el menú', fr: 'Fermer le menu' },
   'nav.sortir': { es: 'Salir', fr: 'Se déconnecter' },
   'nav.pageDuSalon': { es: 'Ir a la página del salón', fr: 'Aller à la page du salon' },
@@ -377,6 +457,11 @@ export const TEXTES = {
   'reglages.groupe.file': { es: 'La fila', fr: 'La file' },
   'reglages.groupe.horaires': { es: 'Horario de apertura', fr: 'Horaires d’ouverture' },
   'reglages.groupe.tarifs': { es: 'Tarifas en la vitrina', fr: 'Les tarifs en vitrine' },
+  'horaires.col.ouverture': { es: 'Apertura', fr: 'Ouverture' },
+  'horaires.col.pauseDebut': { es: 'Descanso', fr: 'Pause' },
+  'horaires.col.pauseFin': { es: 'Reapertura', fr: 'Reprise' },
+  'horaires.col.fermeture': { es: 'Cierre', fr: 'Fermeture' },
+  'reglages.groupe.vitrine': { es: 'Secciones de la página de inicio', fr: 'Sections de la page d’accueil' },
   'reglages.groupe.pantalla': { es: 'Pantalla del salón', fr: 'Écran du salon' },
   'reglages.groupe.public': { es: 'Dirección pública', fr: 'Adresse publique' },
 

@@ -5,8 +5,10 @@
  * stricte, puis analyse selon son type declare. Une requete qui depasse la
  * limite est interrompue des le depassement, sans attendre la fin du flux.
  *
- * L'application ne recoit aucun fichier : multipart n'est pas pris en charge,
- * et c'est voulu (moins de surface, rien a assainir).
+ * Pas de multipart, et c'est voulu (moins de surface, rien a assainir). La
+ * seule exception est une IMAGE envoyee brute — le corps EST le fichier — et
+ * seulement vers une route qui l'a declare. Son type se verifie ensuite dans
+ * ses octets (domain/photos.js), jamais dans l'en-tete annonce.
  */
 import { badRequest, tooLarge, unsupportedMedia } from '../core/errors.js';
 import { sansOctetNul } from '../core/text.js';
@@ -23,7 +25,7 @@ export function readBody(req, limitBytes) {
     // Content-Length permet de refuser immediatement, sans lire un seul octet.
     const declared = Number.parseInt(req.headers['content-length'] || '', 10);
     if (Number.isFinite(declared) && declared > limitBytes) {
-      reject(tooLarge('El contenido enviado supera el límite permitido.'));
+      reject(tooLarge(t('req.tropGros')));
       req.resume();
       return;
     }
@@ -43,7 +45,7 @@ export function readBody(req, limitBytes) {
       if (settled) return;
       size += chunk.length;
       if (size > limitBytes) {
-        fail(tooLarge('El contenido enviado supera el límite permitido.'));
+        fail(tooLarge(t('req.tropGros')));
         return;
       }
       chunks.push(chunk);
@@ -55,8 +57,8 @@ export function readBody(req, limitBytes) {
       resolve(Buffer.concat(chunks, size));
     });
 
-    req.on('error', (err) => fail(badRequest('Lecture de la requete interrompue : ' + err.message)));
-    req.on('aborted', () => fail(badRequest('Requete interrompue par le client.')));
+    req.on('error', () => fail(badRequest(t('req.interrompue'))));
+    req.on('aborted', () => fail(badRequest(t('req.interrompue'))));
   });
 }
 
@@ -78,8 +80,11 @@ export function parseContentType(header) {
 
 const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
+/** Les seules images qu'une route declaree accepte, avant verification des octets. */
+const TYPES_IMAGE = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
 function sanitizeKeys(input, depth = 0) {
-  if (depth > 12) throw badRequest('Estructura JSON demasiado profunda.');
+  if (depth > 12) throw badRequest(t('req.tropProfond'));
   if (Array.isArray(input)) return input.map((v) => sanitizeKeys(v, depth + 1));
   if (input === null || typeof input !== 'object') return input;
 
@@ -122,7 +127,7 @@ export function parseUrlEncodedBody(buffer) {
 /**
  * Lit et analyse le corps selon son type declare.
  * @param {import('node:http').IncomingMessage} req
- * @param {{ jsonLimit:number }} limits
+ * @param {{ jsonLimit:number, imageLimit?:number }} limits
  */
 export async function parseBody(req, limits) {
   const { type } = parseContentType(req.headers['content-type']);
@@ -136,5 +141,8 @@ export async function parseBody(req, limits) {
   if (type === 'application/x-www-form-urlencoded') {
     return { body: parseUrlEncodedBody(await readBody(req, limits.jsonLimit)) };
   }
-  throw unsupportedMedia('Type de contenu non pris en charge : ' + type);
+  if (limits.imageLimit && TYPES_IMAGE.has(type)) {
+    return { body: {}, image: { type, contenu: await readBody(req, limits.imageLimit) } };
+  }
+  throw unsupportedMedia(t('req.typeNonPris', { type }));
 }

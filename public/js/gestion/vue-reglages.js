@@ -22,7 +22,9 @@ const GROUPES = [
   { titre: 'reglages.groupe.identite', prefixes: ['salon.'], identite: true },
   { titre: 'reglages.groupe.file', prefixes: ['file.'] },
   { titre: 'reglages.groupe.horaires', prefixes: ['horaires.'] },
-  { titre: 'reglages.groupe.tarifs', prefixes: ['tarifas.'] },
+  // Les sections de la vitrine, et la note des tarifs avec elles : tout ce qui
+  // decide de ce que le visiteur voit, au meme endroit.
+  { titre: 'reglages.groupe.vitrine', prefixes: ['vitrine.', 'tarifas.'] },
   { titre: 'reglages.groupe.pantalla', prefixes: ['pantalla.'] },
   { titre: 'reglages.groupe.public', prefixes: ['public.'] },
 ];
@@ -69,6 +71,34 @@ function blocServeur(identite) {
           el('span', { texte: ' ' + a.message })))))
       : el('p.identite__ok', { texte: t('identite.coherenceOk') }),
     el('p.texte-doux.identite__note', { texte: t('identite.envNote') }));
+}
+
+/**
+ * « VOTRE VITRINE » : ce que voient les visiteurs, section par section.
+ *
+ * Une section sans donnees disparait de la vitrine sans rien dire — c'est juste
+ * pour le visiteur, et deroutant pour le gerant, qui cherchait sa section
+ * contact sans savoir qu'il suffisait de saisir le telephone. Ce bilan dit,
+ * pour chacune, si elle est visible et sinon ce qui manque, avec un lien vers
+ * l'endroit ou le corriger.
+ */
+const OU_CORRIGER = {
+  couverture: '#galerie', galerie: '#galerie', tarifs: '#tarifas',
+  localisation: '#r-salon-adresse', contact: '#r-salon-telephone', horaires: '#r-horaires-actifs',
+};
+
+function bilanVitrine(sections) {
+  if (!sections?.length) return null;
+  return el('section.carte.reglages__groupe.bilan',
+    el('h2.reglages__titre', { texte: t('bilan.titre') }),
+    el('p.texte-doux', { texte: t('bilan.intro') }),
+    el('ul.bilan__liste', sections.map((s) => el('li.bilan__ligne' + (s.visible ? '.bilan__ligne--ok' : ''),
+      el('span.bilan__pastille', { 'aria-hidden': 'true', texte: s.visible ? '✓' : '○' }),
+      el('span.bilan__nom', { texte: t('bilan.section.' + s.cle) }),
+      el('span.bilan__etat', { texte: s.visible ? t('bilan.visible') : t('bilan.raison.' + s.raison) }),
+      !s.visible && OU_CORRIGER[s.cle]
+        ? el('a.bilan__lien', { href: OU_CORRIGER[s.cle], texte: t('bilan.corriger') })
+        : null))));
 }
 
 /**
@@ -243,12 +273,48 @@ export async function vueReglages(conteneur) {
       erreur);
   }
 
+  /**
+   * LES HORAIRES EN TABLEAU : une ligne par jour, lundi en tete, quatre
+   * colonnes — ouverture, debut de pause, reprise, fermeture.
+   *
+   * Ils etaient poses en vrac dans la grille commune : vingt-huit champs qui se
+   * repliaient au hasard de la largeur, « reprise dimanche » sous « ouverture
+   * lundi ». Pour saisir une journee coupee, il fallait deviner quelle case
+   * allait avec quel jour. Chaque champ garde son libelle complet pour les
+   * lecteurs d'ecran (« Ouverture lundi ») ; a l'ecran, la ligne et la colonne
+   * suffisent.
+   */
+  function grilleHoraires(regles) {
+    const parCle = new Map(regles.map((r) => [r.cle, r]));
+    const colonnes = ['ouverture', 'pauseDebut', 'pauseFin', 'fermeture'];
+    const aide = parCle.get('horaires.1.pauseDebut')?.aide;
+    const cellule = (regle) => {
+      const bloc = champ({ ...regle, aide: null });
+      bloc.classList.add('champ--horaire');
+      bloc.querySelector('label').classList.add('visuellement-cache');
+      return bloc;
+    };
+    const jours = [1, 2, 3, 4, 5, 6, 0].filter((j) => parCle.has('horaires.' + j + '.ouverture'));
+    return el('div.horaires-grille',
+      el('div.horaires-grille__tete',
+        el('span', { texte: '' }),
+        colonnes.map((c) => el('span', { texte: t('horaires.col.' + c) }))),
+      jours.map((j) => el('div.horaires-grille__ligne',
+        el('span.horaires-grille__jour', { texte: t('jour.' + j) }),
+        colonnes.map((c) => cellule(parCle.get('horaires.' + j + '.' + c))))),
+      aide ? el('p.champ__aide', { texte: aide }) : null);
+  }
+
   const sections = GROUPES.map((groupe) => {
     const regles = donnees.catalogue.filter((r) => groupe.prefixes.some((p) => r.cle.startsWith(p)));
     if (!regles.length) return null;
+    const horaires = groupe.prefixes.includes('horaires.');
     return el('section.carte.reglages__groupe',
       el('h2.reglages__titre', { texte: t(groupe.titre) }),
-      el('div.reglages__grille', regles.map(champ)),
+      horaires
+        ? [el('div.reglages__grille', regles.filter((r) => r.cle === 'horaires.actifs').map(champ)),
+          grilleHoraires(regles.filter((r) => r.cle !== 'horaires.actifs'))]
+        : el('div.reglages__grille', regles.map(champ)),
       groupe.identite ? blocServeur(donnees.identite) : null);
   });
 
@@ -339,6 +405,7 @@ export async function vueReglages(conteneur) {
     el('h1.titre-page', { texte: t('reglages.titre') }),
     el('p.texte-doux', { texte: t('reglages.adresseQr', { url: donnees.adressePublique }) }),
     erreurGlobale, succes,
+    bilanVitrine(donnees.vitrine),
     fauteuils,
     formulaire,
     whatsapp,

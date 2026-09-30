@@ -178,7 +178,24 @@ export const config = {
     monnaie: str('APP_MONNAIE', '').trim().toUpperCase(),
   },
 
-  storage: { dataDir },
+  storage: {
+    dataDir,
+    /**
+     * Les photos du salon, envoyees depuis l'espace de gestion.
+     *
+     * Hors de `public/` : elles ne passent pas par le serveur de fichiers
+     * statiques, qui garde tout en memoire en production — une photo supprimee
+     * y serait restee servie jusqu'au prochain redemarrage. Elles passent par
+     * une route qui relit la base a chaque demande.
+     */
+    photosDir: path.resolve(ROOT, str('PHOTOS_DIR', path.join(dataDir, 'photos'))),
+    /**
+     * Le plafond d'une photo recue. Le navigateur la reduit a 2000 px avant
+     * l'envoi (quelques centaines de Ko) ; ce plafond ne sert qu'a arreter un
+     * envoi aberrant avant qu'il remplisse la memoire.
+     */
+    imageMaxBytes: borne(int('PHOTO_MAX_KO', 8192), 256, 20480) * 1024,
+  },
 
   bootstrap: {
     username: str('BOOTSTRAP_ADMIN_USERNAME', 'haron'),

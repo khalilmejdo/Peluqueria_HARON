@@ -346,46 +346,40 @@ Dans l'ordre de fréquence :
 
 ## 8 bis. Les photos du salon
 
-La page d'accueil affiche une section « El salón » dès qu'il y a des photos.
-Tant qu'il n'y en a aucune, elle montre **trois scènes dessinées** — un salon,
-un fauteuil, une devanture — et le dit en toutes lettres sous les images. Pas
-de photo de banque d'images : un client qui pousse la porte et ne reconnaît
-rien se sent trompé, et il a raison. Les dessins s'effacent d'eux-mêmes dès la
-première vraie photo déposée ; il n'y a aucun réglage à décocher.
+Elles se gèrent **depuis l'espace de gestion**, onglet « Galería / Galerie » :
+on appuie sur « Ajouter des photos », on choisit dans la pellicule du
+téléphone, et elles sont en ligne. Le téléphone réduit chaque photo à
+2 000 pixels avant de l'envoyer : quelques centaines de Ko, même prise en
+12 mégapixels, donc un envoi rapide avec peu de réseau et une vitrine légère.
 
-Elles ne sont **pas** dans l'image Docker :
-`/opt/haron/photos` est monté en volume, donc en ajouter une ne demande ni
-reconstruction, ni redémarrage.
+Dans le même onglet : la légende de chaque photo, l'ordre, masquer sans
+supprimer, et **la photo de couverture** — celle qui s'affiche en grand dans
+l'arche, en haut de la page d'accueil. La première photo envoyée le devient
+d'office. Sans aucune photo, l'arche montre un dessin du salon, et la section
+galerie n'apparaît pas.
 
-Créez le dossier **avant** le premier démarrage, sinon Docker le crée lui-même
-et il appartiendra à `root` :
+Un interrupteur retire toute la galerie de la vitrine sans rien effacer
+(« Réglages > Sections de la page d'accueil », ou en tête de l'onglet).
+
+Les photos ne sont **pas** dans l'image Docker : `/opt/haron/photos` est monté
+en volume, **en écriture**, sur `/app/data/photos`. Un redéploiement ne les
+touche pas. Le dossier doit appartenir à l'utilisateur 1000 (celui du
+conteneur, et `ubuntu` sur l'hôte) : `scripts/deployer.sh` le crée ainsi. S'il
+a été créé par `root`, l'onglet Galerie le dit, avec la commande :
 
 ```bash
-mkdir -p /opt/haron/photos
+sudo chown -R 1000:1000 /opt/haron/photos
 ```
 
-Puis, depuis votre poste :
+Les photos déposées **à la main** par `scp` avant l'existence de cet écran sont
+reprises d'elles-mêmes au démarrage suivant : chacune est renommée sous un
+identifiant aléatoire et entre dans la galerie, son ancien nom devenant sa
+légende (`01-nuestro-salon.jpg` → « Nuestro salon »).
 
-```bash
-scp mesphotos/*.jpg ubuntu@<IP publique>:/opt/haron/photos/
-```
-
-La galerie se rafraîchit au plus dix secondes après. Le **nom du fichier** donne
-l'ordre et la légende :
-
-```
-01-nuestro-salon.jpg   ->  « Nuestro salon », affichée en grand
-02-la_vitrina.jpg      ->  « La vitrina »
-03.jpg                 ->  aucune légende
-```
-
-La première photo occupe deux fois la largeur des autres : mettez-y la vue
-d'ensemble. Formats acceptés : `.jpg .jpeg .png .webp .avif`, vingt-quatre au
-maximum.
-
-> Des photos de 4 000 pixels de large ne seront pas plus belles à l'écran, mais
-> feront attendre un client en 4G — et c'est là qu'il regarde la page. Environ
-> 1 200 × 1 200 suffisent.
+Sécurité : le **type** d'une photo se lit dans ses octets, jamais dans son
+extension — un fichier HTML renommé en `.jpg` est refusé, et SVG n'est pas
+admis. Une photo masquée ou supprimée rend 404, y compris à qui aurait gardé
+son adresse. Vingt-quatre photos au plus.
 
 ---
 

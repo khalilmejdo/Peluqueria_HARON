@@ -30,9 +30,11 @@ export class ErreurApi extends Error {
   }
 }
 
-async function requete(methode, chemin, corps) {
+async function requete(methode, chemin, corps, { brut = null } = {}) {
   const entetes = {};
-  if (corps !== undefined) entetes['Content-Type'] = 'application/json';
+  // Une image part BRUTE : le corps est le fichier, son type est celui de l'image.
+  if (brut) entetes['Content-Type'] = brut.type || 'application/octet-stream';
+  else if (corps !== undefined) entetes['Content-Type'] = 'application/json';
   if (csrf && methode !== 'GET') entetes['X-CSRF-Token'] = csrf;
 
   let reponse;
@@ -40,7 +42,7 @@ async function requete(methode, chemin, corps) {
     reponse = await fetch(chemin, {
       method: methode,
       headers: entetes,
-      body: corps === undefined ? undefined : JSON.stringify(corps),
+      body: brut || (corps === undefined ? undefined : JSON.stringify(corps)),
       credentials: 'same-origin',
     });
   } catch {
@@ -77,4 +79,6 @@ export const api = {
   put: (chemin, corps = {}) => requete('PUT', chemin, corps),
   patch: (chemin, corps = {}) => requete('PATCH', chemin, corps),
   supprimer: (chemin) => requete('DELETE', chemin),
+  /** Envoie un fichier tel quel (une photo), sans l'emballer dans du JSON. */
+  envoyerFichier: (chemin, fichier) => requete('POST', chemin, undefined, { brut: fichier }),
 };

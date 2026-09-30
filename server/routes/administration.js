@@ -15,8 +15,9 @@ import { badRequest, conflict, notFound, forbidden } from '../core/errors.js';
 import { newId, hashPassword } from '../core/crypto.js';
 import { PROFILES } from '../core/ratelimit.js';
 import {
-  catalogueTraduit, lireTous, enregistrer, horairesLisibles, adressePublique, coherenceIdentite,
+  catalogueTraduit, lireTous, enregistrer, horairesLisibles, adressePublique, coherenceIdentite, invaliderCache,
 } from '../core/reglages.js';
+import { relibellerDefauts } from '../domain/relibeller.js';
 import { t } from '../core/langue.js';
 import { role as roleParCode, roles, CODES_ROLES } from '../core/roles.js';
 import { revokeAllUserSessions } from '../core/session.js';
@@ -70,9 +71,40 @@ export const reglagesRoutes = new Router();
  * construit depuis cette reponse. Ajouter un reglage ici le fait apparaitre a
  * l'ecran sans toucher a l'interface.
  */
+/**
+ * CE QUE LES VISITEURS VOIENT, SECTION PAR SECTION — et pour chaque section
+ * absente, ce qui manque.
+ *
+ * Une section de la vitrine disparait d'elle-meme quand ses donnees manquent :
+ * pas d'adresse, pas de carte. C'est juste cote client, mais cote gerant cela
+ * donnait « je ne vois toujours pas la partie contact » — sans aucun moyen de
+ * savoir qu'il suffisait de remplir un champ. Ce bilan le dit, en tete des
+ * reglages.
+ */
+async function bilanVitrine(v) {
+  const [tarifs, photos] = await Promise.all([
+    one('SELECT COUNT(*)::int AS n FROM tarifas WHERE visible'),
+    one('SELECT COUNT(*) FILTER (WHERE visible)::int AS visibles, COUNT(*) FILTER (WHERE couverture)::int AS couverture FROM photos'),
+  ]);
+  const section = (cle, active, remplie, manque) => ({
+    cle,
+    visible: Boolean(active && remplie),
+    raison: !active ? 'desactivee' : (remplie ? null : manque),
+  });
+  return [
+    section('couverture', true, photos.couverture > 0, 'aucuneCouverture'),
+    section('horaires', true, Boolean(v['horaires.actifs']), 'horairesInactifs'),
+    section('tarifs', v['tarifas.visible'], tarifs.n > 0, 'aucunTarif'),
+    section('galerie', v['vitrine.galerie'], photos.visibles > 0, 'aucunePhoto'),
+    section('localisation', v['vitrine.localisation'], Boolean(v['salon.adresse'] || v['salon.coordenadas']), 'adresseManquante'),
+    section('contact', v['vitrine.contact'], Boolean(v['salon.telephone'] || v['salon.whatsapp'] || v['horaires.actifs']), 'contactManquant'),
+  ];
+}
+
 reglagesRoutes.get('/', async (ctx) => {
   const valeurs = await lireTous({ frais: true });
   ctx.ok({
+    vitrine: await bilanVitrine(valeurs),
     valeurs,
     // Le catalogue arrive DEJA traduit : libelles, aides et intitules d'options.
     // Le rendre brut obligerait l'interface a porter un second dictionnaire, et
@@ -134,6 +166,13 @@ reglagesRoutes.put('/', async (ctx) => {
    */
   const rechargerTout = avant['salon.idioma'] !== frais['salon.idioma']
     || avant['salon.moneda'] !== frais['salon.moneda'];
+
+  // Une nouvelle langue : les textes par defaut jamais retouches la suivent
+  // (fauteuil, prestations de depart, accroche). Ceux du gerant ne bougent pas.
+  if (avant['salon.idioma'] !== frais['salon.idioma']) {
+    await relibellerDefauts(frais['salon.idioma'], { execute });
+    invaliderCache();
+  }
 
   ctx.ok({
     enregistres: n,
@@ -305,7 +344,7 @@ postesRoutes.get('/', async (ctx) => {
 
 postesRoutes.post('/', async (ctx) => {
   const data = validate(ctx.body, {
-    nom: { type: 'string', required: true, min: 1, max: 40, requiredMessage: 'Donnez un nom au fauteuil.' },
+    nom: { type: 'string', required: true, min: 1, max: 40, requiredMessage: () => t('poste.nomRequis') },
     coiffeur: { type: 'string', max: 60 },
     ordre: { type: 'int', min: 0, max: 999 },
   });
@@ -430,7 +469,7 @@ tarifasRoutes.post('/:id/mover', async (ctx) => {
 tarifasRoutes.post('/orden', async (ctx) => {
   const brut = ctx.body?.ids;
   if (!Array.isArray(brut)) throw badRequest(t('admin.ordreComplet'));
-  if (brut.length > 500) throw badRequest('Lista demasiado larga.');
+  if (brut.length > 500) throw badRequest(t('req.listeTropLongue'));
   const ids = brut.map((v) => String(v));
 
   const n = await reordenarTarifas(ids);

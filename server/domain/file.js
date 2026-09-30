@@ -102,6 +102,52 @@ function resteAFaire(ticket, dureeMoyenneMinutes, instant) {
   return Math.max(1, duree - ecoulees);
 }
 
+/**
+ * L'ATTENTE DU PROCHAIN QUI ARRIVE — celle qu'annoncent la vitrine, l'ecran du
+ * salon et l'API publique.
+ *
+ * Elle passait par l'ancienne formule, « personnes x duree moyenne », pendant
+ * que le ticket du client etait calcule par la simulation : un client lisait
+ * « 40 minutes » en vitrine, prenait son tour, et son ticket lui en annoncait
+ * 25. Les deux passent maintenant par la meme simulation — on fait tourner la
+ * file, et le nouveau venu prend le fauteuil qui se libere le premier.
+ *
+ * En file par coiffeur, chacun sert SA file : le nouveau venu attend le moins
+ * charge des coiffeurs ouverts, puisque c'est lui qu'il choisira s'il est
+ * presse. Un coiffeur sans personne vaut zero.
+ *
+ * @param {Array<object>} tickets
+ * @param {{ dureeMoyenneMinutes:number, postesActifs?:Array<{id:string}>|number,
+ *           mode?:string, instant?:number }} o
+ */
+export function attentePourUnNouveau(tickets, {
+  dureeMoyenneMinutes, postesActifs = 1, mode = MODE_UNIQUE, instant = Date.now(),
+}) {
+  const actifs = tickets.filter((t) => STATUTS_ACTIFS.includes(t.statut)).sort((a, b) => a.rang - b.rang);
+  const nombre = Array.isArray(postesActifs) ? postesActifs.length : Math.trunc(postesActifs) || 1;
+
+  const simuler = (liste, serveurs) => {
+    const libres = new Array(Math.max(1, serveurs)).fill(0);
+    for (const t of liste) {
+      let premier = 0;
+      for (let i = 1; i < libres.length; i += 1) if (libres[i] < libres[premier]) premier = i;
+      libres[premier] += resteAFaire(t, dureeMoyenneMinutes, instant);
+    }
+    return Math.min(...libres);
+  };
+
+  if (mode !== MODE_PAR_FAUTEUIL) return Math.round(simuler(actifs, nombre));
+
+  const ids = Array.isArray(postesActifs) ? postesActifs.map((p) => String(p.id)) : [];
+  if (!ids.length) return Math.round(simuler(actifs, 1));
+  return Math.round(Math.min(...ids.map((id) => simuler(actifs.filter((t) => String(t.poste_choisi_id) === id), 1))));
+}
+
+/** La meme attente, lue directement sur l'etat charge d'une journee. */
+export const attenteNouvelArrivant = (etat, instant = Date.now()) => attentePourUnNouveau(etat.tickets, {
+  dureeMoyenneMinutes: etat.dureeMoyenneMinutes, postesActifs: etat.postesActifs, mode: etat.mode, instant,
+});
+
 export function calculerPositions(tickets, {
   dureeMoyenneMinutes, seuilPrevenir, postesActifs = 1, mode = MODE_UNIQUE,
   instant = Date.now(),
@@ -565,7 +611,7 @@ export function pourPantalla(etat, { nommer = etat.pantallaNombres || 'NOMBRE', 
     // liste coupee sans le dire.
     deplus: Math.max(0, attente.length - combien),
     servis: etat.compteurs.servis,
-    attenteEstimeeMinutes: Math.ceil(attente.length / fauteuils) * etat.dureeMoyenneMinutes,
+    attenteEstimeeMinutes: attenteNouvelArrivant(etat),
   };
 }
 

@@ -18,6 +18,7 @@
  * couleur n'est ecrite deux fois, ici et dans la feuille de style.
  */
 import { t } from '../core/langue.js';
+import { escapeHtml as echapper } from '../core/text.js';
 
 /**
  * Le mat de barbier — l'objet qui dit « barbier » sans un mot.
@@ -134,7 +135,82 @@ export function iconeEtape(index) {
  * deux identifiants identiques dans un document feraient pointer les deux
  * textes sur le meme arc.
  */
-export function emblemeRond() {
+/**
+ * L'ARCHE — le miroir du barbier, vu de face.
+ *
+ * C'est l'image qui ouvre la vitrine tant que le gerant n'a pas choisi de photo
+ * de couverture. Une arche parce que c'est la forme des miroirs de salon et des
+ * devantures anciennes : elle dit « etablissement » avant qu'on ait lu un mot.
+ * Dedans, le fauteuil, la lampe et l'etagere, au trait de laiton, sur une lueur
+ * chaude — assez de details pour tenir la place d'une photographie, pas assez
+ * pour pretendre en etre une.
+ *
+ * Les couleurs viennent des classes : la feuille de style les pose, ce fichier
+ * ne connait aucune teinte.
+ */
+export function archeIllustree() {
+  return '<svg class="vt-illu" viewBox="0 0 400 520" fill="none" aria-hidden="true" focusable="false">'
+    + '<defs>'
+    + '<radialGradient id="vt-lueur" cx="50%" cy="38%" r="62%">'
+    + '<stop offset="0" class="vt-illu__lueur-centre"/>'
+    + '<stop offset="1" class="vt-illu__lueur-bord"/>'
+    + '</radialGradient>'
+    + '<clipPath id="vt-arche-dedans"><path d="M52 510 V214 A148 148 0 0 1 348 214 V510 Z"/></clipPath>'
+    + '</defs>'
+    // Le fond du miroir, et sa lueur.
+    + '<path d="M52 510 V214 A148 148 0 0 1 348 214 V510 Z" class="vt-illu__fond"/>'
+    + '<path d="M52 510 V214 A148 148 0 0 1 348 214 V510 Z" fill="url(#vt-lueur)"/>'
+    + '<g clip-path="url(#vt-arche-dedans)">'
+    // Le reflet oblique : ce qui fait lire « miroir » plutot que « fenetre ».
+    + '<path d="M60 330 L250 60 L290 60 L100 330 Z" class="vt-illu__reflet"/>'
+    + '<path d="M120 330 L310 60 L324 60 L134 330 Z" class="vt-illu__reflet"/>'
+    // La lampe suspendue.
+    + '<path d="M200 60 V122" class="vt-illu__trait-fin"/>'
+    + '<path d="M168 150 Q200 112 232 150 Z" class="vt-illu__trait"/>'
+    + '<path d="M184 150 h32" class="vt-illu__trait"/>'
+    + '<circle cx="200" cy="158" r="5" class="vt-illu__ampoule"/>'
+    // L'etagere et ses flacons.
+    + '<path d="M262 238 H334" class="vt-illu__trait"/>'
+    + '<rect x="270" y="210" width="12" height="28" rx="3" class="vt-illu__trait-fin"/>'
+    + '<rect x="288" y="200" width="10" height="38" rx="3" class="vt-illu__trait-fin"/>'
+    + '<path d="M306 238 v-22 a8 8 0 0 1 16 0 v22" class="vt-illu__trait-fin"/>'
+    + '<path d="M66 262 H132" class="vt-illu__trait"/>'
+    + '<circle cx="84" cy="250" r="10" class="vt-illu__trait-fin"/>'
+    + '<path d="M104 262 v-26 h14 v26" class="vt-illu__trait-fin"/>'
+    + '</g>'
+    // Le fauteuil, au premier plan.
+    + '<g class="vt-illu__fauteuil">'
+    + '<path d="M130 500 a70 9 0 0 0 140 0 a70 9 0 0 0 -140 0 Z" class="vt-illu__trait"/>'
+    + '<path d="M200 492 V446" class="vt-illu__trait"/>'
+    + '<path d="M156 470 H244" class="vt-illu__trait"/>'
+    + '<path d="M132 446 H268 a10 10 0 0 0 10-10 V418 a10 10 0 0 0-10-10 H132 a10 10 0 0 0-10 10 v18 a10 10 0 0 0 10 10 Z" class="vt-illu__trait vt-illu__plein"/>'
+    + '<path d="M152 408 V304 a24 24 0 0 1 24-24 h48 a24 24 0 0 1 24 24 V408" class="vt-illu__trait vt-illu__plein"/>'
+    + '<path d="M170 296 h60" class="vt-illu__trait-fin"/>'
+    + '<path d="M170 320 h60 M170 344 h60 M170 368 h60" class="vt-illu__trait-fin"/>'
+    + '<path d="M182 280 V262 a12 12 0 0 1 12-12 h12 a12 12 0 0 1 12 12 v18" class="vt-illu__trait"/>'
+    + '<path d="M122 420 h-14 a10 10 0 0 0-10 10 v22" class="vt-illu__trait"/>'
+    + '<path d="M278 420 h14 a10 10 0 0 1 10 10 v22" class="vt-illu__trait"/>'
+    + '</g>'
+    // Le cadre de l'arche, double, par-dessus tout.
+    + '<path d="M30 510 V210 A170 170 0 0 1 370 210 V510" class="vt-illu__cadre"/>'
+    + '<path d="M52 510 V214 A148 148 0 0 1 348 214 V510" class="vt-illu__cadre vt-illu__cadre--fin"/>'
+    + '<path d="M18 510 H382" class="vt-illu__cadre"/>'
+    // Trois eclats, la ou la lumiere accroche le verre.
+    + '<path d="M118 118 l4 10 l10 4 l-10 4 l-4 10 l-4-10 l-10-4 l10-4 Z" class="vt-illu__eclat"/>'
+    + '<path d="M296 172 l3 7 l7 3 l-7 3 l-3 7 l-3-7 l-7-3 l7-3 Z" class="vt-illu__eclat"/>'
+    + '<path d="M250 96 l2 5 l5 2 l-5 2 l-2 5 l-2-5 l-5-2 l5-2 Z" class="vt-illu__eclat"/>'
+    + '</svg>';
+}
+
+/**
+ * Le medaillon de la fiche de prix.
+ *
+ * Le nom qui court sur l'arc du haut est celui du SALON, et la devise du bas
+ * suit la langue : les deux etaient ecrits en dur (« PELUQUERÍA HARON »,
+ * « SERVICIO Y ESTILO »), si bien qu'une vitrine francaise portait une
+ * devise espagnole au milieu de ses tarifs.
+ */
+export function emblemeRond({ nom = 'Peluquería HARON', devise = '' } = {}) {
   return '<svg class="illu illu--medaillon" viewBox="0 0 120 120" fill="none" aria-hidden="true" focusable="false">'
     + '<defs>'
     // L'arc du haut va de GAUCHE a DROITE en passant par le dessus : le texte
@@ -150,9 +226,9 @@ export function emblemeRond() {
     + '<circle cx="60" cy="60" r="50" class="medaillon__bord medaillon__bord--fin"/>'
     + '<circle cx="60" cy="60" r="34" class="medaillon__bord medaillon__bord--fin"/>'
     + '<text class="medaillon__texte"><textPath href="#haron-arc-haut" startOffset="50%" text-anchor="middle">'
-    + 'PELUQUERÍA HARON</textPath></text>'
+    + echapper(String(nom).toUpperCase()) + '</textPath></text>'
     + '<text class="medaillon__texte medaillon__texte--petit">'
-    + '<textPath href="#haron-arc-bas" startOffset="50%" text-anchor="middle">SERVICIO Y ESTILO</textPath></text>'
+    + '<textPath href="#haron-arc-bas" startOffset="50%" text-anchor="middle">' + echapper(String(devise).toUpperCase()) + '</textPath></text>'
     + '<g class="illu__trait medaillon__dessin">'
     + '<circle cx="52" cy="72" r="4"/><circle cx="68" cy="72" r="4"/>'
     + '<path d="M54.8 69.2 72 48M65.2 69.2 48 48"/>'

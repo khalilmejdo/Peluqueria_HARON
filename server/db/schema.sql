@@ -549,6 +549,50 @@ CREATE UNIQUE INDEX IF NOT EXISTS abonnements_push_endpoint ON abonnements_push 
 CREATE INDEX IF NOT EXISTS abonnements_push_utilisateur ON abonnements_push (utilisateur_id);
 
 -- ---------------------------------------------------------------------
+--  Photos du salon
+--
+--  Envoyees depuis l'espace de gestion, stockees sur disque sous un nom
+--  ALEATOIRE (`fichier`), jamais sous le nom d'origine. La base porte l'ordre,
+--  la legende et la visibilite ; le fichier ne porte que des octets.
+--
+--  `couverture` : la photo qui ouvre la vitrine, en grand. Une seule au plus —
+--  garanti par l'index partiel, pas par le code. Deux couvertures ne se
+--  choisiraient pas entre elles : la vitrine prendrait l'une au hasard.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS photos (
+  id          uuid PRIMARY KEY,
+  fichier     text NOT NULL UNIQUE,
+  mime        text NOT NULL,
+  taille      integer NOT NULL,
+  largeur     integer,
+  hauteur     integer,
+  legende     text NOT NULL DEFAULT '',
+  ordre       integer NOT NULL DEFAULT 0,
+  visible     boolean NOT NULL DEFAULT TRUE,
+  couverture  boolean NOT NULL DEFAULT FALSE,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'photos_mime_admis') THEN
+    ALTER TABLE photos ADD CONSTRAINT photos_mime_admis
+      CHECK (mime IN ('image/jpeg', 'image/png', 'image/webp'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'photos_fichier_sur') THEN
+    -- Le nom sur disque est reconstruit a partir de la base : il ne doit
+    -- pouvoir designer AUCUN autre fichier que celui de la photo. La fin de
+    -- chaine s'ecrit « \Z » et non avec un dollar : un dollar isole est pris
+    -- pour un delimiteur casse par le controle du schema (schema-sql.test.js).
+    ALTER TABLE photos ADD CONSTRAINT photos_fichier_sur
+      CHECK (fichier ~ '^[0-9a-f-]{36}[.](jpg|png|webp)\Z');
+  END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS photos_une_couverture ON photos (couverture) WHERE couverture;
+CREATE INDEX IF NOT EXISTS photos_ordre ON photos (ordre, created_at);
+
+-- ---------------------------------------------------------------------
 --  Horodatage automatique
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION haron_touch_updated_at() RETURNS trigger
@@ -568,4 +612,8 @@ CREATE TRIGGER postes_touch BEFORE UPDATE ON postes
 
 DROP TRIGGER IF EXISTS tarifas_touch ON tarifas;
 CREATE TRIGGER tarifas_touch BEFORE UPDATE ON tarifas
+  FOR EACH ROW EXECUTE FUNCTION haron_touch_updated_at();
+
+DROP TRIGGER IF EXISTS photos_touch ON photos;
+CREATE TRIGGER photos_touch BEFORE UPDATE ON photos
   FOR EACH ROW EXECUTE FUNCTION haron_touch_updated_at();

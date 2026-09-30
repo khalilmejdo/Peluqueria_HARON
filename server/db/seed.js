@@ -20,6 +20,8 @@ import { normalize } from '../core/text.js';
 import { CATALOGUE, defautDe, invaliderCache } from '../core/reglages.js';
 import { t, poserLangueActive, LANGUE_DEFAUT } from '../core/langue.js';
 import { poserDeviseActive, deviseActive, DEVISE_DEFAUT } from '../core/devise.js';
+import { relibellerDefauts } from '../domain/relibeller.js';
+import { reprendreLesAnciennes } from '../domain/photos.js';
 
 /**
  * La fiche de prix de depart : celle du tableau affiche dans le salon.
@@ -157,6 +159,14 @@ export async function seed({ silencieux = false } = {}) {
   } else {
     dire('  Fiche de prix : ' + tarifs.n + ' ligne(s) deja presente(s).');
   }
+
+  // Les textes poses par une installation precedente, dans une autre langue et
+  // jamais retouches, passent dans la langue du salon. Voir domain/relibeller.js.
+  const relibelles = await relibellerDefauts(installation.langue, { execute });
+  if (relibelles) dire('  Textes par defaut : ' + relibelles + ' ligne(s) remise(s) dans la langue du salon.');
+
+  // Les photos deposees a la main avant l'ecran de galerie y entrent d'elles-memes.
+  await reprendreLesAnciennes({ journal: dire });
 
   const compte = await one('SELECT COUNT(*)::int AS n FROM utilisateurs');
   if (compte.n > 0) {

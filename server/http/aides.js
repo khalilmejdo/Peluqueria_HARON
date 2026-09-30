@@ -8,7 +8,7 @@ import { t } from '../core/langue.js';
 /** Parametre de chemin identifiant : 404 plutot qu'une erreur de type en base. */
 export function idDe(ctx, nom = 'id') {
   const valeur = ctx.params[nom];
-  if (!isUuid(valeur)) throw notFound('No encontrado.');
+  if (!isUuid(valeur)) throw notFound(t('err.introuvable'));
   return valeur.toLowerCase();
 }
 

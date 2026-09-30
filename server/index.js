@@ -222,15 +222,22 @@ export async function handle(ctx) {
 
   // --- 8. corps
   if (!isSafeMethod(ctx.method)) {
-    const parsed = await parseBody(ctx.req, { jsonLimit: config.http.bodyLimitBytes });
+    // Une image n'est lue que par une route qui l'a DECLAREE (`image: true`) :
+    // partout ailleurs, un corps de plusieurs megaoctets est refuse avant d'etre
+    // lu, comme avant.
+    const parsed = await parseBody(ctx.req, {
+      jsonLimit: config.http.bodyLimitBytes,
+      imageLimit: route.options.image ? config.storage.imageMaxBytes : 0,
+    });
     ctx.body = parsed.body;
+    ctx.image = parsed.image ?? null;
   }
 
   // --- 9. gestionnaire
   await route.handler(ctx);
   if (!ctx.responded) {
     log.error('Gestionnaire sans reponse', { path: ctx.path, method: ctx.method });
-    ctx.json(500, { error: { code: 'ERREUR', message: 'Falta la respuesta del servidor.' } });
+    ctx.json(500, { error: { code: 'ERREUR', message: t('req.reponseManquante') } });
   }
 }
 

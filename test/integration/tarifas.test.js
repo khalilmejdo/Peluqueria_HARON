@@ -245,7 +245,13 @@ test('la fiche de prix se tient depuis l espace de gestion', { skip: IGNORE }, a
     assert.equal(r.status, 200);
 
     const accueil = await banc.client().get('/');
-    assert.ok(!accueil.body.includes('Corte de pelo'), 'plus aucun prix en vitrine');
-    assert.ok(accueil.body.includes('Cómo funciona'), 'le reste de la vitrine tient toujours');
+    // Plus de fiche de prix, et plus AUCUN montant nulle part : le formulaire
+    // de reservation, qui vit maintenant dans la vitrine, montrait encore le
+    // prix de chaque prestation. Les prestations restent (leur duree fait
+    // l'attente), mais sans montant.
+    assert.ok(!accueil.body.includes('seccion--tarifas'), 'la fiche de prix a disparu');
+    assert.ok(!/\d\u00a0€/.test(accueil.body), 'plus aucun montant en vitrine');
+    assert.ok(accueil.body.includes('presta__case'), 'les prestations restent choisissables');
+    assert.ok(accueil.body.includes('id="reserver"'), 'le reste de la vitrine tient toujours');
   });
 });

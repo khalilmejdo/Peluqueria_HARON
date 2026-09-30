@@ -12,6 +12,7 @@ import { publicRoutes } from './routes/public.js';
 import { authRoutes } from './routes/auth.js';
 import { fileRoutes } from './routes/file.js';
 import { avisosRoutes } from './routes/avisos.js';
+import { photosRoutes, photosPubliquesRoutes } from './routes/photos.js';
 import {
   metaRoutes, reglagesRoutes, comptesRoutes, statistiquesRoutes, serviceRoutes,
   fermeturesRoutes, postesRoutes, tarifasRoutes,
@@ -26,6 +27,8 @@ export function buildRouter() {
   // Pages du client, rendues par le serveur (accueil, prise de tour, suivi,
   // affiche et QR Code). Toutes publiques.
   router.mount('', siteRoutes);
+  // Les photos de la vitrine : publiques, mais seulement celles qui sont visibles.
+  router.mount('', photosPubliquesRoutes);
 
   // API du client : prise de tour, suivi, temps reel. Aucune session, le jeton
   // de suivi tient lieu de sesame.
@@ -46,6 +49,7 @@ export function buildRouter() {
 
   // Reserve au gerant.
   router.mount('/api/fermetures', fermeturesRoutes);
+  router.mount('/api/photos', photosRoutes);
   router.mount('/api/reglages', reglagesRoutes);
   router.mount('/api/comptes', comptesRoutes);
   router.mount('/api/service', serviceRoutes);

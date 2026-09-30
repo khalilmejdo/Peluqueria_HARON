@@ -20,24 +20,25 @@ import { escapeHtml } from '../core/text.js';
 import { ValidationError, AppError } from '../core/errors.js';
 import { validate, rules } from '../core/validate.js';
 import { consommerPriseDeTour, consume, PROFILES } from '../core/ratelimit.js';
-import { lireTous, adressePublique, horairesLisibles } from '../core/reglages.js';
+import {
+  lireTous, adressePublique, horairesLisibles, nomDuSalon, estOuvert, plagesDuJour,
+} from '../core/reglages.js';
 import { jetonPlausible } from '../core/crypto.js';
-import { jourLocal, attenteNue, dateLongue } from '../core/temps.js';
+import { jourLocal, attenteNue, dateLongue, jourSemaine, minutesDepuisMinuit } from '../core/temps.js';
 import { traduire, t, langueActive } from '../core/langue.js';
 import { encoder, versSvg, versMatrice } from '../core/qrcode.js';
 import { pngNoirEtBlanc } from '../core/png.js';
 import {
-  prendreTour, ticketParJeton, chargerEtat, pourClient, pourPantalla, etatPriseDeTour,
+  prendreTour, ticketParJeton, chargerEtat, pourClient, pourPantalla, etatPriseDeTour, attenteNouvelArrivant,
 } from '../domain/file.js';
+import { pourVitrine as photosVitrine } from '../domain/photos.js';
+import {
+  ouverture, infosPratiques, sectionReservation, sectionGalerie, sectionLieu, horairesDuJour, etatDuMoment,
+} from './vitrine.js';
 import { pourVitrine } from '../domain/tarifas.js';
 import { page, marque, entete, piedDePage, pageErreur } from './mise-en-page.js';
-import {
-  matDeBarbier, fauteuil, ciseauxEtPeigne, iconeEtape, separateur,
-  emblemeRond, ciseauxPetits, iconeLieu, iconeTelephone, iconeConversation,
-  scenesDuSalon, planStylise,
-} from './illustrations.js';
+import { matDeBarbier, emblemeRond, ciseauxPetits } from './illustrations.js';
 import { iconeTarifa } from './icones-tarifas.js';
-import { photosDuSalon } from './galerie.js';
 import { exigerClePantalla } from '../routes/public.js';
 
 export const siteRoutes = new Router();
@@ -93,7 +94,7 @@ function ficheDePrix(lignes, nota, tr = duSalon()) {
     + '<div class="tarifas__mat" aria-hidden="true">' + matDeBarbier() + '</div>'
     + '<div class="tarifas__contenu">'
     + '<div class="tarifas__entete">'
-    + '<span class="tarifas__embleme" aria-hidden="true">' + emblemeRond() + '</span>'
+    + '<span class="tarifas__embleme" aria-hidden="true">' + emblemeRond({ nom: nomDuSalon(), devise: tr('tarifs.medaillon') }) + '</span>'
     + '<span class="tarifas__bandeau">' + escapeHtml(tr('tarifs.bandeau')) + '</span>'
     + '</div>'
     + '<div class="tarifas__filet-orne" aria-hidden="true">'
@@ -225,323 +226,145 @@ function joursEntre(depuis, jusqua) {
 
 export const _bandeauFermeture = bandeauFermeture;
 
-/**
- * Le contact : ou venir, comment appeler.
- *
- * Chaque ligne n'apparait QUE si le reglage correspondant est rempli. Un salon
- * qui n'a pas encore saisi son telephone n'affiche pas un cadre vide — la
- * section entiere disparait si rien n'est renseigne.
- *
- * Le telephone compose, le WhatsApp ouvre la conversation : sur un telephone,
- * ce sont deux gestes d'un seul appui. C'est tout ce qu'on demande a un
- * contact. L'adresse, elle, a sa propre section.
- */
-function contact(reglages, horaires, tr = duSalon()) {
-  const telephone = reglages['salon.telephone'];
-  const whatsapp = reglages['salon.whatsapp'];
-  if (!telephone && !whatsapp && !horaires) return '';
-
-  const numero = (v) => String(v).replace(/[^+0-9]/g, '');
-
-  const cartes = [];
-
-  // L'adresse n'est PAS ici : elle a sa propre section, « Cómo llegar », avec
-  // le plan et le bouton qui ouvre l'application de cartes. La montrer aux deux
-  // endroits obligeait le client a choisir entre deux boutons qui font la meme
-  // chose — et un choix inutile est un temps d'arret.
-
-  if (telephone) {
-    cartes.push('<a class="contacto" href="tel:' + escapeHtml(numero(telephone)) + '">'
-      + '<span class="contacto__icone" aria-hidden="true">' + iconeTelephone() + '</span>'
-      + '<span class="contacto__quoi">' + escapeHtml(tr('contact.appeler')) + '</span>'
-      + '<span class="contacto__valeur">' + escapeHtml(telephone) + '</span>'
-      + '<span class="contacto__action">' + escapeHtml(tr('contact.appelerAction')) + '</span>'
-      + '</a>');
-  }
-
-  if (whatsapp) {
-    cartes.push('<a class="contacto" href="https://wa.me/' + escapeHtml(numero(whatsapp).replace(/^\+/, ''))
-      + '" target="_blank" rel="noopener noreferrer">'
-      + '<span class="contacto__icone" aria-hidden="true">' + iconeConversation() + '</span>'
-      + '<span class="contacto__quoi">' + escapeHtml(tr('contact.whatsapp')) + '</span>'
-      + '<span class="contacto__valeur">' + escapeHtml(whatsapp) + '</span>'
-      + '<span class="contacto__action">' + escapeHtml(tr('contact.whatsappAction')) + '</span>'
-      + '</a>');
-  }
-
-  const grille = horaires && horaires.length
-    ? '<div class="horario">'
-      + '<h3 class="horario__titre">' + escapeHtml(tr('contact.horaires')) + '</h3>'
-      + '<ul class="horario__liste">'
-      // Les plages séparées par un point médian : « 10:00 – 14:00 · 17:00 –
-      // 20:30 ». Écrire l'amplitude « 10:00 – 20:30 » ferait venir un client à
-      // quinze heures devant un rideau baissé.
-      + horaires.map((h) => '<li' + (h.ferme ? ' class="horario--cerrado"' : '') + '>'
-        + '<span>' + escapeHtml(h.nom) + '</span>'
-        + '<span>' + (h.ferme
-          ? escapeHtml(tr('commun.ferme'))
-          : escapeHtml(h.plages.map((p) => p.ouverture + ' – ' + p.fermeture).join(' · '))) + '</span>'
-        + '</li>').join('')
-      + '</ul></div>'
-    : '';
-
-  return '<section class="enveloppe seccion" id="contacto">'
-    + '<div class="seccion__tete">'
-    + '<h2 class="seccion__titulo">' + escapeHtml(tr('contact.titre')) + '</h2>'
-    + '<p class="seccion__intro">' + escapeHtml(tr('contact.intro')) + '</p>'
-    + '</div>'
-    + '<div class="contactos">' + cartes.join('') + '</div>'
-    + grille
-    + '</section>';
-}
-
-/**
- * La galerie : les vraies photos du salon.
- *
- * Aucune photo, aucune section. Le premier cliche est mis en avant — c'est
- * presque toujours la vue d'ensemble que le gerant depose en premier.
- *
- * `loading="lazy"` sur tout sauf la premiere : un client sur un reseau faible
- * doit voir le haut de la page, pas attendre six photos.
- */
-function galerie(photos, tr = duSalon()) {
-  if (!photos.length) return scenesDessinees(tr);
-  const vignettes = photos.map((p, i) => '<figure class="cliche' + (i === 0 ? ' cliche--grand' : '') + '">'
-    + '<img class="cliche__image" src="' + escapeHtml(p.src) + '" alt="' + escapeHtml(p.legende || 'Peluquería HARON') + '"'
-    + (i === 0 ? '' : ' loading="lazy"') + ' decoding="async">'
-    + (p.legende ? '<figcaption class="cliche__legende">' + escapeHtml(p.legende) + '</figcaption>' : '')
-    + '</figure>').join('');
-
-  return '<section class="enveloppe seccion" id="galeria">'
-    + '<div class="seccion__tete">'
-    + '<h2 class="seccion__titulo">' + escapeHtml(tr('galerie.titre')) + '</h2>'
-    + '<p class="seccion__intro">' + escapeHtml(tr('galerie.intro')) + '</p>'
-    + '</div>'
-    + '<div class="galeria">' + vignettes + '</div>'
-    + '</section>';
-}
-
-/**
- * « Cómo llegar » — ou est le salon, et comment y aller.
- *
- * LE BOUTON FAIT LE TRAVAIL, PAS LE DESSIN. Le plan a cote est un motif, il ne
- * represente aucun quartier reel ; ce qui amene vraiment le client, c'est le
- * bouton qui ouvre SON application de cartes, celle qu'il sait deja utiliser,
- * avec la navigation, le trafic et les transports qu'elle connait.
- *
- * AUCUNE CARTE N'EST EMBARQUEE DANS LA PAGE. Un plan tiers charge dans un cadre
- * verrait passer l'adresse IP de chaque visiteur avant meme qu'il ait clique,
- * et il faudrait ouvrir « frame-src » dans la politique de securite du contenu
- * pour tout le site. Ici, rien ne part tant que le client ne l'a pas demande.
- *
- * Les coordonnees, quand elles sont saisies, menent a LA PORTE du salon. Sans
- * elles on retombe sur l'adresse en toutes lettres, qui atterrit souvent au
- * milieu de la rue — d'ou l'aide du reglage, qui explique comment les relever.
- */
-function localizacion(reglages, tr = duSalon()) {
-  const adresse = reglages['salon.adresse'];
-  const coordonnees = reglages['salon.coordenadas'];
-  const commentVenir = reglages['salon.comoLlegar'];
-  if (!adresse && !coordonnees) return '';
-
-  const cible = coordonnees || adresse;
-  const itineraire = 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(cible);
-  const carte = coordonnees
-    ? 'https://www.openstreetmap.org/?mlat=' + encodeURIComponent(coordonnees.split(',')[0])
-      + '&mlon=' + encodeURIComponent(coordonnees.split(',')[1])
-      + '#map=18/' + coordonnees.split(',').join('/')
-    : 'https://www.openstreetmap.org/search?query=' + encodeURIComponent(adresse);
-
-  return '<section class="enveloppe seccion" id="como-llegar">'
-    + '<div class="seccion__tete">'
-    + '<h2 class="seccion__titulo">' + escapeHtml(tr('lieu.titre')) + '</h2>'
-    + '<p class="seccion__intro">' + escapeHtml(tr('lieu.intro')) + '</p>'
-    + '</div>'
-    + '<div class="ubicacion">'
-    + '<div class="ubicacion__plan" aria-hidden="true">' + planStylise() + '</div>'
-    + '<div class="ubicacion__infos">'
-    + (adresse
-      ? '<p class="ubicacion__direccion">'
-        + '<span class="ubicacion__icone" aria-hidden="true">' + iconeLieu() + '</span>'
-        + escapeHtml(adresse) + '</p>'
-      : '')
-    + (commentVenir
-      ? '<p class="ubicacion__texto">' + escapeHtml(commentVenir) + '</p>'
-      : '')
-    + '<div class="ubicacion__botones">'
-    + '<a class="bouton bouton--principal" href="' + escapeHtml(itineraire) + '"'
-    + ' target="_blank" rel="noopener noreferrer">' + escapeHtml(tr('lieu.itineraire')) + '</a>'
-    + '<a class="bouton bouton--discret" href="' + escapeHtml(carte) + '"'
-    + ' target="_blank" rel="noopener noreferrer">' + escapeHtml(tr('lieu.voirCarte')) + '</a>'
-    + '</div>'
-    + '</div>'
-    + '</div>'
-    + '</section>';
-}
-
-/**
- * La galerie tant qu'aucune photo n'a ete deposee : trois scenes dessinees.
- *
- * Une vitrine sans la moindre image a l'air d'un site inacheve, et le gerant
- * n'a pas toujours de photo le premier jour. Ces dessins tiennent la place —
- * ils ne pretendent pas etre des photographies, et la legende le dit.
- *
- * Ils s'effacent tout seuls des la premiere vraie photo deposee.
- */
-function scenesDessinees(tr = duSalon()) {
-  const scenes = scenesDuSalon(tr);
-  const vignettes = scenes.map((s) => '<figure class="escena">'
-    + '<div class="escena__dessin">' + s.dessin + '</div>'
-    + '<figcaption class="escena__legende">' + escapeHtml(s.legende) + '</figcaption>'
-    + '</figure>').join('');
-
-  return '<section class="enveloppe seccion" id="galeria">'
-    + '<div class="seccion__tete">'
-    + '<h2 class="seccion__titulo">' + escapeHtml(tr('galerie.titre')) + '</h2>'
-    + '<p class="seccion__intro">' + escapeHtml(tr('galerie.intro')) + '</p>'
-    + '</div>'
-    + '<div class="escenas">' + vignettes + '</div>'
-    + '<p class="escenas__nota">' + escapeHtml(tr('galerie.noteDessins')) + '</p>'
-    + '</section>';
-}
-
-/**
- * « Cómo funciona » : trois etapes, pas une de plus.
- *
- * C'est la section qui remplace une explication au comptoir. Un client qui
- * passe devant la vitrine doit comprendre en dix secondes qu'il n'a rien a
- * installer et rien a payer d'avance.
- */
-function commentCaMarche(tr = duSalon()) {
-  const etapes = [1, 2, 3].map((n) => [
-    String(n), tr('etapes.' + n + '.titre'), tr('etapes.' + n + '.texte'),
-  ]);
-  const items = etapes.map(([n, titre, texte], i) => '<li class="paso">'
-    + '<div class="paso__marque">'
-    + iconeEtape(i)
-    + '<span class="paso__num" aria-hidden="true">' + n + '</span>'
-    + '</div>'
-    + '<h3 class="paso__titulo">' + escapeHtml(titre) + '</h3>'
-    + '<p class="paso__texto">' + escapeHtml(texte) + '</p>'
-    + '</li>').join('');
-
-  return '<section class="enveloppe seccion">'
-    + '<div class="seccion__tete">'
-    + '<h2 class="seccion__titulo">' + escapeHtml(tr('etapes.titre')) + '</h2>'
-    + '<p class="seccion__intro">' + escapeHtml(tr('etapes.intro')) + '</p>'
-    + '</div>'
-    + '<ol class="pasos">' + items + '</ol>'
-    + '</section>';
-}
 
 siteRoutes.get('/', async (ctx) => {
   const reglages = await lireTous();
-  const [etat, prise, tarifas, photos] = await Promise.all([
+  const tr = traduire(reglages['salon.idioma']);
+  const nom = reglages['salon.nom'];
+  const avecTarifs = reglages['tarifas.visible'];
+  const avecGalerie = reglages['vitrine.galerie'];
+
+  const [etat, prise, tarifas, galeriePhotos, prestations] = await Promise.all([
     chargerEtat(jourLocal()),
     etatPriseDeTour(),
-    reglages['tarifas.visible'] ? pourVitrine() : Promise.resolve([]),
-    photosDuSalon(),
+    avecTarifs ? pourVitrine() : Promise.resolve([]),
+    photosVitrine(),
+    pourVitrine(),
   ]);
-  const devant = etat.compteurs.enAttente + etat.compteurs.enCours;
-  const attente = devant * etat.dureeMoyenneMinutes;
+  const coiffeurs = prise.ouverte ? await coiffeursProposes(reglages) : [];
 
-  // « En directo » : un point qui bat, et l'affluence qui se met a jour toute
-  // seule. C'est la seule chose de la page qui bouge parce qu'elle CHANGE
-  // vraiment — une animation qui ne dit rien est du bruit.
-  const tr = traduire(reglages['salon.idioma']);
-  const pouls = '<p class="affluence__pouls"><span class="pouls" aria-hidden="true"></span>'
-    + escapeHtml(tr('accueil.enDirect')) + '</p>';
+  // L'etat du moment : seulement si le salon a declare ses horaires. Sans eux,
+  // « ouvert » serait une supposition, et la pastille disparait.
+  const jourCourant = jourSemaine();
+  const horairesActifs = Boolean(reglages['horaires.actifs']);
+  const maintenant = horairesActifs ? estOuvert(reglages, jourCourant, minutesDepuisMinuit()) : null;
+  const etatMoment = etatDuMoment({ tr, horaires: maintenant, prise });
+  const semaine = horairesActifs ? horairesLisibles(reglages, tr.langue) : null;
 
-  const affluence = pouls + (etat.compteurs.enAttente === 0
-    ? '<p class="affluence__forte" data-forte>' + escapeHtml(tr('accueil.sansAttente')) + '</p>'
-      + '<p class="affluence__detail" data-detail>' + escapeHtml(tr('accueil.sansAttenteDetail')) + '</p>'
-    : '<p class="affluence__forte" data-forte>'
-      + escapeHtml(tr('accueil.enFile', { n: etat.compteurs.enAttente })) + '</p>'
-      // « ≈ » et non « unos » retaille a l'expression reguliere : la duree nue
-      // se compose, elle ne se decoupe pas.
-      + '<p class="affluence__detail" data-detail>'
-      + escapeHtml(tr('accueil.attenteEstimee', { duree: '≈ ' + attenteNue(attente, tr.langue) })) + '</p>')
+  const photos = avecGalerie ? galeriePhotos.photos : [];
+  const avecLieu = reglages['vitrine.localisation'] && Boolean(reglages['salon.adresse'] || reglages['salon.coordenadas']);
+  const avecContact = reglages['vitrine.contact']
+    && Boolean(reglages['salon.telephone'] || reglages['salon.whatsapp'] || horairesActifs);
+
+  // La navigation ne pointe que vers ce qui existe sur la page.
+  const sections = [
+    avecTarifs && tarifas.length ? { ancre: 'tarifas', cle: 'vt.nav.tarifs' } : null,
+    photos.length ? { ancre: 'galerie', cle: 'vt.nav.galerie' } : null,
+    { ancre: 'reserver', cle: 'vt.nav.reserver' },
+    avecLieu || avecContact ? { ancre: 'contact', cle: 'vt.nav.contact' } : null,
+  ].filter(Boolean);
+
+  // L'attente du prochain qui arrive : la MEME simulation que son ticket.
+  const attente = attenteNouvelArrivant(etat);
+  const affluence = '<div class="vt-direct" data-affluence>'
+    + '<p class="vt-direct__pouls"><span class="pouls" aria-hidden="true"></span>' + escapeHtml(tr('accueil.enDirect')) + '</p>'
+    + (etat.compteurs.enAttente === 0
+      ? '<p class="vt-direct__forte" data-forte>' + escapeHtml(tr('accueil.sansAttente')) + '</p>'
+        + '<p class="vt-direct__detail" data-detail>' + escapeHtml(tr('accueil.sansAttenteDetail')) + '</p>'
+      : '<p class="vt-direct__forte" data-forte>' + escapeHtml(tr('accueil.enFile', { n: etat.compteurs.enAttente })) + '</p>'
+        + '<p class="vt-direct__detail" data-detail>'
+        + escapeHtml(tr('accueil.attenteEstimee', { duree: '≈ ' + attenteNue(attente, tr.langue) })) + '</p>')
     + colaDeMarques(etat.compteurs.enAttente)
     // Le compteur du jour n'apparait qu'a partir de trois : « 1 atendido hoy »
     // fait plus vide qu'un silence.
     + (etat.compteurs.servis >= 3
-      ? '<p class="affluence__servis" data-servis>'
-        + escapeHtml(tr('accueil.servisAujourdhui', { n: etat.compteurs.servis })) + '</p>'
-      : '<p class="affluence__servis" data-servis hidden></p>');
+      ? '<p class="vt-direct__servis" data-servis>' + escapeHtml(tr('accueil.servisAujourdhui', { n: etat.compteurs.servis })) + '</p>'
+      : '<p class="vt-direct__servis" data-servis hidden></p>')
+    + '</div>';
 
-  // Congés, arrêt des tours, hors horaires : on le dit AVANT le bouton, et on
-  // retire le bouton. Un client qui appuie pour se voir refuser à l'écran
-  // suivant repart plus agacé que s'il avait su tout de suite.
+  // Conges, arret des tours, hors horaires : on le dit a la place du bouton.
+  // Un client qui appuie pour se voir refuser a l'ecran suivant repart plus
+  // agace que s'il avait su tout de suite.
+  const telephone = reglages['salon.telephone'];
+  const appelerSalon = telephone
+    ? '<a class="bouton bouton--discret" href="tel:' + escapeHtml(telephone.replace(/[^+0-9]/g, '')) + '">'
+      + escapeHtml(tr('commun.appelerSalon')) + '</a>'
+    : '';
+  const avisFerme = '<div class="avis-ferme" data-ferme>'
+    + '<p class="avis-ferme__titre">'
+    + escapeHtml(tr(prise.code === 'SALON_EN_CONGES' ? 'accueil.salonFerme' : 'accueil.plusDeTours')) + '</p>'
+    + '<p class="avis-ferme__texte">' + escapeHtml(prise.message || '') + '</p>'
+    + '</div>';
+
   const appel = prise.ouverte
-    ? '<div class="affluence" data-affluence>' + affluence + '</div>'
-      + '<a class="bouton bouton--principal bouton--geant" href="/join">'
-      + escapeHtml(tr('accueil.prendreTour')) + '</a>'
-      // La promesse doit etre exacte : sans WhatsApp Business configure, aucun
-      // message ne part, et annoncer le contraire serait un mensonge que le
-      // client decouvrirait en attendant un message qui ne vient pas.
-      + '<p class="hero__note">'
-      + escapeHtml(tr(config.whatsapp.actif ? 'accueil.noteAvecWhatsapp' : 'accueil.noteSansWhatsapp'))
-      + '</p>'
-    : '<div class="avis-ferme" data-ferme>'
-      + '<p class="avis-ferme__titre">'
-      + escapeHtml(tr(prise.code === 'SALON_EN_CONGES' ? 'accueil.salonFerme' : 'accueil.plusDeTours')) + '</p>'
-      + '<p class="avis-ferme__texte">' + escapeHtml(prise.message) + '</p>'
+    ? '<div class="vt-une__actions">'
+      + '<a class="bouton bouton--principal bouton--geant" href="#reserver" data-appel-principal>' + escapeHtml(tr('vt.une.reserver')) + '</a>'
+      + (avecTarifs && tarifas.length
+        ? '<a class="bouton bouton--discret bouton--geant" href="#tarifas">' + escapeHtml(tr('vt.une.tarifs')) + '</a>'
+        : '')
       + '</div>'
-      + (reglages['salon.telephone']
-        ? '<a class="bouton bouton--discret" href="tel:' + escapeHtml(reglages['salon.telephone'].replace(/[^+0-9]/g, '')) + '">'
-          + escapeHtml(tr('commun.appelerSalon')) + '</a>'
-        : '');
+    : avisFerme + (appelerSalon ? '<div class="vt-une__actions">' + appelerSalon + '</div>' : '');
 
-  const annonce = bandeauFermeture(prise, jourLocal(), tr);
+  const reservation = prise.ouverte
+    ? formulaire({ source: 'ONLINE', coiffeurs, prestations, tr, avecPrix: avecTarifs })
+    : avisFerme + appelerSalon;
 
-  const corps = '<main id="principal">'
-    + '<section class="hero">'
-    + '<div class="hero__raies" aria-hidden="true"></div>'
-    // Le filigrane : ciseaux et peigne croises, tres pales, derriere le titre.
-    // Purement decoratif, donc hors du flux et invisible des lecteurs d'ecran.
-    + '<div class="hero__filigrane" aria-hidden="true">' + ciseauxEtPeigne() + '</div>'
-    + '<div class="enveloppe hero__contenu">'
-    + marque({ taille: 'grand', lien: false })
-    + '<h1 class="hero__accroche">' + escapeHtml(reglages['salon.accroche']) + '</h1>'
-    + appel
-    + '</div>'
-    + '</section>'
-    + annonce
-    + ficheDePrix(tarifas, reglages['tarifas.nota'], tr)
-    + galerie(photos, tr)
-    + separateur()
-    + commentCaMarche(tr)
-    + contact(reglages, reglages['horaires.actifs'] ? horairesLisibles(reglages, tr.langue) : null, tr)
-    + localizacion(reglages, tr)
-    + '<section class="enveloppe bandeau-qr">'
-    + '<div class="bandeau-qr__illu" aria-hidden="true">' + fauteuil() + '</div>'
-    + '<div class="bandeau-qr__texte-bloc">'
-    + '<p class="bandeau-qr__titre">' + escapeHtml(tr('accueil.dejaAuSalon')) + '</p>'
-    + '<p class="bandeau-qr__texte">' + escapeHtml(tr('accueil.dejaAuSalonTexte')) + '</p>'
-    + '</div>'
-    + '</section>'
-    // L'appel qui suit le pouce, sur téléphone. Seulement quand on peut
-    // vraiment prendre un tour : une barre qui mène à un refus est pire que
+  const corps = entete({ sections, etat: etatMoment, appel: prise.ouverte })
+    + '<main id="principal" class="vt-page">'
+    + ouverture({
+      tr,
+      nom,
+      accroche: reglages['salon.accroche'],
+      affluence: prise.ouverte ? affluence : '',
+      appel,
+      couverture: galeriePhotos.couverture,
+    })
+    + bandeauFermeture(prise, jourLocal(), tr)
+    + infosPratiques({
+      tr,
+      aujourdhui: horairesDuJour({ tr, plages: plagesDuJour(reglages, jourCourant), actifs: horairesActifs }),
+      adresse: avecLieu ? reglages['salon.adresse'] : null,
+      telephone: avecContact ? telephone : null,
+    })
+    + (avecTarifs ? ficheDePrix(tarifas, reglages['tarifas.nota'], tr) : '')
+    + sectionReservation({ tr, contenu: reservation, etapes: reglages['vitrine.etapes'] })
+    + sectionGalerie({ tr, photos })
+    + sectionLieu({
+      tr,
+      avecLieu,
+      avecContact,
+      adresse: reglages['salon.adresse'],
+      coordonnees: reglages['salon.coordenadas'],
+      commentVenir: reglages['salon.comoLlegar'],
+      telephone,
+      whatsapp: reglages['salon.whatsapp'],
+      horaires: semaine,
+      jourCourant,
+    })
+    // L'appel qui suit le pouce, sur telephone. Seulement quand on peut
+    // vraiment prendre un tour : une barre qui mene a un refus est pire que
     // pas de barre du tout.
     + (prise.ouverte
-      ? '<div class="appel-fixe"><a class="bouton bouton--principal" href="/join">'
-        + escapeHtml(tr('accueil.prendreTour')) + '</a></div>'
+      ? '<div class="appel-fixe"><a class="bouton bouton--principal" href="#reserver">'
+        + escapeHtml(tr('vt.une.reserver')) + '</a></div>'
       : '')
     + '</main>';
 
   ctx.html(200, page({
-    titre: tr('accueil.titre', { nom: reglages['salon.nom'] }),
-    description: tr('accueil.description', { nom: reglages['salon.nom'] }),
+    titre: tr('accueil.titre', { nom }),
+    description: tr('accueil.description', { nom }),
     corps,
     base: ctx.base,
     chemin: '/',
     langue: tr.langue,
-    classe: 'theme-sombre page-accueil',
-    scripts: ['/js/accueil.js'],
+    classe: 'theme-sombre page-accueil page-vitrine',
+    // join.js : le formulaire de reservation vit DANS la vitrine, il a donc
+    // besoin de la meme validation immediate et du meme total des prestations.
+    scripts: ['/js/accueil.js', '/js/join.js'],
     pied: piedDePage({
-      horaires: reglages['horaires.actifs'] ? horairesLisibles(reglages, tr.langue) : null,
+      horaires: semaine,
       adresse: reglages['salon.adresse'] || null,
-      telephone: reglages['salon.telephone'] || null,
+      telephone: telephone || null,
     }),
   }), { noStore: false, entetes: { 'Cache-Control': 'no-cache' } });
 }, { public: true });
@@ -642,7 +465,13 @@ function choixDuCoiffeur(coiffeurs, choisi, tr = duSalon()) {
  * script. Sans JavaScript, les cases fonctionnent quand meme : c'est un
  * formulaire ordinaire, et le serveur recalcule tout de toute facon.
  */
-function choixDesPrestations(prestations, choisies, tr = duSalon()) {
+/*
+ * `avecPrix` : faux quand le gerant a choisi de NE PAS publier ses tarifs.
+ * Le formulaire garde alors les prestations et leur duree — c'est ce qui rend
+ * l'attente juste — mais plus aucun montant. Il les affichait quand meme, si
+ * bien que masquer la fiche de prix ne masquait rien.
+ */
+function choixDesPrestations(prestations, choisies, tr = duSalon(), { avecPrix = true } = {}) {
   if (!prestations.length) return '';
   const cochees = new Set(choisies || []);
 
@@ -650,11 +479,11 @@ function choixDesPrestations(prestations, choisies, tr = duSalon()) {
     const id = 'presta-' + p.id;
     return '<li>'
       + '<input class="presta__case" type="checkbox" id="' + escapeHtml(id) + '" name="tarifaIds" '
-      + 'value="' + escapeHtml(p.id) + '" data-minutos="' + p.duracionMin + '" '
-      + 'data-precio="' + p.precioCts + '"' + (cochees.has(p.id) ? ' checked' : '') + '>'
+      + 'value="' + escapeHtml(p.id) + '" data-minutos="' + p.duracionMin + '"'
+      + (avecPrix ? ' data-precio="' + p.precioCts + '"' : '') + (cochees.has(p.id) ? ' checked' : '') + '>'
       + '<label class="presta" for="' + escapeHtml(id) + '">'
       + '<span class="presta__nombre">' + escapeHtml(p.nombre) + '</span>'
-      + '<span class="presta__meta">' + p.duracionMin + ' min · ' + escapeHtml(p.precio) + '</span>'
+      + '<span class="presta__meta">' + p.duracionMin + ' min' + (avecPrix ? ' · ' + escapeHtml(p.precio) : '') + '</span>'
       + '</label>'
       + '</li>';
   }).join('');
@@ -670,7 +499,7 @@ function choixDesPrestations(prestations, choisies, tr = duSalon()) {
 
 function formulaire({
   valeurs = {}, erreurs = {}, source = 'ONLINE', messageGlobal = null,
-  coiffeurs = [], posteId = null, prestations = [], tarifaIds = [], tr = duSalon(),
+  coiffeurs = [], posteId = null, prestations = [], tarifaIds = [], tr = duSalon(), avecPrix = true,
 }) {
   const champs = champsDuFormulaire(tr).map((c) => {
     const erreur = erreurs[c.nom];
@@ -695,7 +524,7 @@ function formulaire({
     + (messageGlobal ? '<p class="alerte alerte--refus" role="alert">' + escapeHtml(messageGlobal) + '</p>' : '')
     + (erreurs.posteId ? '<p class="champ__erreur" role="alert">' + escapeHtml(erreurs.posteId) + '</p>' : '')
     + (coiffeurs.length ? choixDuCoiffeur(coiffeurs, posteId, tr) : '')
-    + choixDesPrestations(prestations, tarifaIds, tr)
+    + choixDesPrestations(prestations, tarifaIds, tr, { avecPrix })
     + champs
     + '<button class="bouton bouton--principal bouton--geant" type="submit">'
     + escapeHtml(tr('join.envoyer')) + '</button>'
@@ -725,7 +554,7 @@ function pageJoin(ctx, reglages, options) {
       + '</section>'
     : '<h1 class="titre-page">' + escapeHtml(tr('join.h1')) + '</h1>'
       + '<p class="texte-doux">' + escapeHtml(tr('join.sousTitre')) + '</p>'
-      + '<section class="carte">' + formulaire({ ...options, tr }) + '</section>';
+      + '<section class="carte">' + formulaire({ ...options, tr, avecPrix: Boolean(reglages['tarifas.visible']) }) + '</section>';
 
   const corps = entete({ retour: { href: '/', texte: tr('commun.accueil') } })
     + '<main class="enveloppe page-etroite" id="principal">'

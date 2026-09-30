@@ -18,7 +18,10 @@ const APP_CSP = [
   "connect-src 'self'",
   "media-src 'none'",
   "object-src 'none'",
-  "frame-src 'none'",
+  // Un seul cadre tiers, et un seul : la carte OpenStreetMap de la vitrine.
+  // Elle ne se charge QUE lorsque le visiteur appuie sur « Afficher la carte »
+  // (voir accueil.js) : rien ne part vers un tiers avant qu'il l'ait demande.
+  "frame-src https://www.openstreetmap.org",
   "frame-ancestors 'none'",
   "base-uri 'none'",
   "form-action 'self'",

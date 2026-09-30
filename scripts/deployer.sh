@@ -60,6 +60,17 @@ domaine=$(sed -n 's/^DOMAINE=//p' .env 2>/dev/null | head -n 1 | tr -d '\r' || t
 [ -n "${domaine:-}" ] && base="https://${domaine}"
 adresse="${base}/healthz"
 
+# --- 0 bis. le dossier des photos ------------------------------------
+# L'application y ENREGISTRE les photos envoyees depuis l'onglet Galerie. Cree
+# par Docker au premier demarrage, il appartiendrait a root et le conteneur
+# (utilisateur 1000) ne pourrait rien y ecrire : on le cree nous-memes, avec le
+# bon proprietaire, avant que Docker ne le fasse a notre place.
+mkdir -p photos
+if [ "$(stat -c '%u' photos 2>/dev/null || echo 1000)" != "1000" ]; then
+  dire "Le dossier photos/ n'appartient pas a l'utilisateur 1000 : correction (sudo)."
+  sudo chown -R 1000:1000 photos || dire "ATTENTION : chown impossible. A faire a la main : sudo chown -R 1000:1000 $(pwd)/photos"
+fi
+
 # --- 1. le dossier doit etre propre ----------------------------------
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
   echo ""

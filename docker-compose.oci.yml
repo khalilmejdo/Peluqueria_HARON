@@ -128,16 +128,21 @@ services:
       base:
         condition: service_healthy
     volumes:
-      # Les photos du salon, en lecture seule.
+      # Les photos du salon, envoyées depuis l'onglet « Galerie » de l'espace
+      # de gestion. EN ÉCRITURE : l'application y enregistre ce que le gérant
+      # envoie depuis son téléphone.
       #
-      # Elles ne sont PAS dans l'image : y ajouter un cliché demanderait de
-      # reconstruire et de redéployer. Montées depuis le disque, il suffit de
-      # les déposer et de recharger la page :
+      # Elles ne sont PAS dans l'image : un redéploiement ne les touche pas, et
+      # elles partent dans la sauvegarde du dossier /opt/haron/photos.
       #
-      #   scp mesphotos/*.jpg ubuntu@<serveur>:/opt/haron/photos/
+      # Le dossier doit appartenir à l'utilisateur 1000 (celui du conteneur,
+      # et « ubuntu » sur l'hôte) : scripts/deployer.sh le crée ainsi. S'il a
+      # été créé par root, l'écran de galerie le dit et donne la commande :
+      #   sudo chown -R 1000:1000 /opt/haron/photos
       #
-      # Le dossier peut rester vide : la galerie disparaît alors de la vitrine.
-      - ./photos:/app/public/img/galerie:ro
+      # Les photos déposées à la main par scp, avant cet écran, sont reprises
+      # d'elles-mêmes dans la galerie au démarrage suivant.
+      - ./photos:/app/data/photos
     # Aucun port publié : l'application n'est joignable que par Caddy.
     expose:
       - "3000"

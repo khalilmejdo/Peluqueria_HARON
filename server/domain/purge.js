@@ -45,7 +45,7 @@ import { t } from '../core/langue.js';
 const TABLES = ['ticket_evenements', 'ticket_tarifas', 'envois_whatsapp', 'tickets', 'journees', 'fermetures'];
 
 /** Ce que la purge ne touche pas. Sert a l'ecran de confirmation. */
-export const PRESERVE = ['utilisateurs', 'reglages', 'postes', 'tarifas', 'abonnements_push'];
+export const PRESERVE = ['utilisateurs', 'reglages', 'postes', 'tarifas', 'abonnements_push', 'photos'];
 
 /**
  * Vide l'historique.

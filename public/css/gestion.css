@@ -1261,3 +1261,187 @@
   font-size: 0.8rem;
   line-height: 1.55;
 }
+
+/* ------------------------------------------------------------------ */
+/*  La galerie                                                         */
+/* ------------------------------------------------------------------ */
+
+.galerie-admin__tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.galerie-admin__tete .reglages__titre { margin: 0; }
+
+.galerie-admin__envoi {
+  margin: 0.8rem 0 0;
+  font-size: 0.9rem;
+  color: var(--accent);
+}
+
+.galerie-admin__grille {
+  list-style: none;
+  margin: 1.2rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+}
+
+.galerie-admin__photo {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.7rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--r, 10px);
+  background: var(--fond-carte-2);
+}
+
+/* Une photo masquee reste sous la main, mais on voit tout de suite qu'elle
+   n'est pas en vitrine. */
+.galerie-admin__photo--masquee .galerie-admin__vignette img { opacity: 0.4; filter: grayscale(1); }
+
+.galerie-admin__vignette {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--r-petit, 6px);
+  overflow: hidden;
+  background: var(--fond);
+}
+
+.galerie-admin__vignette img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.galerie-admin__badge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-texte);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.galerie-admin__badge--masquee { left: auto; right: 0.5rem; background: var(--fond-carte); color: var(--texte-doux); }
+
+/* Le champ de legende reprend le style des champs du formulaire (site.css,
+   .champ input), sans le cadre .champ qui prendrait trop de hauteur ici. */
+.galerie-admin__photo input[type='text'] {
+  width: 100%;
+  min-height: 2.6rem;
+  padding: 0.5rem 0.8rem;
+  border-radius: var(--r-petit, 6px);
+  border: 1px solid var(--bordure);
+  background: var(--fond);
+  color: var(--texte);
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.galerie-admin__photo input[type='text']:focus { outline: none; border-color: var(--accent); }
+
+.galerie-admin__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.galerie-admin__fleches { display: inline-flex; gap: 0.3rem; margin-left: auto; }
+
+.galerie-admin__vide { margin: 1rem 0 0; }
+
+/* ------------------------------------------------------------------ */
+/*  Le bilan de la vitrine                                             */
+/* ------------------------------------------------------------------ */
+
+.bilan__liste { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: 0.2rem; }
+
+.bilan__ligne {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.2rem 0.8rem;
+  padding: 0.6rem 0.4rem;
+  border-bottom: 1px solid var(--bordure);
+}
+
+.bilan__pastille {
+  display: grid;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  border: 1px solid var(--bordure);
+  font-size: 0.75rem;
+  color: var(--texte-doux);
+}
+
+.bilan__ligne--ok .bilan__pastille {
+  border-color: color-mix(in srgb, var(--vert, #35b37e) 60%, transparent);
+  color: var(--vert, #35b37e);
+}
+
+.bilan__nom { font-weight: 600; }
+
+.bilan__etat {
+  grid-column: 2;
+  font-size: 0.82rem;
+  color: var(--texte-doux);
+}
+
+.bilan__ligne:not(.bilan__ligne--ok) .bilan__etat { color: var(--ambre, #e8a33c); }
+
+.bilan__lien {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.bilan__lien:hover { text-decoration: underline; }
+
+/* ------------------------------------------------------------------ */
+/*  Les horaires, en tableau                                           */
+/* ------------------------------------------------------------------ */
+
+.horaires-grille { display: grid; gap: 0.35rem; margin-top: 1rem; }
+
+.horaires-grille__tete,
+.horaires-grille__ligne {
+  display: grid;
+  grid-template-columns: 6.5rem repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.horaires-grille__tete span {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--texte-doux);
+}
+
+.horaires-grille__jour { font-weight: 700; text-transform: capitalize; }
+
+.champ--horaire { margin: 0; gap: 0; }
+.champ--horaire input { min-height: 2.6rem; padding: 0.4rem 0.6rem; font-size: 0.95rem; }
+
+/* Sur telephone, cinq colonnes ne tiennent pas : le jour passe au-dessus de
+   ses quatre heures, et l'en-tete de colonnes se repete sous forme courte. */
+@media (max-width: 40rem) {
+  .horaires-grille__tete { display: none; }
+  .horaires-grille__ligne { grid-template-columns: repeat(4, minmax(0, 1fr)); padding-block: 0.4rem; border-bottom: 1px solid var(--bordure); }
+  .horaires-grille__jour { grid-column: 1 / -1; }
+}

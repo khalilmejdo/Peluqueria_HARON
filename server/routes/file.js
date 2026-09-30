@@ -123,7 +123,7 @@ fileRoutes.post('/:id/absent', async (ctx) => {
  * son heure d'arrivee ne change pas.
  */
 fileRoutes.post('/:id/transferer', async (ctx) => {
-  const data = validate(ctx.body, { posteId: { type: 'uuid', required: true, requiredMessage: 'Indiquez le coiffeur.' } });
+  const data = validate(ctx.body, { posteId: { type: 'uuid', required: true, requiredMessage: () => t('file.indiquerCoiffeur') } });
   const ticket = await transferer(idDe(ctx), { user: ctx.user, posteId: data.posteId });
   await repondreAvecLaFile(ctx, { transfere: ticket.numero_affiche, fauteuil: ticket.poste?.nom ?? null });
 }, { rateLimit: PROFILES.file });

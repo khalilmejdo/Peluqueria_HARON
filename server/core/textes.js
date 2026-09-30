@@ -241,6 +241,61 @@ export const TEXTES = {
   /*  Sections de la vitrine                                          */
   /* ---------------------------------------------------------------- */
 
+  /* ---------------------------------------------------------------- */
+  /*  La vitrine                                                      */
+  /* ---------------------------------------------------------------- */
+
+  'vt.nav.aria': { es: 'Secciones de la página', fr: 'Sections de la page' },
+  'vt.nav.tarifs': { es: 'Tarifas', fr: 'Tarifs' },
+  'vt.nav.galerie': { es: 'Galería', fr: 'Galerie' },
+  'vt.nav.reserver': { es: 'Reservar', fr: 'Réserver' },
+  'vt.nav.contact': { es: 'Contacto', fr: 'Contact' },
+
+  'vt.etat.ouvert': { es: 'Abierto ahora', fr: 'Ouvert maintenant' },
+  'vt.etat.ouvertJusqua': { es: 'Abierto · hasta las {heure}', fr: 'Ouvert · jusqu’à {heure}' },
+  'vt.etat.pause': { es: 'Cerrado · reabre a las {heure}', fr: 'Fermé · rouvre à {heure}' },
+  'vt.etat.ouvreA': { es: 'Cerrado · abre a las {heure}', fr: 'Fermé · ouvre à {heure}' },
+  'vt.etat.fermeAujourdhui': { es: 'Cerrado hoy', fr: 'Fermé aujourd’hui' },
+  'vt.etat.conges': { es: 'Cerrado por vacaciones', fr: 'Fermé pour congés' },
+
+  'vt.une.surtitre': { es: 'Barbería & peluquería', fr: 'Barbier & coiffure' },
+  'vt.une.reserver': { es: 'Reservar mi turno', fr: 'Réserver mon tour' },
+  'vt.une.tarifs': { es: 'Ver las tarifas', fr: 'Voir les tarifs' },
+  'vt.atout.compte': { es: 'Sin cuenta, sin aplicación', fr: 'Sans compte, sans application' },
+  'vt.atout.direct': { es: 'Tu posición en directo', fr: 'Votre position en direct' },
+  'vt.atout.duree': { es: 'Espera calculada según tus servicios', fr: 'Attente calculée selon vos prestations' },
+
+  'vt.infos.aria': { es: 'Información práctica', fr: 'Informations pratiques' },
+  'vt.infos.aujourdhui': { es: 'Hoy', fr: 'Aujourd’hui' },
+  'vt.infos.adresse': { es: 'Dirección', fr: 'Adresse' },
+  'vt.infos.telephone': { es: 'Teléfono', fr: 'Téléphone' },
+
+  'vt.resa.surtitre': { es: 'Reserva', fr: 'Réservation' },
+  'vt.resa.titre': { es: 'Reserva tu turno', fr: 'Réservez votre tour' },
+  'vt.resa.chapo': {
+    es: 'Elige tus servicios, deja tu nombre y tu número: entras en la fila al momento y sigues tu posición desde el móvil. Ven cuando te toque.',
+    fr: 'Choisissez vos prestations, laissez votre nom et votre numéro : vous entrez dans la file aussitôt et suivez votre position depuis votre téléphone. Venez quand c’est votre tour.',
+  },
+
+  'vt.galerie.surtitre': { es: 'La casa', fr: 'La maison' },
+  'vt.galerie.photo': { es: 'Foto {n} del salón', fr: 'Photo {n} du salon' },
+  'vt.galerie.visionneuse': { es: 'Foto ampliada', fr: 'Photo agrandie' },
+  'vt.galerie.fermer': { es: 'Cerrar', fr: 'Fermer' },
+  'vt.galerie.precedente': { es: 'Foto anterior', fr: 'Photo précédente' },
+  'vt.galerie.suivante': { es: 'Foto siguiente', fr: 'Photo suivante' },
+
+  'vt.lieu.surtitre': { es: 'Visítanos', fr: 'Nous rendre visite' },
+  'vt.lieu.titre': { es: 'Dónde estamos', fr: 'Où nous trouver' },
+  'vt.lieu.afficherCarte': { es: 'Ver el mapa', fr: 'Afficher la carte' },
+  // La phrase dit POURQUOI la carte attend un clic : sans elle, le bouton a
+  // l'air d'un defaut de chargement.
+  'vt.lieu.noteCarte': {
+    es: 'El mapa lo sirve OpenStreetMap: se carga solo si lo pides.',
+    fr: 'La carte est servie par OpenStreetMap : elle ne se charge que si vous le demandez.',
+  },
+  'vt.lieu.titreCarte': { es: 'Mapa: ubicación del salón', fr: 'Carte : emplacement du salon' },
+
+  'tarifs.medaillon': { es: 'Servicio y estilo', fr: 'Service & style' },
   'tarifs.titre': { es: 'Tarifas', fr: 'Tarifs' },
   'tarifs.intro': { es: 'Precios claros, sin sorpresas.', fr: 'Des prix clairs, sans surprise.' },
   'tarifs.bandeau': { es: 'Barbería & estilo', fr: 'Coiffure & style' },
@@ -830,6 +885,13 @@ export const TEXTES = {
   'req.dateAttendue': { es: '« {champ} » debe ser una fecha con formato AAAA-MM-DD.', fr: '« {champ} » doit être une date au format AAAA-MM-JJ.' },
   'req.dateForme': { es: 'Se espera una fecha: AAAA-MM-DD.', fr: 'Une date est attendue : AAAA-MM-JJ.' },
   'req.lienPerime': { es: 'Este enlace de seguimiento ya no sirve.', fr: 'Ce lien de suivi ne fonctionne plus.' },
+  'req.tropGros': { es: 'El contenido enviado supera el límite permitido.', fr: 'Le contenu envoyé dépasse la limite permise.' },
+  'req.interrompue': { es: 'El envío se ha interrumpido. Inténtalo de nuevo.', fr: 'L’envoi a été interrompu. Réessayez.' },
+  'req.tropProfond': { es: 'Estructura JSON demasiado profunda.', fr: 'Structure JSON trop profonde.' },
+  'req.typeNonPris': { es: 'Tipo de contenido no admitido: {type}.', fr: 'Type de contenu non pris en charge : {type}.' },
+  'req.listeTropLongue': { es: 'Lista demasiado larga.', fr: 'Liste trop longue.' },
+  'http.tropDeConnexions': { es: 'Demasiadas conexiones. Espera unos instantes.', fr: 'Trop de connexions. Patientez quelques instants.' },
+  'poste.nomRequis': { es: 'Dale un nombre al sillón.', fr: 'Donnez un nom au fauteuil.' },
 
   /* ---------------------------------------------------------------- */
   /*  Les statuts, tels qu'ils se lisent                              */
@@ -1118,6 +1180,47 @@ export const TEXTES = {
       + 'y el horario se muestra en dos tramos: 10:00 – 14:00 · 17:00 – 20:30. Déjalo vacío si la jornada es seguida.',
     fr: 'Si le salon ferme à midi, mettez ici les deux heures. Pendant la pause, aucun tour ne peut être pris, '
       + 'et les horaires s’affichent en deux tranches : 10:00 – 14:00 · 17:00 – 20:30. Laissez vide si la journée est continue.',
+  },
+
+  'reglage.vitrine.galerie.libelle': { es: 'Mostrar la galería de fotos', fr: 'Afficher la galerie de photos' },
+  'reglage.vitrine.galerie.aide': {
+    es: 'Las fotos se añaden, ordenan y ocultan en la pestaña « Galería ». Desactivada, la sección desaparece de la página de inicio sin borrar ninguna foto.',
+    fr: 'Les photos s’ajoutent, s’ordonnent et se masquent dans l’onglet « Galerie ». Désactivée, la section disparaît de la page d’accueil sans effacer aucune photo.',
+  },
+  'reglage.vitrine.localisation.libelle': { es: 'Mostrar « Cómo llegar » y el mapa', fr: 'Afficher « Comment venir » et la carte' },
+  'reglage.vitrine.localisation.aide': {
+    es: 'Hace falta la dirección o las coordenadas del salón (grupo « Identidad del salón »). Sin ellas, la sección no aparece aunque esté activada.',
+    fr: 'Il faut l’adresse ou les coordonnées du salon (groupe « Identité du salon »). Sans elles, la section n’apparaît pas même activée.',
+  },
+  'reglage.vitrine.contact.libelle': { es: 'Mostrar el contacto y el horario', fr: 'Afficher le contact et les horaires' },
+  'reglage.vitrine.contact.aide': {
+    es: 'Teléfono, WhatsApp y horario. Cada tarjeta aparece solo si su dato está rellenado.',
+    fr: 'Téléphone, WhatsApp et horaires. Chaque carte n’apparaît que si son information est remplie.',
+  },
+  'reglage.vitrine.etapes.libelle': { es: 'Mostrar « Cómo funciona »', fr: 'Afficher « Comment ça marche »' },
+  'reglage.vitrine.etapes.aide': {
+    es: 'Los tres pasos que explican el turno por internet. Útil los primeros meses; se puede quitar cuando los clientes ya lo conocen.',
+    fr: 'Les trois étapes qui expliquent le tour par internet. Utile les premiers mois ; à retirer quand les clients connaissent.',
+  },
+
+  'photos.legendeTropLongue': { es: 'La leyenda no puede pasar de {max} caracteres.', fr: 'La légende ne peut pas dépasser {max} caractères.' },
+  'photos.formatRefuse': {
+    es: 'Este archivo no es una foto legible. Formatos aceptados: JPEG, PNG o WebP.',
+    fr: 'Ce fichier n’est pas une photo lisible. Formats acceptés : JPEG, PNG ou WebP.',
+  },
+  'photos.aucuneImage': { es: 'No se ha recibido ninguna imagen.', fr: 'Aucune image reçue.' },
+  'photos.introuvable': { es: 'Esta foto ya no existe.', fr: 'Cette photo n’existe plus.' },
+  'photos.galeriePleine': {
+    es: 'La galería ya tiene {max} fotos. Borra una antes de añadir otra.',
+    fr: 'La galerie compte déjà {max} photos. Supprimez-en une avant d’en ajouter une autre.',
+  },
+  'photos.dossierFerme': {
+    es: 'El servidor no puede guardar fotos: la carpeta de fotos no admite escritura. En el servidor: sudo chown -R 1000:1000 /opt/haron/photos',
+    fr: 'Le serveur ne peut pas enregistrer de photo : le dossier des photos n’est pas accessible en écriture. Sur le serveur : sudo chown -R 1000:1000 /opt/haron/photos',
+  },
+  'photos.ecritureImpossible': {
+    es: 'La foto no se ha podido guardar en el servidor. Inténtalo de nuevo.',
+    fr: 'La photo n’a pas pu être enregistrée sur le serveur. Réessayez.',
   },
 
   'reglage.tarifas.visible.libelle': { es: 'Mostrar las tarifas en la página de inicio', fr: 'Afficher les tarifs sur la page d’accueil' },

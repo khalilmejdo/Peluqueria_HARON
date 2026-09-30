@@ -161,7 +161,7 @@ if (bloc) {
 const mouvementAccepte = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 if (mouvementAccepte && 'IntersectionObserver' in window) {
-  const cibles = document.querySelectorAll('.seccion, .bandeau-qr');
+  const cibles = document.querySelectorAll('.seccion, .bandeau-qr, .vt-section, .vt-infos');
   if (cibles.length) {
     const observateur = new IntersectionObserver((entrees) => {
       for (const entree of entrees) {
@@ -183,25 +183,171 @@ if (mouvementAccepte && 'IntersectionObserver' in window) {
 /* ------------------------------------------------------------------ */
 
 /**
- * Elle ne se montre que quand le bouton du héros a quitté l'écran.
+ * Elle ne se montre que quand elle sert : le bouton de l'ouverture a quitté
+ * l'écran, ET le formulaire de réservation n'y est pas.
  *
  * Deux boutons identiques visibles en même temps font douter : le client se
- * demande s'ils mènent au même endroit. La barre n'a donc de raison d'être
- * qu'une fois le premier bouton derrière lui — c'est-à-dire pendant qu'il lit
- * les tarifs, le moment exact où il se décide.
+ * demande s'ils mènent au même endroit. Et « Réserver » posé par-dessus le
+ * formulaire de réservation cacherait le bouton d'envoi au pire moment.
  *
  * La classe de repli est posée PAR LE SCRIPT, jamais dans le HTML : si le
  * JavaScript n'arrive pas, la barre reste visible. Un doublon vaut mieux qu'un
  * bouton escamoté.
  */
 const barreAppel = document.querySelector('.appel-fixe');
-const appelDuHero = document.querySelector('.hero .bouton--geant');
+const appelDuHaut = document.querySelector('[data-appel-principal]');
+const reservation = document.getElementById('reserver');
 
-if (barreAppel && appelDuHero && 'IntersectionObserver' in window) {
+if (barreAppel && 'IntersectionObserver' in window) {
+  const visibles = new Set();
   const veille = new IntersectionObserver((entrees) => {
     for (const entree of entrees) {
-      barreAppel.classList.toggle('appel-fixe--repli', entree.isIntersecting);
+      if (entree.isIntersecting) visibles.add(entree.target);
+      else visibles.delete(entree.target);
     }
+    barreAppel.classList.toggle('appel-fixe--repli', visibles.size > 0);
   }, { rootMargin: '-8px 0px 0px 0px' });
-  veille.observe(appelDuHero);
+  if (appelDuHaut) veille.observe(appelDuHaut);
+  if (reservation) veille.observe(reservation);
+}
+
+/* ------------------------------------------------------------------ */
+/*  La barre du haut                                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Elle se densifie des qu'on quitte le haut de page — transparente sur
+ * l'ouverture, opaque sur le texte — et le lien de la section qu'on lit est
+ * souligne. Un visiteur qui descend sait toujours ou il est.
+ */
+const barre = document.querySelector('[data-barre]');
+if (barre) {
+  const liensNav = [...barre.querySelectorAll('.vt-nav__lien')];
+  const marquer = () => {
+    barre.classList.toggle('vt-barre--defile', window.scrollY > 24);
+    // En haut de page, on lit l ouverture : aucune section n est « en cours ».
+    if (window.scrollY < 200) for (const l of liensNav) l.removeAttribute('aria-current');
+  };
+  marquer();
+  window.addEventListener('scroll', marquer, { passive: true });
+
+  const liens = [...barre.querySelectorAll('.vt-nav__lien')];
+  const parAncre = new Map(liens.map((l) => [l.getAttribute('href').replace('/#', ''), l]));
+  const sections = [...parAncre.keys()].map((id) => document.getElementById(id)).filter(Boolean);
+  if (sections.length && 'IntersectionObserver' in window) {
+    const lecture = new IntersectionObserver((entrees) => {
+      for (const entree of entrees) {
+        if (!entree.isIntersecting) continue;
+        for (const l of liens) l.removeAttribute('aria-current');
+        parAncre.get(entree.target.id)?.setAttribute('aria-current', 'true');
+      }
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    for (const s of sections) lecture.observe(s);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  La visionneuse de la galerie                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Un appui sur une vignette l'ouvre en grand ; fleches, Echap, balayage au
+ * doigt. Sans JavaScript, la vignette reste un lien vers la photo.
+ *
+ * Le focus est rendu a la vignette a la fermeture : un visiteur au clavier
+ * reprend exactement ou il etait, au lieu de repartir du haut de la page.
+ */
+const visionneuse = document.querySelector('[data-visionneuse]');
+const vignettes = [...document.querySelectorAll('[data-agrandir]')];
+
+if (visionneuse && vignettes.length) {
+  const image = visionneuse.querySelector('[data-image]');
+  const legende = visionneuse.querySelector('[data-legende-grande]');
+  let courante = 0;
+  let origine = null;
+
+  const montrer = (i) => {
+    courante = (i + vignettes.length) % vignettes.length;
+    const v = vignettes[courante];
+    image.src = v.getAttribute('href');
+    image.alt = v.dataset.legende || v.querySelector('img')?.alt || '';
+    legende.textContent = v.dataset.legende || '';
+  };
+
+  const ouvrir = (i, depuis) => {
+    origine = depuis;
+    montrer(i);
+    visionneuse.hidden = false;
+    document.documentElement.style.overflow = 'hidden';
+    visionneuse.querySelector('[data-fermer]').focus();
+  };
+
+  const fermer = () => {
+    visionneuse.hidden = true;
+    document.documentElement.style.overflow = '';
+    image.removeAttribute('src');
+    origine?.focus();
+  };
+
+  vignettes.forEach((v, i) => v.addEventListener('click', (evenement) => {
+    evenement.preventDefault();
+    ouvrir(i, v);
+  }));
+
+  visionneuse.querySelector('[data-fermer]').addEventListener('click', fermer);
+  visionneuse.querySelector('[data-precedente]').addEventListener('click', () => montrer(courante - 1));
+  visionneuse.querySelector('[data-suivante]').addEventListener('click', () => montrer(courante + 1));
+  // Un appui sur le fond ferme ; un appui sur la photo, non.
+  visionneuse.addEventListener('click', (evenement) => { if (evenement.target === visionneuse) fermer(); });
+
+  document.addEventListener('keydown', (evenement) => {
+    if (visionneuse.hidden) return;
+    if (evenement.key === 'Escape') fermer();
+    else if (evenement.key === 'ArrowLeft') montrer(courante - 1);
+    else if (evenement.key === 'ArrowRight') montrer(courante + 1);
+  });
+
+  let departX = null;
+  visionneuse.addEventListener('pointerdown', (evenement) => { departX = evenement.clientX; });
+  visionneuse.addEventListener('pointerup', (evenement) => {
+    if (departX === null) return;
+    const ecart = evenement.clientX - departX;
+    departX = null;
+    if (Math.abs(ecart) > 50) montrer(courante + (ecart < 0 ? 1 : -1));
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  La carte, au clic                                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * La vraie carte ne se charge QUE si le visiteur la demande : une carte tierce
+ * chargee d'office enverrait son adresse IP a OpenStreetMap avant qu'il ait
+ * rien demande. Le plan dessine tient la place, le bouton le remplace.
+ *
+ * La vue est un petit rectangle centre sur la porte, avec une epingle : c'est
+ * ce que veut voir quelqu'un qui cherche le salon, pas la province entiere.
+ */
+const carte = document.querySelector('[data-carte]');
+const boutonCarte = carte?.querySelector('[data-afficher-carte]');
+
+if (carte && boutonCarte) {
+  boutonCarte.addEventListener('click', () => {
+    const lat = Number(carte.dataset.lat);
+    const lon = Number(carte.dataset.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    const marge = { lat: 0.0022, lon: 0.0036 };
+    const cadre = [lon - marge.lon, lat - marge.lat, lon + marge.lon, lat + marge.lat].map((n) => n.toFixed(6)).join(',');
+    const iframe = document.createElement('iframe');
+    iframe.className = 'vt-carte__iframe';
+    iframe.title = carte.dataset.titre || '';
+    iframe.loading = 'lazy';
+    iframe.referrerPolicy = 'no-referrer';
+    iframe.src = 'https://www.openstreetmap.org/export/embed.html?bbox=' + encodeURIComponent(cadre)
+      + '&layer=mapnik&marker=' + encodeURIComponent(lat.toFixed(6) + ',' + lon.toFixed(6));
+    carte.querySelector('.vt-carte__devant')?.remove();
+    carte.querySelector('.vt-carte__plan')?.remove();
+    carte.append(iframe);
+  });
 }

@@ -22,6 +22,7 @@ import {
 } from '../core/session.js';
 import { role as roleParCode } from '../core/roles.js';
 import { t } from '../core/langue.js';
+import { nomDuSalon, lireTous } from '../core/reglages.js';
 
 export const authRoutes = new Router();
 
@@ -57,6 +58,9 @@ function profil(user, csrfToken) {
      * passe refuse par un serveur qui demandait plus que ce que l'ecran annoncait.
      */
     motDePasseMin: config.security.passwordMinLength,
+    // Le nom du salon, pour la barre de l'espace de gestion : il y etait ecrit
+    // en dur, « Peluquería HARON », quel que soit le salon.
+    salon: nomDuSalon(),
   };
 }
 
@@ -118,6 +122,7 @@ authRoutes.post('/login', async (ctx) => {
 
   ctx.setCookie(SESSION_COOKIE, session.token, { maxAge: Math.floor(config.security.sessionAbsoluteMs / 1000) });
   log.info('Connexion reussie', { identifiant: ligne.identifiant, ip: ctx.ip });
+  await lireTous();
   ctx.ok(profil({
     id: ligne.id,
     identifiant: ligne.identifiant,
@@ -142,8 +147,10 @@ async function compterEchec(ligne) {
 
 /** L'etat de la session courante : appele au chargement de l'espace de gestion. */
 authRoutes.get('/session', async (ctx) => {
+  // Le nom du salon voyage avec la session : on s assure qu il est lu.
+  await lireTous();
   if (!ctx.user || !ctx.session) {
-    ctx.ok({ utilisateur: null, csrfToken: null, motDePasseMin: config.security.passwordMinLength });
+    ctx.ok({ utilisateur: null, csrfToken: null, motDePasseMin: config.security.passwordMinLength, salon: nomDuSalon() });
     return;
   }
   ctx.ok(profil(ctx.user, makeCsrfToken(ctx.session.id, ctx.session.csrfSecret)));

@@ -105,6 +105,23 @@ export const CATALOGUE = {
     type: 'booleen', defaut: false,
   },
 
+  // LES SECTIONS DE LA VITRINE, une par une. Allumees par defaut : une section
+  // dont les donnees manquent disparait d'elle-meme (pas d'adresse, pas de
+  // carte), et ces interrupteurs servent a retirer celles qu'on NE VEUT PAS
+  // montrer, pas a faire apparaitre celles qu'on a remplies.
+  'vitrine.galerie': {
+    type: 'booleen', defaut: true,
+  },
+  'vitrine.localisation': {
+    type: 'booleen', defaut: true,
+  },
+  'vitrine.contact': {
+    type: 'booleen', defaut: true,
+  },
+  'vitrine.etapes': {
+    type: 'booleen', defaut: true,
+  },
+
   // La fiche de prix elle-meme vit dans sa propre table, avec son propre ecran.
   // Ces deux reglages ne disent que comment la SECTION se presente en vitrine.
   'tarifas.visible': {
@@ -375,6 +392,18 @@ export function versTexte(cle, valeur) {
 /* ------------------------------------------------------------------ */
 
 const DUREE_CACHE_MS = 5000;
+
+/**
+ * Le nom du salon, tel que le dernier chargement des reglages l'a lu.
+ *
+ * Meme raisonnement que la langue : une base, un salon, un nom. Le logo, le
+ * medaillon des tarifs et les balises de partage le lisent ici plutot que de
+ * l'ecrire en dur — il etait ecrit « Peluquería HARON » dans le code, si bien
+ * qu'un salon de Casablanca aurait porte l'enseigne de Fuente Alamo.
+ */
+const NOM_PAR_DEFAUT = 'Peluquería HARON';
+let nomActif = NOM_PAR_DEFAUT;
+export const nomDuSalon = () => nomActif;
 let cache = null;
 let cacheAt = 0;
 
@@ -411,6 +440,7 @@ export async function lireTous({ frais = false } = {}) {
   }
   sortie['salon.idioma'] = langue;
   sortie['salon.moneda'] = devise;
+  nomActif = sortie['salon.nom'] || NOM_PAR_DEFAUT;
 
   cache = sortie;
   cacheAt = Date.now();

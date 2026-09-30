@@ -18,6 +18,7 @@ import { vueComptes } from './vue-comptes.js';
 import { vueAffiche } from './vue-affiche.js';
 import { vueFermetures } from './vue-fermetures.js';
 import { vueTarifas } from './vue-tarifas.js';
+import { vueGalerie } from './vue-galerie.js';
 
 const racine = document.getElementById('application');
 
@@ -43,6 +44,7 @@ export const etat = {
 const ONGLETS = [
   { cle: 'file', texte: 'nav.file', rendre: vueFile },
   { cle: 'tarifas', texte: 'nav.tarifs', rendre: vueTarifas, gerant: true },
+  { cle: 'galerie', texte: 'nav.galerie', rendre: vueGalerie, gerant: true },
   { cle: 'affiche', texte: 'nav.qr', rendre: vueAffiche },
   { cle: 'statistiques', texte: 'nav.chiffres', rendre: vueStatistiques },
   { cle: 'fermetures', texte: 'nav.conges', rendre: vueFermetures, gerant: true },
@@ -60,6 +62,19 @@ const ONGLETS = [
 const motDePasseMin = () => etat.motDePasseMin || 12;
 
 const estGerant = () => etat.utilisateur?.role === 'GERANT';
+
+/**
+ * Le logo de la barre : le dernier mot du nom en grand, le reste au-dessus —
+ * la meme coupe que sur la vitrine (decouperNom, cote serveur).
+ */
+function marqueDuSalon(nom) {
+  const mots = String(nom || 'Peluquería HARON').trim().split(/s+/).filter(Boolean);
+  const grand = mots.pop() || '';
+  return [
+    mots.length ? el('span.marque__peluqueria', { texte: mots.join(' ') }) : null,
+    el('span.marque__haron', { texte: grand }),
+  ];
+}
 const ongletsVisibles = () => ONGLETS.filter((o) => !o.gerant || estGerant());
 
 /* ------------------------------------------------------------------ */
@@ -126,6 +141,7 @@ function ecranConnexion({ message = null } = {}) {
         });
         poserCsrf(reponse.csrfToken);
         etat.utilisateur = reponse.utilisateur;
+        etat.salon = reponse.salon ?? etat.salon;
         etat.motDePasseMin = reponse.motDePasseMin ?? etat.motDePasseMin;
         motDePasse.value = '';
         rendre();
@@ -274,8 +290,8 @@ function barre() {
     el('div.enveloppe.gestion__entete-contenu',
       ouvrir,
       el('div.gestion__marque',
-        el('span.marque__peluqueria', { texte: 'Peluquería' }),
-        el('span.marque__haron', { texte: 'HARON' })),
+        // Le nom du salon, tel que la session le donne : il etait ecrit en dur.
+        ...marqueDuSalon(etat.salon)),
       el('div.tiroir__voile', { donnees: { voile: '1' }, surClick: fermerTiroir }),
       el('nav.onglets', {
         'aria-label': t('nav.sections'),
@@ -358,6 +374,7 @@ try {
   const session = await api.get('/api/auth/session');
   poserCsrf(session.csrfToken);
   etat.utilisateur = session.utilisateur;
+  etat.salon = session.salon ?? null;
   etat.motDePasseMin = session.motDePasseMin ?? null;
 } catch {
   etat.utilisateur = null;

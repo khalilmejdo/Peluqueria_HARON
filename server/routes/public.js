@@ -21,7 +21,7 @@ import { consume, consommerPriseDeTour, PROFILES } from '../core/ratelimit.js';
 import { lireTous, adressePublique } from '../core/reglages.js';
 import { abonner, envoyerEtatInitial } from '../core/flux.js';
 import { jourLocal } from '../core/temps.js';
-import { prendreTour, ticketParJeton, chargerEtat, pourClient, annulerParClient, etatPriseDeTour } from '../domain/file.js';
+import { prendreTour, ticketParJeton, chargerEtat, pourClient, annulerParClient, etatPriseDeTour, attenteNouvelArrivant } from '../domain/file.js';
 import { t } from '../core/langue.js';
 
 export const publicRoutes = new Router();
@@ -51,7 +51,7 @@ export async function exigerClePantalla(ctx) {
   const a = Buffer.from(fournie);
   const b = Buffer.from(attendue);
   if (a.length !== b.length || !timingSafeEqual(a, b)) {
-    throw notFound('Página no encontrada.');
+    throw notFound(t('erreur.pageIntrouvable'));
   }
 }
 
@@ -145,7 +145,7 @@ publicRoutes.post('/tickets/:jeton/annuler', async (ctx) => {
   const limite = consume('suivi:' + ctx.ip, PROFILES.suivi);
   if (!limite.allowed) {
     ctx.res.setHeader('Retry-After', String(limite.retryAfterSeconds));
-    throw new AppError(429, 'Trop de demandes. Patientez quelques instants.', { details: { retryAfter: limite.retryAfterSeconds } });
+    throw new AppError(429, t('http.tropDeDemandes'), { details: { retryAfter: limite.retryAfterSeconds } });
   }
   const ticket = await annulerParClient(jeton);
   ctx.ok({ numero: ticket.numero_affiche, statut: ticket.statut });
@@ -173,7 +173,7 @@ publicRoutes.get('/pantalla/flux', async (ctx) => {
   const limite = consume('pantalla:' + ctx.ip, PROFILES.flux);
   if (!limite.allowed) {
     ctx.res.setHeader('Retry-After', String(limite.retryAfterSeconds));
-    throw new AppError(429, 'Trop de connexions.', { details: { retryAfter: limite.retryAfterSeconds } });
+    throw new AppError(429, t('http.tropDeConnexions'), { details: { retryAfter: limite.retryAfterSeconds } });
   }
   const res = ctx.ouvrirFlux();
   if (!res) return;
@@ -199,7 +199,9 @@ publicRoutes.get('/file', async (ctx) => {
     // vitrine voit que la maison tourne.
     servis: etat.compteurs.servis,
     dureeMoyenneMinutes: etat.dureeMoyenneMinutes,
-    attenteEstimeeMinutes: (enAttente + etat.compteurs.enCours) * etat.dureeMoyenneMinutes,
+    // La meme simulation que le ticket : la vitrine n annonce plus un chiffre
+    // que le client verrait changer des qu il a pris son tour.
+    attenteEstimeeMinutes: attenteNouvelArrivant(etat),
     mode: etat.mode,
     // En file par coiffeur, le client doit savoir qui est disponible et
     // combien de monde attend chez chacun. En file unique, la liste n'a pas
@@ -243,7 +245,7 @@ async function chargerTicketDuJeton(ctx, profil = PROFILES.suivi) {
   const limite = consume('suivi:' + ctx.ip, profil);
   if (!limite.allowed) {
     ctx.res.setHeader('Retry-After', String(limite.retryAfterSeconds));
-    throw new AppError(429, 'Trop de demandes. Patientez quelques instants.', { details: { retryAfter: limite.retryAfterSeconds } });
+    throw new AppError(429, t('http.tropDeDemandes'), { details: { retryAfter: limite.retryAfterSeconds } });
   }
   const ticket = await ticketParJeton(jeton);
   if (!ticket) throw notFound(t('req.lienPerime'));
