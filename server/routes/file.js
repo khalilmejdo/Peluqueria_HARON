@@ -147,6 +147,7 @@ fileRoutes.post('/comptoir', async (ctx) => {
     prenom: rules.prenom,
     nom: rules.nomFamille,
     telephone: rules.whatsapp,
+    posteId: { type: 'uuid' },
   });
   const { ticket, jeton } = await ajouterAuComptoir(data, { user: ctx.user });
   const reglages = await lireTous();

@@ -63,7 +63,16 @@
 	# alors un au hasard, et le salon sert les pages de l autre site une fois
 	# sur deux. L alias est declare dans docker-compose.oci.yml et il est
 	# unique ; sur une installation qui n heberge que le salon, rien ne change.
-	reverse_proxy haron-app:3000
+	#
+	# keepalive 30s : Caddy doit lacher une connexion inactive AVANT que Node
+	# ne la ferme (keepAliveTimeout 65 s). Avec ses deux minutes par defaut, un
+	# POST pouvait partir sur une connexion deja fermee par Node -- et Caddy,
+	# qui rejoue un GET, ne rejoue pas un POST : 502 isole sur « client servi ».
+	reverse_proxy haron-app:3000 {
+		transport http {
+			keepalive 30s
+		}
+	}
 
 	# L'application pose déjà ses propres en-têtes de sécurité (CSP stricte,
 	# nosniff, frame-ancestors, Referrer-Policy). On n'ajoute ici que ce que

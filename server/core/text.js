@@ -26,6 +26,18 @@ export function cleanSpaces(input) {
 }
 
 /** Retire les octets nuls, que PostgreSQL refuse dans une colonne texte. */
+/**
+ * Ote les « / » finaux. Par une boucle, JAMAIS par /\/+$/ : cette expression
+ * est quadratique sur une longue suite de « / » suivie d'autre chose (seize
+ * mille barres : 240 ms de processeur ; un corps de 256 Ko : une minute).
+ */
+export function sansBarresFinales(input) {
+  const s = String(input);
+  let fin = s.length;
+  while (fin > 0 && s.charCodeAt(fin - 1) === 47) fin -= 1;
+  return s.slice(0, fin);
+}
+
 export function sansOctetNul(input) {
   if (typeof input !== 'string') return input;
   return input.includes(CARACTERE_NUL) ? input.split(CARACTERE_NUL).join('') : input;

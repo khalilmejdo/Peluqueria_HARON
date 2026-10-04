@@ -296,12 +296,33 @@ que lorsqu'on demande explicitement à écrire à quelqu'un.
   derrière le wifi du salon, toute une matinée la partage. Le budget par adresse
   est donc large (40/h, contre les robots) et celui par numéro serré (5/h), qui
   est la vraie limite.
-- **Doublon** : un même numéro ne peut pas occuper deux places. Le lien du
-  ticket existant n'est **pas** renvoyé : sinon, deviner un numéro de téléphone
-  suffirait à récupérer le ticket de quelqu'un d'autre.
+- **Doublon** : un même numéro ne peut pas occuper deux places. Ni le lien du
+  ticket existant ni son **numéro de tour** ne sont renvoyés au public : le
+  numéro s'affiche à côté du prénom sur l'écran du salon, et le donner reliait
+  un téléphone tapé au hasard à une personne présente. Le personnel, au
+  comptoir, a le client devant lui : à lui, on le dit.
+- **Liens de suivi** : on compte les **échecs** par adresse (30 jetons inconnus
+  en 10 min, puis 429 : l'anti-énumération) et le **volume** par jeton. Toute
+  la salle d'attente partage le wifi du salon, donc une adresse : compter tout
+  par adresse privait de temps réel les derniers arrivés un samedi (un 429 sur
+  un flux, et `EventSource` ne se reconnecte plus jamais).
+- **IPv6** : les limites par adresse comptent le **/64**, l'unité qu'un abonné
+  contrôle — sinon un seul abonnement disposait de milliards d'adresses.
+- **Temps réel** : 50 places sur 500 sont réservées au personnel ; un même
+  ticket garde au plus 3 flux (le plus ancien est fermé, c'est lui qui est mort).
 - **Mots de passe** : scrypt + sel + poivre applicatif hors base. Verrouillage
-  du compte après plusieurs échecs. Temps de réponse identique pour un
+  du compte après plusieurs échecs, compté **par la base** (`+ 1` dans
+  l'`UPDATE`) pour que des essais simultanés ne se comptent pas pour un. Le
+  verrou bloque les **nouvelles** connexions sans fermer les sessions ouvertes :
+  sinon n'importe qui déconnectait la tablette du gérant en tapant cinq mots
+  de passe faux sur son identifiant. Temps de réponse identique pour un
   identifiant inconnu et un mot de passe faux.
+- **Journaux et Sentry** : le jeton de suivi est masqué dans **toute** valeur
+  journalisée (il vit dans l'adresse `/ticket/<jeton>`).
+- **Requêtes hostiles** : une cible illisible (`//`, `Host: a:99999`) rend 400
+  au lieu d'arrêter le processus ; aucune expression quadratique sur une
+  entrée ; un corps qui n'arrive pas est coupé (20 s de silence), et une
+  réponse qui laisse le corps non lu ferme la connexion.
 
 ---
 

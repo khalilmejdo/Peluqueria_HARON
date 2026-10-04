@@ -29,6 +29,16 @@ function prestationsDe(ticket) {
 
 let flux = null;
 let conteneurCourant = null;
+/**
+ * Le formulaire du comptoir, construit UNE fois par vue.
+ *
+ * Il etait reconstruit a chaque peinture, donc a chaque battement du temps
+ * reel : un client qui prenait son tour en ligne pendant que le coiffeur tapait
+ * le nom d'un client du comptoir EFFACAIT la saisie et refermait le formulaire.
+ * Le meme noeud est desormais deplace d'une peinture a l'autre — le DOM garde
+ * alors ce qui est tape, et l'ouverture du <details>.
+ */
+let comptoirCourant = null;
 let derniereFile = null;
 let enCoursDeGeste = false;
 
@@ -343,6 +353,11 @@ function blocComptoir() {
   const prenom = el('input', { id: 'k-prenom', type: 'text', autocomplete: 'off', required: true, placeholder: t('file.champPrenom') });
   const nom = el('input', { id: 'k-nom', type: 'text', autocomplete: 'off', required: true, placeholder: t('file.champNom') });
   const telephone = el('input', { id: 'k-tel', type: 'tel', inputmode: 'tel', autocomplete: 'off', required: true, placeholder: t('file.champWhatsapp') });
+  // En file par coiffeur, le client du comptoir choisit son coiffeur comme celui
+  // qui prend son tour en ligne. La liste se remplit a chaque peinture : un
+  // fauteuil ferme dans la journee en disparait.
+  const coiffeur = el('select', { id: 'k-coiffeur', 'aria-label': t('file.champCoiffeur'), 'data-comptoir-coiffeur': '' });
+  coiffeur.hidden = true;
   const erreur = el('p.alerte.alerte--refus', { role: 'alert', hidden: true });
 
   const formulaire = el('form.comptoir__formulaire', {
@@ -352,6 +367,7 @@ function blocComptoir() {
       try {
         const reponse = await api.post('/api/file/comptoir', {
           prenom: prenom.value.trim(), nom: nom.value.trim(), telephone: telephone.value.trim(),
+          posteId: (!coiffeur.hidden && coiffeur.value) || undefined,
         });
         if (reponse?.file) peindre(reponse.file);
         annoncer(t('file.tourCreeComptoir', { numero: reponse.numero }));
@@ -366,13 +382,30 @@ function blocComptoir() {
     },
   },
   erreur,
-  el('div.comptoir__champs', prenom, nom, telephone),
+  el('div.comptoir__champs', prenom, nom, telephone, coiffeur),
   el('button.bouton.bouton--discret', { type: 'submit', texte: t('file.ajouterALaFile') }));
 
   return el('details.comptoir',
     el('summary', { texte: t('file.ajouterAuComptoir') }),
     el('p.texte-doux', { texte: t('file.ajouterAuComptoirAide') }),
     formulaire);
+}
+
+/** Le choix du coiffeur au comptoir : visible en file par coiffeur seulement. */
+function choixDuComptoir(file) {
+  const select = conteneurCourant?.querySelector('[data-comptoir-coiffeur]');
+  if (!select) return;
+  const parFauteuil = file.mode === 'PAR_FAUTEUIL';
+  const ouverts = (file.postes || []).filter((p) => p.actif);
+  select.hidden = !parFauteuil;
+  select.required = parFauteuil;
+  if (!parFauteuil) return;
+  const garde = select.value;
+  remplacer(select, ...ouverts.map((p) => el('option', {
+    value: p.id,
+    texte: p.coiffeur ? p.nom + ' · ' + p.coiffeur : p.nom,
+  })));
+  if (ouverts.some((p) => p.id === garde)) select.value = garde;
 }
 
 /* ------------------------------------------------------------------ */
@@ -385,6 +418,7 @@ function peindre(file) {
 
   const zone = conteneurCourant.querySelector('[data-file]');
   if (!zone) return;
+  comptoirCourant ||= blocComptoir();
 
   const attente = file.attente || [];
   const fauteuils = file.compteurs.fauteuils ?? 1;
@@ -459,8 +493,9 @@ function peindre(file) {
         })
         : null),
     liste,
-    blocComptoir(),
+    comptoirCourant,
     historique);
+  choixDuComptoir(file);
 }
 
 function chiffre(valeur, libelle) {
@@ -529,6 +564,7 @@ function blocPriseDeTour(prise) {
 
 export async function vueFile(conteneur, { etat }) {
   conteneurCourant = conteneur;
+  comptoirCourant = null;
   const zone = el('div.enveloppe.file#file', { donnees: { file: '1' } });
   const alerte = el('p.alerte.alerte--refus.file__alerte', { role: 'alert', hidden: true, donnees: { alerte: '1' } });
 

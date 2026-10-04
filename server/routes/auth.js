@@ -132,16 +132,28 @@ authRoutes.post('/login', async (ctx) => {
   }, session.csrfToken));
 }, { public: true, skipCsrf: true, rateLimit: PROFILES.login });
 
+/**
+ * Un echec de plus, compte PAR LA BASE.
+ *
+ * L'ancien code ecrivait « valeur lue au debut de la requete + 1 » : dix
+ * tentatives lancees au meme instant lisaient toutes 0 et ecrivaient toutes 1.
+ * Chaque vague n'ajoutait qu'une unite, et le verrou « cinq essais » en
+ * laissait passer cinquante par adresse. L'increment se fait desormais dans
+ * l'UPDATE lui-meme, sous le verrou de ligne de PostgreSQL.
+ */
 async function compterEchec(ligne) {
-  const tentatives = (ligne.tentatives_echouees || 0) + 1;
-  if (tentatives >= config.security.loginMaxAttempts) {
-    await execute(
-      'UPDATE utilisateurs SET tentatives_echouees = $2, verrouille_jusqu_a = now() + make_interval(secs => $3) WHERE id = $1',
-      [ligne.id, tentatives, Math.round(config.security.loginLockoutMs / 1000)],
-    );
-    log.warn('Compte verrouille apres plusieurs echecs', { identifiant: ligne.identifiant, tentatives });
-  } else {
-    await execute('UPDATE utilisateurs SET tentatives_echouees = $2 WHERE id = $1', [ligne.id, tentatives]);
+  const r = await one(
+    `UPDATE utilisateurs
+        SET tentatives_echouees = tentatives_echouees + 1,
+            verrouille_jusqu_a = CASE WHEN tentatives_echouees + 1 >= $2
+                                      THEN now() + make_interval(secs => $3)
+                                      ELSE verrouille_jusqu_a END
+      WHERE id = $1
+  RETURNING tentatives_echouees`,
+    [ligne.id, config.security.loginMaxAttempts, Math.round(config.security.loginLockoutMs / 1000)],
+  );
+  if (r && r.tentatives_echouees === config.security.loginMaxAttempts) {
+    log.warn('Compte verrouille apres plusieurs echecs', { identifiant: ligne.identifiant, tentatives: r.tentatives_echouees });
   }
 }
 

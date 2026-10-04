@@ -43,8 +43,22 @@ function redact(input, depth = 0) {
     for (const [key, val] of Object.entries(input)) out[key] = estSensible(key) ? '[expurge]' : redact(val, depth + 1);
     return out;
   }
-  if (typeof input === 'string' && input.length > 2000) return input.slice(0, 2000) + '... [tronque]';
+  if (typeof input === 'string') {
+    const masque = masquerJetons(input);
+    return masque.length > 2000 ? masque.slice(0, 2000) + '... [tronque]' : masque;
+  }
   return input;
+}
+
+/**
+ * Le jeton de suivi VIT DANS L'ADRESSE (/ticket/<jeton>). Expurger la cle
+ * « jeton » ne suffisait donc pas : chaque requete du client ecrivait son
+ * chemin, jeton compris, dans le journal — et dans Sentry. Quiconque lisait
+ * l'un ou l'autre pouvait suivre, ou annuler, le tour de n'importe qui. C'est
+ * la VALEUR qu'on masque, ou qu'elle se trouve.
+ */
+export function masquerJetons(texte) {
+  return String(texte).replace(/(\/tickets?\/)[A-Za-z0-9_-]{16,}/g, '$1[jeton]');
 }
 
 function emit(level, message, context) {

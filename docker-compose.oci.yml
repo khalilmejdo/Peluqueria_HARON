@@ -66,6 +66,10 @@ services:
       - app
 
   app:
+    # Le nom que scripts/deployer.sh etiquette « precedente » pour revenir en
+    # arriere. Explicite : deduit du nom du dossier, il changeait avec lui, et
+    # le retour arriere reconstruisait l'ancien code au lieu de le reprendre.
+    image: haron-app:latest
     logging: *journaux
     build:
       context: .
@@ -78,6 +82,11 @@ services:
       # Fuseau du salon : c'est lui qui définit ce qu'est « aujourd'hui ».
       APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Madrid}
       TELEPHONE_INDICATIF_DEFAUT: ${TELEPHONE_INDICATIF_DEFAUT:-34}
+      # Langue et monnaie de la PREMIERE installation (lues par le seed sur une
+      # base vierge ; ensuite, elles se changent dans les Reglages). Sans ces
+      # deux lignes, un salon marocain s'installait en espagnol et en euros.
+      APP_LANGUE: ${APP_LANGUE:-}
+      APP_MONNAIE: ${APP_MONNAIE:-}
 
       DATABASE_URL: postgresql://haron:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}@base:5432/haron
       DATABASE_SSL: "off"
@@ -85,10 +94,14 @@ services:
       APP_SECRET: ${APP_SECRET:?APP_SECRET requis}
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?APP_ENCRYPTION_KEY requis}
       APP_PASSWORD_PEPPER: ${APP_PASSWORD_PEPPER:?APP_PASSWORD_PEPPER requis}
+      # Rotation de la cle de chiffrement : l'ANCIENNE, le temps que les numeros
+      # se rechiffrent. Absente d'ici, elle n'atteignait pas l'application et
+      # tous les numeros WhatsApp devenaient illisibles au redemarrage.
+      APP_ENCRYPTION_KEY_PREVIOUS: ${APP_ENCRYPTION_KEY_PREVIOUS:-}
 
       # L'adresse qu'encode le QR Code de la vitrine. Elle ne doit plus
       # changer une fois l'affiche imprimée.
-      PUBLIC_URL: https://${DOMAINE}
+      PUBLIC_URL: https://${DOMAINE:?DOMAINE requis (adresse canonique, celle du QR Code)}
       # Toutes les origines admises pour la protection CSRF. Avec plusieurs
       # noms, les lister ici aussi, separees par des virgules -- sinon le
       # second nom affiche les pages mais refuse le moindre formulaire.
@@ -124,6 +137,27 @@ services:
       WEBPUSH_CLE_PUBLIQUE: ${WEBPUSH_CLE_PUBLIQUE:-}
       WEBPUSH_CLE_PRIVEE: ${WEBPUSH_CLE_PRIVEE:-}
       WEBPUSH_SUJET: ${WEBPUSH_SUJET:-}
+
+      # Reglages fins. Vides, ce sont les defauts de server/core/config.js.
+      # Ils sont relayes ici pour la meme raison que SENTRY_DSN : poses dans
+      # le .env sans ces lignes, ils seraient ignores sans un mot.
+      PHOTO_MAX_KO: ${PHOTO_MAX_KO:-}
+      BODY_LIMIT_KB: ${BODY_LIMIT_KB:-}
+      SESSION_IDLE_MINUTES: ${SESSION_IDLE_MINUTES:-}
+      SESSION_ABSOLUTE_HOURS: ${SESSION_ABSOLUTE_HOURS:-}
+      PASSWORD_MIN_LENGTH: ${PASSWORD_MIN_LENGTH:-}
+      LOGIN_MAX_ATTEMPTS: ${LOGIN_MAX_ATTEMPTS:-}
+      LOGIN_LOCKOUT_MINUTES: ${LOGIN_LOCKOUT_MINUTES:-}
+      LOGIN_RATE_MAX: ${LOGIN_RATE_MAX:-}
+      RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-}
+      LOG_LEVEL: ${LOG_LEVEL:-}
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-}
+      DATABASE_STATEMENT_TIMEOUT_MS: ${DATABASE_STATEMENT_TIMEOUT_MS:-}
+      DATABASE_LOCK_TIMEOUT_MS: ${DATABASE_LOCK_TIMEOUT_MS:-}
+      # FIGE, pas relaye : c'est la cible du volume ci-dessous. Une valeur venue
+      # du .env ferait ecrire les photos HORS du volume, perdues au deploiement.
+      PHOTOS_DIR: /app/data/photos
     depends_on:
       base:
         condition: service_healthy

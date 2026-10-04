@@ -56,10 +56,13 @@ export async function loadSession(token) {
     await revokeSession(row.session_id, t('trace.compteDesactive'));
     return null;
   }
-  if (row.verrouille_jusqu_a && new Date(row.verrouille_jusqu_a).getTime() > Date.now()) {
-    await revokeSession(row.session_id, t('trace.compteBloque'));
-    return null;
-  }
+  // LE VERROU NE FERME PAS LES SESSIONS OUVERTES. Il bloque les NOUVELLES
+  // connexions, rien d'autre. Avant, cinq mots de passe faux tapes par
+  // n'importe qui sur l'identifiant du gerant -- previsible -- deconnectaient
+  // aussi la tablette du comptoir et son telephone, en pleine journee, et l'en
+  // empechaient de revenir pendant quinze minutes. Les sessions ouvertes ont
+  // ete obtenues avec le bon mot de passe : un attaquant qui ECHOUE ne doit pas
+  // pouvoir les fermer. Seule la desactivation du compte les revoque.
 
   return {
     session: {

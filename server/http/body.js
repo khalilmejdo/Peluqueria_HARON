@@ -10,7 +10,10 @@
  * seulement vers une route qui l'a declare. Son type se verifie ensuite dans
  * ses octets (domain/photos.js), jamais dans l'en-tete annonce.
  */
-import { badRequest, tooLarge, unsupportedMedia } from '../core/errors.js';
+import { AppError, badRequest, tooLarge, unsupportedMedia } from '../core/errors.js';
+
+/** Silence maximal entre deux morceaux d'un corps de requete. */
+const SILENCE_MAX_MS = 20000;
 import { sansOctetNul } from '../core/text.js';
 import { t } from '../core/langue.js';
 
@@ -34,15 +37,35 @@ export function readBody(req, limitBytes) {
     let size = 0;
     let settled = false;
 
+    // UN CORPS QUI N'ARRIVE PAS NE GARDE PAS LE SOCKET POUR TOUJOURS.
+    //
+    // requestTimeout vaut 0 (les flux temps reel restent ouverts des heures) :
+    // rien ne bornait donc une requete qui annonce 256 Ko et envoie un octet
+    // par minute. Quelques centaines comme elle epuisaient les descripteurs du
+    // processus. Deux bornes : vingt secondes sans un octet, et une duree
+    // totale a la mesure de la limite — 16 Ko/s, le debit d'une 3G qui peine,
+    // suffit a une photo de 8 Mo en neuf minutes.
+    const totalMs = Math.max(30000, Math.ceil(limitBytes / 16384) * 1000);
+    let silence = null;
+    const total = setTimeout(() => fail(new AppError(408, t('req.interrompue'))), totalMs);
+    const rearmer = () => {
+      clearTimeout(silence);
+      silence = setTimeout(() => fail(new AppError(408, t('req.interrompue'))), SILENCE_MAX_MS);
+    };
+    const arreterMinuteries = () => { clearTimeout(silence); clearTimeout(total); };
+    rearmer();
+
     const fail = (err) => {
       if (settled) return;
       settled = true;
+      arreterMinuteries();
       req.destroy();
       reject(err);
     };
 
     req.on('data', (chunk) => {
       if (settled) return;
+      rearmer();
       size += chunk.length;
       if (size > limitBytes) {
         fail(tooLarge(t('req.tropGros')));
@@ -54,6 +77,7 @@ export function readBody(req, limitBytes) {
     req.on('end', () => {
       if (settled) return;
       settled = true;
+      arreterMinuteries();
       resolve(Buffer.concat(chunks, size));
     });
 

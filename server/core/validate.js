@@ -13,7 +13,7 @@
 import { ValidationError } from './errors.js';
 import { isUuid } from './crypto.js';
 import { config } from './config.js';
-import { cleanSpaces, isValidIsoDate, capitaliserNom, telephoneInternational } from './text.js';
+import { cleanSpaces, isValidIsoDate, capitaliserNom, telephoneInternational, sansBarresFinales } from './text.js';
 import { heureValide } from './temps.js';
 import { t } from './langue.js';
 
@@ -133,7 +133,9 @@ const CONVERTERS = {
 
   /** Adresse publique du salon (PUBLIC_URL, page de suivi partagee). */
   url(value, rule) {
-    const text = String(value).trim().replace(/\/+$/, '');
+    const brut = String(value).trim();
+    if (brut.length > (rule.max ?? 300) + 50) return { error: t('valid.urlTropLongue') };
+    const text = sansBarresFinales(brut);
     if (text.length > (rule.max ?? 300)) return { error: t('valid.urlTropLongue') };
     try {
       const u = new URL(text);

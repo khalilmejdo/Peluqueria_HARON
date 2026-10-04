@@ -13,3 +13,12 @@ coverage
 sauvegardes
 Caddyfile
 docker-compose*.yml
+
+# Ce qui vit sur le serveur et n a rien a faire dans l image : les photos
+# (montees en volume), la configuration propre a la machine, et le script
+# DuckDNS, qui porte un jeton secret.
+photos
+caddy.d
+docker-compose.local.yml
+duckdns.sh
+**/duckdns.sh

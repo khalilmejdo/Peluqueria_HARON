@@ -4,10 +4,10 @@
  */
 import zlib from 'node:zlib';
 import { randomToken, isUuid } from '../core/crypto.js';
-import { sansOctetNul, isValidIsoDate } from '../core/text.js';
+import { sansOctetNul, isValidIsoDate, sansBarresFinales } from '../core/text.js';
 import { config } from '../core/config.js';
 import { badRequest } from '../core/errors.js';
-import { applySecurityHeaders, applyNoStore, clientIp, effectiveHost, effectiveProtocol, baseUrl } from './security.js';
+import { applySecurityHeaders, applyNoStore, clientIp, cleDeDebit, effectiveHost, effectiveProtocol, baseUrl } from './security.js';
 import { t } from '../core/langue.js';
 
 /* ------------------------------------------------------------------ */
@@ -84,9 +84,13 @@ export class Context {
     } catch {
       chemin = url.pathname;
     }
-    this.path = chemin.replace(/\/+$/, '') || '/';
+    // Pas de /\/+$/ ici : quadratique, et execute avant toute limite de debit
+    // (six requetes par seconde gelaient le salon). Voir sansBarresFinales().
+    this.path = sansBarresFinales(chemin) || '/';
     this.searchParams = url.searchParams;
     this.ip = clientIp(req);
+    /** La cle des limites de debit : le /64 en IPv6 (voir cleDeDebit). */
+    this.ipDebit = cleDeDebit(this.ip);
     this.userAgent = String(req.headers['user-agent'] || '').slice(0, 400);
     this.cookies = parseCookies(req.headers.cookie);
 

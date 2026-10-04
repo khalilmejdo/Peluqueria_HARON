@@ -834,9 +834,15 @@ export async function prendreTour({
         WHERE jour = $1 AND telephone_idx = ANY($2) AND statut = ANY($3) LIMIT 1`,
       [jour, idxRecherche, STATUTS_ACTIFS],
     );
+    // Ni son NUMERO de tour non plus, au public : l'ecran du salon affiche
+    // ce numero a cote du prenom, et le donner reliait un telephone tape au
+    // hasard a une personne presente aujourd'hui. Le personnel, au comptoir,
+    // a le client devant lui : a lui, on le dit.
     if (dejaLa) {
       throw new AppError(409,
-        t('file.dejaUnTour', { numero: dejaLa.numero_affiche }),
+        user
+          ? t('file.dejaUnTour', { numero: dejaLa.numero_affiche })
+          : t('file.dejaUnTourPublic'),
         { code: 'TOUR_DEJA_PRIS' });
     }
 
@@ -1249,8 +1255,11 @@ export async function appelerSuivant({ user = null, posteId = null } = {}) {
 }
 
 /** Ajout d'un client AU COMPTOIR, par le coiffeur (client sans telephone en main). */
-export async function ajouterAuComptoir({ prenom, nom, telephone }, { user = null } = {}) {
-  return prendreTour({ prenom, nom, telephone, source: 'COMPTOIR' }, { user });
+export async function ajouterAuComptoir({ prenom, nom, telephone, posteId = null }, { user = null } = {}) {
+  // En file par coiffeur, le client du comptoir choisit lui aussi son coiffeur :
+  // sans `posteId`, prendreTour() le refuse — et le formulaire du comptoir ne
+  // pouvait plus ajouter personne des que le salon passait dans ce mode.
+  return prendreTour({ prenom, nom, telephone, posteId, source: 'COMPTOIR' }, { user });
 }
 
 /**

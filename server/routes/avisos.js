@@ -43,7 +43,7 @@ const REGLES_ABONNEMENT = {
  * accepter « http:// » ouvrirait la porte a une adresse interne — le serveur
  * irait alors poster, avec ses propres droits reseau, ou on lui dit.
  */
-function exigerEndpoint(valeur) {
+export function exigerEndpoint(valeur) {
   let url;
   try {
     url = new URL(valeur);
@@ -51,8 +51,24 @@ function exigerEndpoint(valeur) {
     throw badRequest(t('push.adresseInvalide'));
   }
   if (url.protocol !== 'https:') throw badRequest(t('push.httpsRequis'));
+  // HTTPS NE SUFFIT PAS : « https://10.0.0.5:8443/x » est en https, et le
+  // serveur y postait quand meme, depuis l'interieur du reseau. La reponse
+  // (envoye / efface / impossible) servait alors a sonder les ports internes.
+  // Seuls les services de notification des navigateurs recoivent nos avis.
+  if (!SERVICES_PUSH.some((motif) => motif.test(url.hostname)) || (url.port && url.port !== '443')) {
+    throw badRequest(t('push.adresseInvalide'));
+  }
   return url.href;
 }
+
+/** Chrome/Edge/Android, Firefox, Safari/iOS, Windows. */
+const SERVICES_PUSH = [
+  /^fcm\.googleapis\.com$/,
+  /^android\.googleapis\.com$/,
+  /^updates\.push\.services\.mozilla\.com$/,
+  /^(?:[a-z0-9-]+\.)*push\.apple\.com$/,
+  /^(?:[a-z0-9-]+\.)*notify\.windows\.com$/,
+];
 
 /**
  * L'etat, pour l'ecran de gestion.

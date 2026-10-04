@@ -28,6 +28,12 @@ const DELAI_REGROUPEMENT_MS = 60;
 const BATTEMENT_MS = 25000;
 /** Plafond d'abonnes simultanes : un salon, pas un stade. */
 const MAX_ABONNES = 500;
+/** Places que le public ne peut pas prendre : la tablette et les telephones du salon. */
+const RESERVE_SALON = 50;
+/** Flux simultanes d'un meme ticket (onglets, reveils de veille). */
+const MAX_PAR_TICKET = 3;
+/** Ecrans du salon simultanes : un ou deux televiseurs, pas vingt. */
+const MAX_PANTALLAS = 20;
 
 /** @typedef {{ id:number, res:import('node:http').ServerResponse, portee:'SALON'|'CLIENT'|'PANTALLA', ticketId:string|null, jour:string }} Abonne */
 
@@ -107,16 +113,26 @@ function fermer(abonne) {
  * @returns {Abonne|null} null si le plafond est atteint (la connexion est fermee)
  */
 export function abonner({ res, req, portee, ticketId = null, jour }) {
-  if (abonnes.size >= MAX_ABONNES) {
-    log.warn('Plafond d abonnes temps reel atteint', { abonnes: abonnes.size });
-    try {
-      res.write('event: sature\ndata: {}\n\n');
-      res.end();
-    } catch {
-      // rien de plus a faire
-    }
-    return null;
+  // LE PERSONNEL NE DOIT JAMAIS ETRE PRIVE DE SA FILE. Le plafond etait commun
+  // aux trois portees : cinq cents connexions publiques tenues ouvertes (l'ecran
+  // du salon est public quand il n'a pas de cle) et la tablette du coiffeur
+  // recevait « sature ». Les places du haut sont donc reservees au salon.
+  //
+  // Et un meme ticket, un meme ecran, ne cumulent pas : un telephone qui se
+  // reveille rouvre un flux sans que l'ancien soit toujours tombe. Au-dela du
+  // plafond, on ferme le PLUS ANCIEN (c'est lui qui est mort), on ne refuse pas
+  // le nouveau.
+  if (portee !== 'SALON') {
+    const publics = [...abonnes].filter((a) => a.portee !== 'SALON');
+    if (publics.length >= MAX_ABONNES - RESERVE_SALON) return saturer(res);
+    const memes = portee === 'CLIENT'
+      ? publics.filter((a) => a.portee === 'CLIENT' && a.ticketId === ticketId)
+      : publics.filter((a) => a.portee === 'PANTALLA');
+    const plafond = portee === 'CLIENT' ? MAX_PAR_TICKET : MAX_PANTALLAS;
+    // L'ensemble garde l'ordre d'insertion : les premiers sont les plus anciens.
+    for (const ancien of memes.slice(0, Math.max(0, memes.length - plafond + 1))) fermer(ancien);
   }
+  if (abonnes.size >= MAX_ABONNES) return saturer(res);
   const abonne = { id: prochainId++, res, portee, ticketId, jour };
   abonnes.add(abonne);
 
@@ -126,6 +142,17 @@ export function abonner({ res, req, portee, ticketId = null, jour }) {
   res.on('error', partir);
 
   return abonne;
+}
+
+function saturer(res) {
+  log.warn('Plafond d abonnes temps reel atteint', { abonnes: abonnes.size });
+  try {
+    res.write('event: sature\ndata: {}\n\n');
+    res.end();
+  } catch {
+    // rien de plus a faire
+  }
+  return null;
 }
 
 export function nombreAbonnes() {

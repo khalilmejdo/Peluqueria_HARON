@@ -395,6 +395,7 @@ export const TEXTES = {
   'file.champPrenom': { es: 'Nombre', fr: 'Prénom' },
   'file.champNom': { es: 'Apellido', fr: 'Nom' },
   'file.champWhatsapp': { es: 'WhatsApp', fr: 'WhatsApp' },
+  'file.champCoiffeur': { es: '¿Con qué peluquero?', fr: 'Avec quel coiffeur ?' },
   'file.tourCreeComptoir': { es: 'Turno {numero} creado en el mostrador.', fr: 'Tour {numero} créé au comptoir.' },
   'file.ajoutEchoue': { es: 'No se ha podido añadir a este cliente.', fr: 'Ce client n’a pas pu être ajouté.' },
   'file.ajouterALaFile': { es: 'Añadir a la fila', fr: 'Ajouter à la file' },

@@ -48,6 +48,9 @@ import { poserDeviseActive, DEVISE_DEFAUT, optionsDevises, DEVISES } from './dev
  * autres.
  */
 /** @type {Record<string, Reglage>} */
+/** Longueur sous laquelle une cle d'ecran est remplacee (noms complets). */
+const CLE_PANTALLA_MIN = 20;
+
 export const CATALOGUE = {
   'salon.idioma': {
     type: 'choix', defaut: LANGUE_DEFAUT, options: optionsLangues(),
@@ -549,12 +552,21 @@ export async function enregistrer(valeurs, { tx = null, parUtilisateurId = null 
    * Vingt-quatre octets : on ne devine pas une adresse pareille, et elle tient
    * dans un champ qu'on recopie sur un televiseur.
    */
+  //
+  // UNE CLE COURTE NE PROTEGE RIEN. Le champ etait libre : « 1 » protegeait
+  // des noms de famille qu'on trouvait en dix essais. Avec les noms complets,
+  // une cle de moins de vingt caracteres est remplacee par une cle tiree au
+  // sort — que la cle change, ou que l'affichage passe aux noms complets.
   const aEcrireMap = new Map(aEcrire);
-  if (aEcrireMap.get('pantalla.nombres') === 'COMPLETO') {
+  if (aEcrireMap.has('pantalla.nombres') || aEcrireMap.has('pantalla.clave')) {
     const actuels = await lireTous({ frais: true });
-    const dejaPosee = aEcrireMap.get('pantalla.clave') ?? actuels['pantalla.clave'];
-    if (!dejaPosee) {
-      aEcrire.push(['pantalla.clave', randomBytes(24).toString('base64url')]);
+    const nombres = aEcrireMap.get('pantalla.nombres') ?? actuels['pantalla.nombres'];
+    const cle = String(aEcrireMap.get('pantalla.clave') ?? actuels['pantalla.clave'] ?? '');
+    if (nombres === 'COMPLETO' && cle.length < CLE_PANTALLA_MIN) {
+      const neuve = randomBytes(24).toString('base64url');
+      const i = aEcrire.findIndex(([k]) => k === 'pantalla.clave');
+      if (i >= 0) aEcrire[i] = ['pantalla.clave', neuve];
+      else aEcrire.push(['pantalla.clave', neuve]);
     }
   }
 

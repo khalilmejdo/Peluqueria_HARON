@@ -17,7 +17,8 @@ import { Router } from '../http/router.js';
 import { validate, rules } from '../core/validate.js';
 import { jetonDe } from '../http/aides.js';
 import { AppError, notFound } from '../core/errors.js';
-import { consume, consommerPriseDeTour, PROFILES } from '../core/ratelimit.js';
+import { consume, consommerPriseDeTour, PROFILES, suiviBloque, noterEchecSuivi, consommerJeton } from '../core/ratelimit.js';
+import { jetonPlausible } from '../core/crypto.js';
 import { lireTous, adressePublique } from '../core/reglages.js';
 import { abonner, envoyerEtatInitial } from '../core/flux.js';
 import { jourLocal } from '../core/temps.js';
@@ -82,7 +83,7 @@ publicRoutes.post('/tickets', async (ctx) => {
   // wifi du salon, toute une matinee de clients la partage.
   const reglages = await lireTous();
   const debit = consommerPriseDeTour(
-    { ip: ctx.ip, telephone: data.telephone },
+    { ip: ctx.ipDebit, telephone: data.telephone },
     { telephoneSalon: reglages['salon.telephone'] || null },
   );
   if (!debit.allowed) {
@@ -141,13 +142,8 @@ publicRoutes.get('/tickets/:jeton/flux', async (ctx) => {
  * avancer tout le monde.
  */
 publicRoutes.post('/tickets/:jeton/annuler', async (ctx) => {
-  const jeton = jetonDe(ctx);
-  const limite = consume('suivi:' + ctx.ip, PROFILES.suivi);
-  if (!limite.allowed) {
-    ctx.res.setHeader('Retry-After', String(limite.retryAfterSeconds));
-    throw new AppError(429, t('http.tropDeDemandes'), { details: { retryAfter: limite.retryAfterSeconds } });
-  }
-  const ticket = await annulerParClient(jeton);
+  await chargerTicketDuJeton(ctx);
+  const ticket = await annulerParClient(jetonDe(ctx));
   ctx.ok({ numero: ticket.numero_affiche, statut: ticket.statut });
 }, { public: true, skipCsrf: true });
 
@@ -170,7 +166,7 @@ publicRoutes.post('/tickets/:jeton/annuler', async (ctx) => {
  */
 publicRoutes.get('/pantalla/flux', async (ctx) => {
   await exigerClePantalla(ctx);
-  const limite = consume('pantalla:' + ctx.ip, PROFILES.flux);
+  const limite = consume('pantalla:' + ctx.ipDebit, PROFILES.flux);
   if (!limite.allowed) {
     ctx.res.setHeader('Retry-After', String(limite.retryAfterSeconds));
     throw new AppError(429, t('http.tropDeConnexions'), { details: { retryAfter: limite.retryAfterSeconds } });
@@ -241,13 +237,20 @@ publicRoutes.get('/file', async (ctx) => {
  * cas s'est produit.
  */
 async function chargerTicketDuJeton(ctx, profil = PROFILES.suivi) {
-  const jeton = jetonDe(ctx);
-  const limite = consume('suivi:' + ctx.ip, profil);
-  if (!limite.allowed) {
+  const refuser = (limite) => {
     ctx.res.setHeader('Retry-After', String(limite.retryAfterSeconds));
     throw new AppError(429, t('http.tropDeDemandes'), { details: { retryAfter: limite.retryAfterSeconds } });
+  };
+  // Les echecs se paient par adresse, le volume par jeton : voir suiviBloque().
+  const bloque = suiviBloque(ctx.ipDebit);
+  if (!bloque.allowed) refuser(bloque);
+  const jeton = String(ctx.params.jeton || '');
+  const ticket = jetonPlausible(jeton) ? await ticketParJeton(jeton) : null;
+  if (!ticket) {
+    noterEchecSuivi(ctx.ipDebit);
+    throw notFound(t('req.lienPerime'));
   }
-  const ticket = await ticketParJeton(jeton);
-  if (!ticket) throw notFound(t('req.lienPerime'));
+  const limite = consommerJeton(jeton, profil);
+  if (!limite.allowed) refuser(limite);
   return ticket;
 }

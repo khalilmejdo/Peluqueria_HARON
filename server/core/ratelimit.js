@@ -35,7 +35,16 @@ export function consume(key, { max, windowMs }) {
     // Sous une attaque distribuee, la table ne doit pas devenir elle-meme le cout.
     if (buckets.size >= MAX_BUCKETS) {
       for (const [k, b] of buckets) if (b.resetAt <= now) buckets.delete(k);
-      if (buckets.size >= MAX_BUCKETS) buckets.clear();
+      // Toujours pleine : on retire les plus ANCIENS (une Map garde l'ordre
+      // d'insertion), pas tout. Vider la table effacait aussi les compteurs de
+      // connexion — remplir la table devenait le moyen de les remettre a zero.
+      if (buckets.size >= MAX_BUCKETS) {
+        let aRetirer = Math.ceil(MAX_BUCKETS / 10);
+        for (const k of buckets.keys()) {
+          if (aRetirer-- <= 0) break;
+          buckets.delete(k);
+        }
+      }
     }
     bucket = { count: 0, resetAt: now + windowMs };
     buckets.set(key, bucket);
@@ -102,7 +111,9 @@ export function attenteLisible(secondes) {
 export function consommerPriseDeTour({ ip, telephone = null }, { telephoneSalon = null } = {}) {
   const parIp = consume('tour:ip:' + ip, PROFILES.priseDeTourIp);
   const numero = String(telephone || '').replace(/[^0-9]/g, '');
-  const parNumero = numero ? consume('tour:tel:' + numero, PROFILES.priseDeTourNumero) : { allowed: true, retryAfterSeconds: 0 };
+  // Une adresse deja refusee ne cree plus de compteur par numero : sinon chaque
+  // essai d'un robot, numero different a chaque fois, ajoutait une entree.
+  const parNumero = numero && parIp.allowed ? consume('tour:tel:' + numero, PROFILES.priseDeTourNumero) : { allowed: true, retryAfterSeconds: 0 };
 
   const bloquant = !parNumero.allowed ? { r: parNumero, portee: 'NUMERO' } : (!parIp.allowed ? { r: parIp, portee: 'IP' } : null);
   if (!bloquant) return { allowed: true, retryAfterSeconds: 0, message: null, portee: null };
@@ -114,6 +125,39 @@ export function consommerPriseDeTour({ ip, telephone = null }, { telephoneSalon 
   const message = t(bloquant.portee === 'NUMERO' ? 'debit.tropDeTours' : 'debit.tropDepuisCetteConnexion',
     { delai }) + ouAppeler;
   return { allowed: false, retryAfterSeconds: bloquant.r.retryAfterSeconds, message, portee: bloquant.portee };
+}
+
+/**
+ * Debit d'un LIEN DE SUIVI : on compte les ECHECS par adresse, et le volume par
+ * jeton.
+ *
+ * Le premier reglage comptait TOUT par adresse, page, API et flux confondus.
+ * Or tous les clients assis dans la salle d'attente partagent le wifi du salon,
+ * donc UNE adresse : un samedi, vingt telephones qui se rallument deux fois
+ * epuisaient le budget du flux, et le suivant recevait un 429 — sur lequel
+ * EventSource ne se reconnecte jamais. Sa page restait figee sur une position
+ * perimee, et rien ne le lui disait.
+ *
+ * Ce dont on se protege, c'est l'enumeration : quelqu'un qui essaie des jetons
+ * au hasard. Il se trahit par ses ECHECS, et c'est eux seuls que l'adresse
+ * paie. Un jeton valide, lui, ne coute qu'a son proprietaire : son budget est
+ * le sien, et la file d'a cote ne le touche pas.
+ *
+ *   1. suiviBloque(ip)            avant toute recherche : l'adresse a-t-elle
+ *                                 trop echoue ?
+ *   2. noterEchecSuivi(ip)        jeton inconnu ou mal forme ;
+ *   3. consommerJeton(jeton, p)   jeton valide : son propre budget.
+ */
+export function suiviBloque(ip) {
+  return peek('suivi:echec:' + ip, PROFILES.suiviEchecs);
+}
+
+export function noterEchecSuivi(ip) {
+  return consume('suivi:echec:' + ip, PROFILES.suiviEchecs);
+}
+
+export function consommerJeton(jeton, profil) {
+  return consume('suivi:jeton:' + jeton, profil);
 }
 
 /** Profils selon la sensibilite de la route. */
@@ -143,8 +187,14 @@ export const PROFILES = {
   priseDeTourIp: { max: 40, windowMs: 3600000 },
   /** Prise de tour, par NUMERO WhatsApp : la vraie limite anti-abus. */
   priseDeTourNumero: { max: 5, windowMs: 3600000 },
-  /** Consultation d'un lien de suivi : anti-enumeration de jetons. */
+  /** Consultation d'UN lien de suivi (page, API, annulation), par jeton. */
   suivi: { max: 240, windowMs: 600000 },
+  /**
+   * Jetons INCONNUS essayes depuis une adresse : l'anti-enumeration. Un client
+   * honnete n'en produit qu'en recopiant mal son lien ; trente en dix minutes,
+   * c'est une machine.
+   */
+  suiviEchecs: { max: 30, windowMs: 600000 },
   /** Ouverture d'un flux temps reel (une connexion longue par onglet). */
   flux: { max: 40, windowMs: 300000 },
   /** Gestes du coiffeur sur la file : genereux, il travaille vite. */

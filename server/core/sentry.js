@@ -60,7 +60,9 @@ export const sentryActif = Boolean(DSN);
  */
 function cheminPropre(chemin) {
   return String(chemin || '')
+    // Les DEUX formes : la page (/ticket/x) et l'API (/api/public/tickets/x/flux).
     .replace(/^\/ticket\/[^/?#]+/, '/ticket/<jeton>')
+    .replace(/^\/api\/public\/tickets\/[^/?#]+/, '/api/public/tickets/<jeton>')
     .replace(/[?#].*$/, '')
     .slice(0, 300);
 }

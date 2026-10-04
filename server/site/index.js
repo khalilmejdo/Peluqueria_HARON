@@ -19,7 +19,7 @@ import { config } from '../core/config.js';
 import { escapeHtml } from '../core/text.js';
 import { ValidationError, AppError } from '../core/errors.js';
 import { validate, rules } from '../core/validate.js';
-import { consommerPriseDeTour, consume, PROFILES } from '../core/ratelimit.js';
+import { consommerPriseDeTour, consume, PROFILES, suiviBloque, noterEchecSuivi, consommerJeton } from '../core/ratelimit.js';
 import {
   lireTous, adressePublique, horairesLisibles, nomDuSalon, estOuvert, plagesDuJour,
 } from '../core/reglages.js';
@@ -643,7 +643,7 @@ siteRoutes.post('/join', async (ctx) => {
   }
 
   const debit = consommerPriseDeTour(
-    { ip: ctx.ip, telephone: data.telephone },
+    { ip: ctx.ipDebit, telephone: data.telephone },
     { telephoneSalon: reglages['salon.telephone'] || null },
   );
   if (!debit.allowed) {
@@ -709,19 +709,23 @@ siteRoutes.get('/ticket/:jeton', async (ctx) => {
   const tr = traduire(reglages['salon.idioma']);
   const jeton = String(ctx.params.jeton || '');
 
-  const limite = consume('suivi:' + ctx.ip, PROFILES.suivi);
-  if (!limite.allowed) {
+  const tropDeDemandes = (limite) => {
     ctx.res.setHeader('Retry-After', String(limite.retryAfterSeconds));
     ctx.html(429, pageErreur({
       base: ctx.base, statut: 429,
       titre: tr('erreur.tropDeDemandes'),
       message: tr('erreur.tropDeDemandesTexte'),
     }));
-    return;
-  }
+  };
+
+  // Les echecs se paient par adresse, le volume par jeton : toute la salle
+  // d'attente partage le wifi du salon (voir suiviBloque()).
+  const bloque = suiviBloque(ctx.ipDebit);
+  if (!bloque.allowed) return tropDeDemandes(bloque);
 
   const ticket = jetonPlausible(jeton) ? await ticketParJeton(jeton) : null;
   if (!ticket) {
+    noterEchecSuivi(ctx.ipDebit);
     ctx.html(404, pageErreur({
       base: ctx.base, statut: 404,
       titre: tr('erreur.lienInvalide'),
@@ -733,6 +737,8 @@ siteRoutes.get('/ticket/:jeton', async (ctx) => {
     }));
     return;
   }
+  const limite = consommerJeton(jeton, PROFILES.suivi);
+  if (!limite.allowed) return tropDeDemandes(limite);
 
   const etat = await chargerEtat(ticket.jour);
   const vue = pourClient(etat, ticket.id);

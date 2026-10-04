@@ -55,10 +55,26 @@ dire() { echo "  $*"; }
 echec() { echo "" >&2; echo "  ECHEC : $*" >&2; exit 1; }
 
 # --- 0. ou joindre le salon -------------------------------------------
-base="http://127.0.0.1:3000"
-domaine=$(sed -n 's/^DOMAINE=//p' .env 2>/dev/null | head -n 1 | tr -d '\r' || true)
-[ -n "${domaine:-}" ] && base="https://${domaine}"
+# Les guillemets sont admis par Compose (DOMAINE="x") : on les retire, sinon on
+# interrogeait « https://"x" », rien ne repondait, et le script defaisait un
+# deploiement reussi. Pas de repli sur 127.0.0.1:3000 : ce port n'est pas
+# publie sur l'hote, l'essai ne pouvait qu'echouer.
+domaine=$(sed -n 's/^DOMAINE=//p' .env 2>/dev/null | head -n 1 | tr -d "\r\"'" || true)
+[ -n "${domaine:-}" ] || echec "DOMAINE absent du .env : impossible de savoir ou joindre le salon."
+base="https://${domaine}"
 adresse="${base}/healthz"
+
+# Attend que le salon reponde 200 sur /healthz, au plus $1 secondes.
+attendre_sante() {
+  reste_s="$1"
+  while [ "$reste_s" -gt 0 ]; do
+    c=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$adresse" 2>/dev/null || echo 000)
+    [ "$c" = "200" ] && return 0
+    sleep 3
+    reste_s=$((reste_s - 3))
+  done
+  return 1
+}
 
 # --- 0 bis. le dossier des photos ------------------------------------
 # L'application y ENREGISTRE les photos envoyees depuis l'onglet Galerie. Cree
@@ -114,7 +130,16 @@ apres=$(git rev-parse --short HEAD)
 dire "version sur le disque : ${apres}"
 
 if [ "$FORCER" -eq 0 ] && [ -n "${deployee:-}" ] && [ "$deployee" = "$apres" ]; then
-  dire "le salon sert deja ${apres}. Rien a faire."
+  dire "le salon sert deja ${apres} : pas de reconstruction."
+  # Le code n'a pas change, mais le .env, docker-compose.local.yml ou caddy.d/
+  # ont pu changer : « up -d » recree ce dont la configuration a bouge (et rien
+  # d'autre), Caddy relit la sienne. Avant, ce cas sortait sans rien appliquer
+  # tout en annoncant que tout etait a jour.
+  $COMPOSE up -d >/dev/null 2>&1 || echec "« up -d » a echoue : ${COMPOSE} up -d"
+  $COMPOSE exec -T caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 \
+    || dire "ATTENTION : Caddy n'a pas relu sa configuration (${COMPOSE} up -d --force-recreate caddy)."
+  attendre_sante 60 || echec "le salon ne repond plus apres la reapplication de la configuration : ${COMPOSE} logs --tail=60 app"
+  dire "configuration (.env, compose local, Caddy) reappliquee. Salon en ligne."
   dire "(pour reconstruire quand meme : ./scripts/deployer.sh --forcer)"
   exit 0
 fi
@@ -203,7 +228,9 @@ echo ""
 echo "  Le salon ne repond pas apres ${ATTENTE} s. RETOUR A ${retour}." >&2
 echo "" >&2
 
-git reset --hard "$retour" >/dev/null
+# Sous « set -e », un reset rate arretait le script AVANT de remettre l'image :
+# le salon restait a terre. L'image d'abord compte plus que le disque.
+git reset --hard "$retour" >/dev/null 2>&1 || echo "  git reset impossible ; on remet quand meme l'image precedente." >&2
 if docker image inspect "${IMAGE}:precedente" >/dev/null 2>&1; then
   docker tag "${IMAGE}:precedente" "${IMAGE}:latest"
   SOURCE_COMMIT="$retour" $COMPOSE up -d >/dev/null 2>&1 || true
@@ -211,9 +238,9 @@ else
   SOURCE_COMMIT="$retour" $COMPOSE up -d --build >/dev/null 2>&1 || true
 fi
 
-sleep 8
-code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$adresse" 2>/dev/null || echo 000)
-if [ "$code" = "200" ]; then
+# Migration, seed et demarrage depassent souvent huit secondes : un seul essai
+# a huit secondes annoncait « TOUJOURS A TERRE » a un salon en train de repartir.
+if attendre_sante 60; then
   echo "  Le salon est de nouveau en ligne sur ${retour}." >&2
 else
   echo "  LE SALON EST TOUJOURS A TERRE. Regardez :" >&2

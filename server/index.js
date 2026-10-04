@@ -118,7 +118,7 @@ export async function handle(ctx) {
   if (ctx.method === 'GET' || ctx.method === 'HEAD') {
     const servi = await serveStatic(ctx, {
       avantEnvoi: () => {
-        const limite = consume('statique:' + ctx.ip, PROFILES.statique);
+        const limite = consume('statique:' + ctx.ipDebit, PROFILES.statique);
         if (!limite.allowed) {
           ctx.res.setHeader('Retry-After', String(limite.retryAfterSeconds));
           throw new AppError(429, t('http.tropDeDemandes'), { details: { retryAfter: limite.retryAfterSeconds } });
@@ -129,7 +129,7 @@ export async function handle(ctx) {
   }
 
   // --- 3. limitation de debit generale, par adresse IP
-  const limit = consume('ip:' + ctx.ip, PROFILES.standard);
+  const limit = consume('ip:' + ctx.ipDebit, PROFILES.standard);
   if (!limit.allowed) {
     ctx.res.setHeader('Retry-After', String(limit.retryAfterSeconds));
     if (premierRefusDeLaMinute(ctx.ip)) log.warn('Debit general atteint', { ip: ctx.ip, path: ctx.path });
@@ -163,10 +163,10 @@ export async function handle(ctx) {
     // cela, une seule exploration ecrit cent lignes et cache les vrais
     // evenements de la journee.
     ctx.routeInconnue = true;
-    const inconnu = consume('inconnu:' + ctx.ip, PROFILES.inconnu);
+    const inconnu = consume('inconnu:' + ctx.ipDebit, PROFILES.inconnu);
     if (!inconnu.allowed) {
       ctx.res.setHeader('Retry-After', String(inconnu.retryAfterSeconds));
-      if (premierRefusDeLaMinute('inconnu:' + ctx.ip)) {
+      if (premierRefusDeLaMinute('inconnu:' + ctx.ipDebit)) {
         log.warn('Exploration d adresses inexistantes', { ip: ctx.ip, path: ctx.path });
       }
       throw new AppError(429, t('http.tropDeDemandes'), { details: { retryAfter: inconnu.retryAfterSeconds } });
@@ -212,7 +212,7 @@ export async function handle(ctx) {
   // --- 7. exigences de la route
   enforceRouteRequirements(route, ctx);
   if (route.options.rateLimit) {
-    const cle = 'route:' + ctx.method + ':' + route.path + ':' + (ctx.user?.id || ctx.ip);
+    const cle = 'route:' + ctx.method + ':' + route.path + ':' + (ctx.user?.id || ctx.ipDebit);
     const r = consume(cle, route.options.rateLimit);
     if (!r.allowed) {
       ctx.res.setHeader('Retry-After', String(r.retryAfterSeconds));
@@ -309,7 +309,35 @@ export async function respondWithError(ctx, err) {
 
 export function creerServeur() {
   const server = http.createServer((req, res) => {
-    const ctx = new Context(req, res);
+    // CE QUI EST ICI EST HORS DE TOUT .catch() : une exception levee en
+    // construisant le contexte remonterait jusqu'a « uncaughtException », qui
+    // arrete le processus. Une cible « // » ou un Host « a:99999 » suffisaient
+    // a faire tomber le salon, sans compte, en une requete. Plus jamais : une
+    // requete qu'on ne sait pas lire recoit un 400, et le serveur continue.
+    let ctx;
+    try {
+      ctx = new Context(req, res);
+    } catch (err) {
+      log.warn('Requete illisible', { error: err?.message });
+      res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8', 'X-Content-Type-Options': 'nosniff', Connection: 'close' });
+      res.end('400');
+      return;
+    }
+    // UNE REPONSE QUI LAISSE LE CORPS NON LU FERME LA CONNEXION.
+    //
+    // Refusee AVANT la lecture du corps (mauvaise origine, 401, 429, route
+    // inconnue), une requete laissait Node attendre le reste de ce corps pour
+    // garder la connexion vivante. Annoncer 256 Ko et en envoyer un octet par
+    // minute tenait alors le socket indefiniment — la borne de lecture de
+    // readBody() ne joue que si on lit. On ferme proprement (FIN apres la
+    // reponse), puis on coupe pour de bon si le client fait le mort.
+    res.on('finish', () => {
+      if (req.complete) return;
+      const socket = req.socket;
+      if (!socket || socket.destroyed) return;
+      socket.end();
+      setTimeout(() => socket.destroy(), 5000).unref?.();
+    });
     handle(ctx)
       .catch((err) => respondWithError(ctx, err))
       .catch((err) => {

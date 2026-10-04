@@ -141,6 +141,28 @@ export function clientIp(req) {
   });
 }
 
+/**
+ * La cle de DEBIT d'une adresse : elle-meme en IPv4, son /64 en IPv6.
+ *
+ * Un abonnement IPv6 recoit un /64 entier — dix-huit milliards de milliards
+ * d'adresses — et en change a volonte. Compte adresse par adresse, chaque
+ * limite par IP (prise de tour, suivi, connexion) tombait des que le domaine
+ * avait un enregistrement AAAA. Le /64 est l'unite qu'un client controle :
+ * c'est elle qu'on compte. Les journaux gardent l'adresse complete.
+ */
+export function cleDeDebit(ip) {
+  const s = String(ip || '');
+  if (!s.includes(':') || /^::ffff:\d+\.\d+\.\d+\.\d+$/i.test(s)) return s.replace(/^::ffff:/i, '');
+  // Forme developpee des quatre premiers groupes, « :: » compris.
+  const [tete, queue = ''] = s.split('::');
+  const avant = tete ? tete.split(':') : [];
+  const apres = queue ? queue.split(':') : [];
+  const groupes = s.includes('::')
+    ? [...avant, ...new Array(Math.max(0, 8 - avant.length - apres.length)).fill('0'), ...apres]
+    : avant;
+  return groupes.slice(0, 4).map((g) => (g || '0').toLowerCase().replace(/^0+(?=.)/, '')).join(':') + '::/64';
+}
+
 /** Hote effectif (pour construire des adresses), valide contre les caracteres inattendus. */
 export function effectiveHost(req) {
   const raw = config.http.trustProxy ? req.headers['x-forwarded-host'] || req.headers.host : req.headers.host;

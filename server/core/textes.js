@@ -521,6 +521,10 @@ export const TEXTES = {
     es: 'La fila de hoy está completa. Ven al salón o vuelve mañana.',
     fr: 'La file du jour est complète. Passez au salon ou revenez demain.',
   },
+  'file.dejaUnTourPublic': {
+    es: 'Ya hay un turno en curso para este número. Búscalo en tu enlace de seguimiento, o pídelo en el salón.',
+    fr: 'Un tour est déjà en cours pour ce numéro. Retrouvez-le avec votre lien de suivi, ou demandez-le au salon.',
+  },
   'file.dejaUnTour': {
     es: 'Ya hay un turno en curso para este número (turno {numero}). Búscalo en tu enlace de seguimiento, o pídelo en el salón.',
     fr: 'Un tour est déjà en cours pour ce numéro (tour {numero}). Retrouvez-le avec votre lien de suivi, ou demandez-le au salon.',
@@ -771,7 +775,6 @@ export const TEXTES = {
   'trace.deconnexion': { es: 'cierre de sesión', fr: 'déconnexion' },
   'trace.deconnexionDemandee': { es: 'cierre solicitado', fr: 'déconnexion demandée' },
   'trace.compteDesactive': { es: 'cuenta desactivada', fr: 'compte désactivé' },
-  'trace.compteBloque': { es: 'cuenta bloqueada', fr: 'compte bloqué' },
   'trace.motDePasseChange': { es: 'contraseña cambiada', fr: 'mot de passe changé' },
   'trace.motDePasseReinitialise': { es: 'contraseña restablecida', fr: 'mot de passe réinitialisé' },
 
