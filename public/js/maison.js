@@ -155,6 +155,12 @@ if (visionneuse && vignettes.length) {
     origine?.focus();
   };
 
+  // « Voir les N photos » : le bouton de la mosaique ouvre la premiere.
+  const toutVoir = document.querySelector('[data-ouvrir-galerie]');
+  if (toutVoir) {
+    toutVoir.hidden = false;
+    toutVoir.addEventListener('click', () => ouvrir(0, toutVoir));
+  }
   vignettes.forEach((v, i) => v.addEventListener('click', (evenement) => {
     evenement.preventDefault();
     ouvrir(i, v);

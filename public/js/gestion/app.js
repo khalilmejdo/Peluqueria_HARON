@@ -21,6 +21,7 @@ import { vueTarifas } from './vue-tarifas.js';
 import { vueGalerie } from './vue-galerie.js';
 import { vueAgenda } from './vue-agenda.js';
 import { vueMarque } from './vue-marque.js';
+import { vueAvis } from './vue-avis.js';
 
 const racine = document.getElementById('application');
 
@@ -48,6 +49,7 @@ const ONGLETS = [
   { cle: 'agenda', texte: 'nav.agenda', rendre: vueAgenda },
   { cle: 'tarifas', texte: 'nav.tarifs', rendre: vueTarifas, gerant: true },
   { cle: 'galerie', texte: 'nav.galerie', rendre: vueGalerie, gerant: true },
+  { cle: 'avis', texte: 'nav.avis', rendre: vueAvis, gerant: true },
   { cle: 'affiche', texte: 'nav.qr', rendre: vueAffiche },
   { cle: 'statistiques', texte: 'nav.chiffres', rendre: vueStatistiques },
   { cle: 'fermetures', texte: 'nav.conges', rendre: vueFermetures, gerant: true },

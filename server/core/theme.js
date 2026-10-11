@@ -193,10 +193,10 @@ export const ANGLES_DEF = {
  */
 export const STYLE_DE_L_ACTIVITE = {
   BARBERIA: { palette: 'ONYX', typographie: 'CLASSIQUE', angles: 'NETS', accueil: 'CLASSIQUE' },
-  PELUQUERIA: { palette: 'POUDRE', typographie: 'PRESTIGE', angles: 'ARRONDIS', accueil: 'IMAGES' },
-  UNISEX: { palette: 'IVOIRE', typographie: 'DOUCE', angles: 'DOUX', accueil: 'IMAGES' },
-  ESTETICA: { palette: 'NUDE', typographie: 'COUTURE', angles: 'ARRONDIS', accueil: 'IMAGES' },
-  ONGLES: { palette: 'NACRE', typographie: 'COUTURE', angles: 'ARRONDIS', accueil: 'IMAGES' },
+  PELUQUERIA: { palette: 'POUDRE', typographie: 'PRESTIGE', angles: 'ARRONDIS', accueil: 'FICHE' },
+  UNISEX: { palette: 'IVOIRE', typographie: 'DOUCE', angles: 'DOUX', accueil: 'FICHE' },
+  ESTETICA: { palette: 'NUDE', typographie: 'COUTURE', angles: 'ARRONDIS', accueil: 'FICHE' },
+  ONGLES: { palette: 'NACRE', typographie: 'COUTURE', angles: 'ARRONDIS', accueil: 'FICHE' },
 };
 
 /* ------------------------------------------------------------------ */

@@ -517,6 +517,24 @@ test('rendez-vous et marque blanche', { skip: IGNORE }, async (t) => {
     assert.ok(!apres.includes('une--images') && apres.includes('data-agrandir'), 'retour au classique : la mosaique revient');
   });
 
+  await t.test('l accueil « fiche » : identite, mosaique, prestations a choisir, colonne pour venir', async () => {
+    const admin = await banc.connecter('SUPERADMIN');
+    const avant = (await admin.get('/api/marque')).body.valeurs['marque.accueil'];
+    try {
+      assert.equal((await admin.put('/api/reglages', { valeurs: { 'marque.accueil': 'FICHE' } })).status, 200);
+      const page = String((await banc.client().get('/')).body);
+      assert.ok(page.includes('accueil-fiche') && page.includes('salon__tete') && page.includes('salon__cote'));
+      assert.ok(!page.includes('une--images') && !page.includes('class="une '), 'ni l ouverture classique, ni le collage');
+      assert.ok(page.includes('class="mosaique'), 'la mosaique, ou son bandeau sans photo');
+      assert.equal(page.split('data-visionneuse').length - 1, page.includes('data-agrandir') ? 1 : 0, 'une visionneuse, seulement s il y a des photos');
+      assert.match(page, /class="bouton bouton--principal bouton--petit prestation__choisir" href="\/rendez-vous\?p=[0-9a-f-]+"/);
+      assert.ok(page.indexOf('salon__principal') < page.indexOf('salon__cote'), 'les prestations d abord, de quoi venir ensuite');
+      assert.equal(page.split('id="titre-une"').length - 1, 1, 'un seul titre de page');
+    } finally {
+      assert.equal((await admin.put('/api/reglages', { valeurs: { 'marque.accueil': avant } })).status, 200);
+    }
+  });
+
   await t.test('le gerant ne peut ni creer, ni toucher, ni devenir administrateur de plateforme', async () => {
     const admin = await banc.compte('SUPERADMIN');
     const creer = await gerant.post('/api/comptes', { identifiant: 'intrus', nomComplet: 'Intrus', role: 'SUPERADMIN', motDePasse: 'Mot-De-Passe-Long-42' });

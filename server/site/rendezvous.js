@@ -39,6 +39,8 @@ import { filet, icone } from './ornements.js';
 import { iconeTarifa } from './icones-tarifas.js';
 import { programme as programmeFidelite, carteDuRendezVous } from '../domain/fidelite.js';
 import { carteFidelite } from './fidelite.js';
+import { etatPourTicket, deposer as deposerAvis } from '../domain/avis.js';
+import { blocAvis } from './avis.js';
 
 export const siteRdvRoutes = new Router();
 
@@ -377,6 +379,12 @@ siteRdvRoutes.get('/rdv/:jeton', async (ctx) => {
   if (!trouve) return;
   const { rdv, jeton } = trouve;
   const vue = await pourClient(rdv, { langue: tr.langue });
+  const avis = blocAvis({
+    tr,
+    action: '/rdv/' + jeton + '/avis',
+    etat: r['vitrine.avis'] ? await etatPourTicket(rdv.ticket_id) : 'NON',
+    merci: ctx.query('avis') === 'merci',
+  });
   const prog = await programmeFidelite(r);
   const fidelite = prog ? carteFidelite({ tr, carte: { ...(await carteDuRendezVous(rdv.id, prog.objectif)), cadeau: prog.cadeau } }) : '';
   const lien = adressePublique(r, ctx.base) + '/rdv/' + jeton;
@@ -442,6 +450,7 @@ siteRdvRoutes.get('/rdv/:jeton', async (ctx) => {
     + actions
     + annulation
     + '</section>'
+    + avis
     + fidelite
     + blocLien
     + '</main>';
@@ -473,6 +482,24 @@ siteRdvRoutes.get('/rdv/:jeton/calendrier.ics', async (ctx) => {
     description: vue.prestations.map((p) => p.nombre).join(', ') + '\n' + adressePublique(r, ctx.base) + '/rdv/' + jeton,
   });
   ctx.file(Buffer.from(ics, 'utf8'), { filename: 'rendez-vous.ics', mimeType: 'text/calendar; charset=utf-8', download: true });
+}, { public: true });
+
+/** L'AVIS du client d'un rendez-vous honore : il porte sur le ticket de sa visite. */
+siteRdvRoutes.post('/rdv/:jeton/avis', async (ctx) => {
+  const r = await lireTous();
+  const tr = traduire(r['salon.idioma']);
+  const trouve = await rdvDeLaPage(ctx, tr);
+  if (!trouve) return;
+  try {
+    if (!r['vitrine.avis'] || !trouve.rdv.ticket_id) throw new AppError(409, tr('avis.pasEncore'), { code: 'VISITE_NON_TERMINEE' });
+    await deposerAvis({ ticketId: trouve.rdv.ticket_id, note: ctx.body?.note, commentaire: ctx.body?.commentaire });
+  } catch (err) {
+    if (!(err instanceof AppError)) throw err;
+    const detail = err instanceof ValidationError ? Object.values(err.fields)[0] : err.message;
+    ctx.html(err.status, pageErreur({ base: ctx.base, statut: err.status, titre: tr('avis.refuse'), message: detail }));
+    return;
+  }
+  ctx.redirect('/rdv/' + trouve.jeton + '?avis=merci', 303);
 }, { public: true });
 
 siteRdvRoutes.post('/rdv/:jeton/annuler', async (ctx) => {

@@ -172,7 +172,9 @@ export async function vueMarque(conteneur) {
   /** La composition de l'accueil, dessinee en miniature. */
   const accueils = cartesAChoisir('marque.accueil', (o) => (o.valeur === 'IMAGES'
     ? el('span.maquette.maquette--images', el('span.maquette__texte'), el('span.maquette__photo'), el('span.maquette__photo'))
-    : el('span.maquette', el('span.maquette__texte'))));
+    : o.valeur === 'FICHE'
+      ? el('span.maquette.maquette--fiche', el('span.maquette__bande'), el('span.maquette__texte'), el('span.maquette__colonne'))
+      : el('span.maquette', el('span.maquette__texte'))));
 
   /** Un nombre entier (l'indicatif du pays). */
   const champNombre = (cle) => {

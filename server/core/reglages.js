@@ -68,7 +68,7 @@ export const ACTIVITES = ['BARBERIA', 'PELUQUERIA', 'UNISEX', 'ESTETICA', 'ONGLE
 export const PALETTES = ['ONYX', 'IVOIRE', 'NACRE', 'POUDRE', 'CORAIL', 'LILAS', 'NUDE', 'PRUNE', 'EMERAUDE', 'BORDEAUX', 'MINUIT', 'PERSO'];
 export const TYPOGRAPHIES = ['CLASSIQUE', 'COUTURE', 'PRESTIGE', 'MODERNE', 'DOUCE'];
 /** La composition de la page d'accueil : centree et solennelle, ou en images. */
-export const ACCUEILS = ['CLASSIQUE', 'IMAGES'];
+export const ACCUEILS = ['CLASSIQUE', 'IMAGES', 'FICHE'];
 export const ANGLES = ['NETS', 'DOUX', 'ARRONDIS'];
 const choix = (valeurs) => valeurs.map((valeur) => ({ valeur }));
 
@@ -256,6 +256,10 @@ export const CATALOGUE = {
     type: 'booleen', defaut: true,
   },
   'vitrine.etapes': {
+    type: 'booleen', defaut: true,
+  },
+  // Les avis des clients : l'invitation sur la page de suivi, et la section.
+  'vitrine.avis': {
     type: 'booleen', defaut: true,
   },
   // « Notre exigence » : quatre engagements de la maison (accueil en images).

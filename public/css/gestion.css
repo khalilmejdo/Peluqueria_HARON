@@ -1739,3 +1739,21 @@ input.agenda__date { width: auto; flex: 0 0 auto; }
   color: var(--texte);
   font-weight: 700;
 }
+
+/* Les avis des clients, a moderer. */
+.avis-gestion__liste { display: grid; gap: 0.8rem; margin: 0; padding: 0; list-style: none; }
+.avis-gestion__tete { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem; }
+.avis-gestion__qui { font-weight: 700; }
+.avis-gestion__texte { margin: 0.7rem 0; line-height: 1.6; }
+.avis-gestion__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+.avis-gestion__bilan { margin-top: 0.5rem; font-weight: 700; }
+.avis-gestion--attente { border-color: var(--accent); }
+.avis-gestion--masque { opacity: 0.65; }
+.avis-note { display: inline-flex; gap: 0.1rem; font-size: 1.05rem; line-height: 1; }
+.avis-note__etoile { color: color-mix(in srgb, var(--texte) 22%, transparent); }
+.avis-note__etoile--pleine { color: var(--accent); }
+
+.maquette--fiche { grid-template-columns: 1.6fr 0.8fr; grid-template-rows: 1fr 1fr; gap: 0.3rem; place-items: stretch; }
+.maquette__bande { grid-column: 1 / -1; border-radius: 0.3rem; background: linear-gradient(120deg, var(--accent-clair), var(--accent)); }
+.maquette--fiche .maquette__texte { width: 85%; align-self: center; transform: none; box-shadow: none; }
+.maquette__colonne { border: 1px solid var(--accent); border-radius: 0.25rem; }

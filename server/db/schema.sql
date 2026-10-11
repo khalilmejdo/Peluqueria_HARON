@@ -789,3 +789,23 @@ CREATE TABLE IF NOT EXISTS fidelite (
   derniere_at   timestamptz,
   created_at    timestamptz NOT NULL DEFAULT now()
 );
+
+-- ---------------------------------------------------------------------------
+--  AVIS : un par visite, depose depuis le lien de suivi du client servi.
+--
+--  ticket_id n'est PAS une cle etrangere, expres : la purge de l'historique
+--  efface les tickets et doit laisser les avis. Il ne sert qu'a garantir
+--  « un avis par visite » (UNIQUE).
+--  Seul le prenom est recopie : ni nom, ni telephone.
+--  statut : ATTENTE (vient d'arriver) / PUBLIE (visible en vitrine) / MASQUE.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS avis (
+  id          uuid PRIMARY KEY,
+  ticket_id   uuid NOT NULL UNIQUE,
+  prenom      text NOT NULL,
+  note        smallint NOT NULL CHECK (note BETWEEN 1 AND 5),
+  commentaire text NOT NULL DEFAULT '' CHECK (char_length(commentaire) <= 600),
+  statut      text NOT NULL DEFAULT 'ATTENTE' CHECK (statut IN ('ATTENTE', 'PUBLIE', 'MASQUE')),
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS avis_publies ON avis (created_at DESC) WHERE statut = 'PUBLIE';

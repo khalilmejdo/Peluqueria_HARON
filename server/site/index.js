@@ -34,8 +34,10 @@ import {
 import { pourVitrine as photosVitrine } from '../domain/photos.js';
 import { programme as programmeFidelite } from '../domain/fidelite.js';
 import { carteFidelite, sectionFidelite } from './fidelite.js';
+import { etatPourTicket, deposer as deposerAvis, publies as avisPublies } from '../domain/avis.js';
+import { blocAvis, sectionAvis, noteEnLigne } from './avis.js';
 import {
-  ouverture, ouvertureImages, reperes, pastilleEtat, engagementsDe, sectionEngagements, sectionRituel, sectionInvitation, sectionMaison, sectionCarte, sectionReserver, sectionEquipe, sectionGalerie,
+  ouverture, ouvertureImages, ficheTete, mosaique, reperes, pastilleEtat, engagementsDe, sectionEngagements, sectionRituel, sectionInvitation, sectionMaison, sectionCarte, sectionReserver, sectionEquipe, sectionGalerie,
   sectionLieu, horairesDuJour, etatDuMoment,
 } from './vitrine.js';
 import { pourVitrine } from '../domain/tarifas.js';
@@ -251,6 +253,7 @@ siteRoutes.get('/', async (ctx) => {
   // L'accueil « en images » : la couverture d'abord, puis les photos de la
   // galerie, sans doublon. Trois pour le collage, la suivante pour « la maison ».
   const enImages = r['marque.accueil'] === 'IMAGES';
+  const enFiche = r['marque.accueil'] === 'FICHE';
   const aLaUne = [];
   for (const p of [galeriePhotos.couverture, ...photos]) {
     if (p && !aLaUne.some((x) => x.src === p.src)) aLaUne.push(p);
@@ -269,17 +272,63 @@ siteRoutes.get('/', async (ctx) => {
   ].filter(Boolean);
 
   const telephone = r['salon.telephone'];
-  const engagements = enImages && r['vitrine.engagements']
+  const avis = r['vitrine.avis'] ? await avisPublies() : null;
+  const engagements = (enImages || enFiche) && r['vitrine.engagements']
     ? engagementsDe({ tr, activite: r['marque.activite'], ecrits: r['salon.engagements'] })
     : [];
   const actionFinale = principale && principale.href !== '#carte' ? principale : null;
+  const lieu = sectionLieu({
+    tr,
+    avecLieu,
+    avecContact,
+    adresse: r['salon.adresse'],
+    coordonnees: r['salon.coordenadas'],
+    commentVenir: r['salon.comoLlegar'],
+    telephone,
+    whatsapp: r['salon.whatsapp'],
+    horaires: semaine,
+    jourCourant,
+  });
+  const reserver = sectionReserver({ tr, rdv: rdv && (rdv.ouvert || rdv.fermeture) ? rdv : null, file });
+  const fidelite = sectionFidelite({ tr, programme: await programmeFidelite(r) });
+
+  // L'ACCUEIL « FICHE » : l'identite et la note, les photos, puis deux
+  // colonnes — ce que le salon propose a gauche, de quoi venir a droite.
+  const pageFiche = enFiche
+    ? '<div class="salon__dedans">'
+      + ficheTete({
+        tr,
+        nom,
+        metier: tr('mx.une.metier'),
+        accroche: r['salon.accroche'],
+        note: noteEnLigne({ tr, avis }),
+        adresse: avecLieu ? r['salon.adresse'] : null,
+        reperes: pastilles,
+        actions,
+      })
+      + mosaique({ tr, photos: aLaUne, lettres: theme.monogramme })
+      + '</div>'
+      + bandeauFermeture(prise, aujourdhui, tr)
+      + '<div class="salon__dedans salon__corps" id="apres-une">'
+      + '<div class="salon__principal">'
+      + (avecCarte ? sectionCarte({ tr, prestations, nota: r['tarifas.nota'], avecPrix: avecTarifs, lignes: true, reserver: rdvOuvert }) : '')
+      + fidelite
+      + sectionEngagements({ tr, engagements })
+      + sectionEquipe({ tr, membres, rdvActifs: rdvOuvert, titre: tr('mx.fiche.collaborateurs') })
+      + sectionAvis({ tr, avis, langue: tr.langue })
+      + sectionMaison({ tr, presentation: r['salon.presentation'], lettres: theme.monogramme, sobre: true })
+      + '</div>'
+      + '<aside class="salon__cote">' + reserver + lieu + '</aside>'
+      + '</div>'
+    : '';
+
   const corps = entete({
     sections,
     action: principale && principale.href !== '#carte' ? { href: principale.href === '#reserver' ? '/#reserver' : principale.href, texte: principale.texte } : null,
-    surImage: !enImages && Boolean(galeriePhotos.couverture),
+    surImage: !enImages && !enFiche && Boolean(galeriePhotos.couverture),
   })
-    + '<main id="principal" class="vitrine">'
-    + (enImages
+    + '<main id="principal" class="vitrine' + (enFiche ? ' salon' : '') + '">'
+    + (enFiche ? pageFiche : (enImages
       ? ouvertureImages({
         tr,
         nom,
@@ -291,6 +340,7 @@ siteRoutes.get('/', async (ctx) => {
         lettres: theme.monogramme,
         prochain: rdvOuvert && rdv.prochains.length ? rdv.prochains[0] : null,
         atouts: engagements.slice(0, 3).map((x) => x.titre),
+        note: noteEnLigne({ tr, avis }),
       })
       : ouverture({
         tr,
@@ -314,24 +364,14 @@ siteRoutes.get('/', async (ctx) => {
     + sectionEngagements({ tr, engagements })
     + sectionMaison({ tr, presentation: r['salon.presentation'], lettres: theme.monogramme, photo: enImages ? (aLaUne[3] || aLaUne[0] || null) : null })
     + (avecCarte ? sectionCarte({ tr, prestations, nota: r['tarifas.nota'], avecPrix: avecTarifs, fiches: enImages, reserver: rdvOuvert }) : '')
-    + sectionFidelite({ tr, programme: await programmeFidelite(r) })
+    + fidelite
     + (enImages && rdvOuvert && r['vitrine.etapes'] ? sectionRituel({ tr }) : '')
-    + sectionReserver({ tr, rdv: rdv && (rdv.ouvert || rdv.fermeture) ? rdv : null, file })
+    + reserver
     + sectionEquipe({ tr, membres, rdvActifs: rdvOuvert })
     + (enImages ? '' : sectionGalerie({ tr, photos }))
+    + sectionAvis({ tr, avis, langue: tr.langue })
     + (enImages ? sectionInvitation({ tr, action: actionFinale, telephone: avecContact ? telephone : null }) : '')
-    + sectionLieu({
-      tr,
-      avecLieu,
-      avecContact,
-      adresse: r['salon.adresse'],
-      coordonnees: r['salon.coordenadas'],
-      commentVenir: r['salon.comoLlegar'],
-      telephone,
-      whatsapp: r['salon.whatsapp'],
-      horaires: semaine,
-      jourCourant,
-    })
+    + lieu)
     // L'appel qui suit le pouce, sur telephone : seulement quand il mene
     // vraiment quelque part.
     + (principale && principale.href !== '#carte'
@@ -347,7 +387,7 @@ siteRoutes.get('/', async (ctx) => {
     base: ctx.base,
     chemin: '/',
     langue: tr.langue,
-    classe: 'page-accueil' + (enImages ? ' accueil-images' : ''),
+    classe: 'page-accueil' + (enImages ? ' accueil-images' : '') + (enFiche ? ' accueil-fiche' : ''),
     image: galeriePhotos.couverture ? galeriePhotos.couverture.src : null,
     scripts: formulaireEnPage ? ['/js/maison.js', '/js/join.js'] : ['/js/maison.js'],
     pied: piedDePage({
@@ -705,6 +745,33 @@ function blocTicket(vue, tr = duSalon()) {
     + '</section>';
 }
 
+/**
+ * LE CLIENT DONNE SON AVIS, depuis la page de son tour. Son lien est sa preuve
+ * de visite ; le domaine verifie qu'il a ete servi et qu'il n'a pas deja note.
+ */
+siteRoutes.post('/ticket/:jeton/avis', async (ctx) => {
+  const reglages = await lireTous();
+  const tr = traduire(reglages['salon.idioma']);
+  const jeton = String(ctx.params.jeton || '');
+  const refus = (statut, titre, message) => ctx.html(statut, pageErreur({ base: ctx.base, statut, titre, message }));
+  if (!suiviBloque(ctx.ipDebit).allowed || !consommerJeton('avis:' + jeton, PROFILES.suivi).allowed) {
+    return refus(429, tr('erreur.tropDeDemandes'), tr('erreur.tropDeDemandesTexte'));
+  }
+  const ticket = jetonPlausible(jeton) ? await ticketParJeton(jeton) : null;
+  if (!ticket || !reglages['vitrine.avis']) {
+    if (!ticket) noterEchecSuivi(ctx.ipDebit);
+    return refus(404, tr('erreur.lienInvalide'), tr('avis.introuvable'));
+  }
+  try {
+    await deposerAvis({ ticketId: ticket.id, note: ctx.body?.note, commentaire: ctx.body?.commentaire });
+  } catch (err) {
+    if (!(err instanceof AppError)) throw err;
+    const detail = err instanceof ValidationError ? Object.values(err.fields)[0] : err.message;
+    return refus(err.status, tr('avis.refuse'), detail);
+  }
+  return ctx.redirect('/ticket/' + jeton + '?avis=merci', 303);
+}, { public: true });
+
 siteRoutes.get('/ticket/:jeton', async (ctx) => {
   const reglages = await lireTous();
   const tr = traduire(reglages['salon.idioma']);
@@ -743,6 +810,7 @@ siteRoutes.get('/ticket/:jeton', async (ctx) => {
 
   const etat = await chargerEtat(ticket.jour);
   const vue = pourClient(etat, ticket.id);
+  const etatAvis = reglages['vitrine.avis'] ? await etatPourTicket(ticket.id) : 'NON';
   const dateDuJour = ticket.jour === jourLocal() ? null : dateLongue(ticket.jour, tr.langue);
 
   // Le lien de suivi EST le ticket : il n'y a pas de compte, pas de mot de
@@ -777,6 +845,7 @@ siteRoutes.get('/ticket/:jeton', async (ctx) => {
       ? '<p class="surtitre surtitre--centre">' + escapeHtml(tr('ticket.tourDu', { date: dateDuJour })) + '</p>'
       : '')
     + blocTicket(vue, tr)
+    + blocAvis({ tr, action: '/ticket/' + jeton + '/avis', etat: etatAvis, merci: ctx.query('avis') === 'merci' })
     + carteFidelite({ tr, carte: vue.fidelite })
     + blocLien
     + (vue.actif

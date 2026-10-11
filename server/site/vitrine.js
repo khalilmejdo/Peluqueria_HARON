@@ -123,7 +123,7 @@ export function ouverture({ tr, nom, accroche, metier, actions, reperes = '', co
  * @param {Array<{src:string, legende?:string, largeur?:number, hauteur?:number}>} o.photos  trois au plus
  * @param {{ href:string, jour:string, heure:string }|null} o.prochain  la prochaine heure libre
  */
-export function ouvertureImages({ tr, nom, accroche, metier, actions, reperes = '', photos = [], lettres = '', prochain = null, atouts = [] }) {
+export function ouvertureImages({ tr, nom, accroche, metier, actions, reperes = '', photos = [], lettres = '', prochain = null, atouts = [], note = '' }) {
   const { petit, grand } = decouperNom(nom);
   const cadres = [0, 1, 2].map((i) => {
     const p = photos[i];
@@ -147,6 +147,7 @@ export function ouvertureImages({ tr, nom, accroche, metier, actions, reperes = 
     + (petit ? '<span class="une__titre-petit">' + e(petit) + '</span>' : '')
     + '<span class="une__titre-grand">' + e(grand) + '</span>'
     + '</h1>'
+    + (note ? '<p class="une__note">' + note + '</p>' : '')
     + (accroche ? '<p class="une__accroche">' + e(accroche) + '</p>' : '')
     + (actions.length
       ? '<div class="une__actions">' + actions.map((a) => '<a class="bouton ' + (a.principal ? 'bouton--principal' : 'bouton--contour')
@@ -170,6 +171,59 @@ export function ouvertureImages({ tr, nom, accroche, metier, actions, reperes = 
     + '</div>'
     + '</div>'
     + '</section>';
+}
+
+/* ------------------------------------------------------------------ */
+/*  L'accueil « fiche »                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * LE HAUT DE LA FICHE : le nom, la note, l'adresse et l'etat du moment sur une
+ * ligne, le bouton de reservation en face. Tout ce qu'on veut savoir avant de
+ * regarder les photos, sans rien faire defiler.
+ */
+export function ficheTete({ tr, nom, metier, accroche, note = '', adresse = null, reperes = '', actions = [] }) {
+  return '<section class="salon__tete" aria-labelledby="titre-une">'
+    + '<div class="salon__identite">'
+    + (memeMot(nom, metier) ? '' : '<p class="etiquette-pilule">' + e(metier) + '</p>')
+    + '<h1 class="salon__nom" id="titre-une">' + e(nom) + '</h1>'
+    + '<div class="salon__ligne">'
+    + note
+    + (adresse ? '<a class="salon__adresse" href="#acces">' + icone('lieu') + '<span>' + e(adresse) + '</span></a>' : '')
+    + '</div>'
+    + (accroche ? '<p class="salon__accroche">' + e(accroche) + '</p>' : '')
+    + (reperes ? '<ul class="une__reperes salon__reperes">' + reperes + '</ul>' : '')
+    + '</div>'
+    + (actions.length
+      ? '<div class="salon__actions">' + actions.map((a) => '<a class="bouton ' + (a.principal ? 'bouton--principal' : 'bouton--contour')
+        + ' bouton--grand" href="' + e(a.href) + '"' + (a.principal ? ' data-appel-principal' : '') + '>' + e(a.texte) + '</a>').join('') + '</div>'
+      : '')
+    + '</section>';
+}
+
+/**
+ * LA MOSAIQUE : une grande photo et jusqu'a quatre petites, comme la vitrine
+ * d'une boutique. Chaque photo s'ouvre en grand ; les suivantes ne sont pas
+ * affichees mais restent dans la visionneuse (« Voir les 12 photos »).
+ * Sans photo : un bandeau peint aux couleurs de la marque, avec le monogramme.
+ */
+export function mosaique({ tr, photos = [], lettres = '' }) {
+  if (!photos.length) {
+    return '<div class="mosaique mosaique--vide" aria-hidden="true">' + monogramme(lettres, { classe: 'mosaique__monogramme' }) + '</div>';
+  }
+  const montrees = photos.slice(0, 5);
+  const cases = photos.map((p, i) => (i < montrees.length
+    ? '<a class="mosaique__case mosaique__case--' + (i + 1) + '" href="' + e(p.src) + '" data-agrandir data-legende="' + e(p.legende || '') + '">'
+      + '<img class="mosaique__image" src="' + e(p.src) + '" alt="' + e(p.legende || tr('vt.galerie.photo', { n: i + 1 })) + '"'
+      + (p.largeur ? ' width="' + p.largeur + '" height="' + p.hauteur + '"' : '')
+      + (i === 0 ? ' fetchpriority="high"' : ' loading="lazy"') + ' decoding="async"></a>'
+    // Hors de la mosaique, mais dans la visionneuse.
+    : '<a hidden href="' + e(p.src) + '" data-agrandir data-legende="' + e(p.legende || '') + '">' + e(p.legende || tr('vt.galerie.photo', { n: i + 1 })) + '</a>')).join('');
+  return '<div class="mosaique mosaique--' + montrees.length + '" id="galerie">'
+    + cases
+    + '<button class="mosaique__tout" type="button" data-ouvrir-galerie hidden>' + icone('eclat') + e(tr('mx.fiche.voirPhotos', { n: photos.length })) + '</button>'
+    + '</div>'
+    + visionneuseHtml(tr);
 }
 
 /* ------------------------------------------------------------------ */
@@ -287,18 +341,18 @@ export function reperes({ tr, aujourdhui, adresse, telephone }) {
 /*  La maison                                                          */
 /* ------------------------------------------------------------------ */
 
-export function sectionMaison({ tr, presentation, lettres, photo = null }) {
+export function sectionMaison({ tr, presentation, lettres, photo = null, sobre = false }) {
   const texte = String(presentation || '').trim();
   if (!texte) return '';
   const paragraphes = texte.split(/\n{2,}|\r\n\r\n/).map((p) => '<p>' + e(p.trim()) + '</p>').join('');
   return '<section class="section section--maison" id="maison" aria-labelledby="titre-maison">'
     + '<div class="section__dedans maison">'
-    + (photo
+    + (sobre ? '' : photo
       ? '<div class="maison__photo"><img src="' + e(photo.src) + '" alt="' + e(photo.legende || '') + '"'
         + (photo.largeur ? ' width="' + photo.largeur + '" height="' + photo.hauteur + '"' : '') + ' loading="lazy" decoding="async"></div>'
       : '<div class="maison__embleme" aria-hidden="true">' + monogramme(lettres, { classe: 'maison__monogramme' }) + '</div>')
     + '<div class="maison__texte">'
-    + teteDeSection({ surtitre: tr('mx.maison.surtitre'), titre: tr('mx.maison.titre'), id: 'titre-maison', classe: 'section__tete--gauche' })
+    + teteDeSection({ surtitre: tr('mx.maison.surtitre'), titre: tr(sobre ? 'mx.fiche.infos' : 'mx.maison.titre'), id: 'titre-maison', classe: 'section__tete--gauche' })
     + '<div class="maison__corps">' + paragraphes + '</div>'
     + '</div>'
     + '</div>'
@@ -317,7 +371,7 @@ export function sectionMaison({ tr, presentation, lettres, photo = null }) {
  * jusqu'au chiffre, sans hesiter sur la colonne. Les chapitres viennent de la
  * carte du salon ; une carte sans chapitre en a un seul, sans titre.
  */
-export function sectionCarte({ tr, prestations, nota, avecPrix = true, fiches = false, reserver = false }) {
+export function sectionCarte({ tr, prestations, nota, avecPrix = true, fiches = false, lignes = false, reserver = false }) {
   if (!prestations.length) return '';
   const chapitres = [];
   for (const p of prestations) {
@@ -349,7 +403,35 @@ export function sectionCarte({ tr, prestations, nota, avecPrix = true, fiches = 
         + '</li>';
     }).join('')
     + '</ul></div>').join('');
-  const html = fiches ? enFiches() : chapitres.map((c) => '<div class="menu__chapitre">'
+  // EN LIGNES (l'accueil « fiche ») : la liste la plus simple a parcourir.
+  // Le nom, la duree, le prix, et « Choisir » qui ouvre la reservation deja
+  // cochee. Au-dela de cinq lignes, un chapitre se replie : on voit d'abord
+  // TOUS les chapitres, puis on deplie celui qu'on cherche.
+  const VISIBLES = 5;
+  const uneLigne = (p) => {
+    const lien = reserver && p.reservable !== false && p.id;
+    return '<li class="prestation">'
+      + '<div class="prestation__mots"><p class="prestation__nom">' + e(p.nombre) + '</p>'
+      + (p.nota ? '<p class="prestation__note">' + e(p.nota) + '</p>' : '') + '</div>'
+      + '<p class="prestation__duree">' + e(tr('mx.carte.duree', { n: p.duracionMin })) + '</p>'
+      + (avecPrix ? '<p class="prestation__prix">' + e(p.precioTexte || p.precio) + '</p>' : '')
+      + (lien
+        ? '<a class="bouton bouton--principal bouton--petit prestation__choisir" href="/rendez-vous?p=' + e(p.id) + '" aria-label="' + e(tr('mx.carte.reserverCe', { nom: p.nombre })) + '">' + e(tr('mx.carte.choisir')) + '</a>'
+        : '')
+      + '</li>';
+  };
+  const enLignes = () => chapitres.map((c) => {
+    const reste = c.lignes.slice(VISIBLES);
+    return '<div class="prestations__chapitre">'
+      + (c.titre ? '<h3 class="prestations__titre">' + e(c.titre) + '</h3>' : (unSeul ? '' : '<h3 class="prestations__titre">' + e(tr('mx.carte.autres')) + '</h3>'))
+      + '<ul class="prestations__liste">' + c.lignes.slice(0, VISIBLES).map(uneLigne).join('') + '</ul>'
+      + (reste.length
+        ? '<details class="prestations__plus"><summary>' + e(tr('mx.carte.voirAutres', { n: reste.length })) + '</summary>'
+          + '<ul class="prestations__liste">' + reste.map(uneLigne).join('') + '</ul></details>'
+        : '')
+      + '</div>';
+  }).join('');
+  const html = lignes ? enLignes() : fiches ? enFiches() : chapitres.map((c) => '<div class="menu__chapitre">'
     + (c.titre ? '<h3 class="menu__titre">' + e(c.titre) + '</h3>' : (unSeul ? '' : '<h3 class="menu__titre">' + e(tr('mx.carte.autres')) + '</h3>'))
     + '<ul class="menu__liste">'
     + c.lignes.map((p) => {
@@ -366,7 +448,7 @@ export function sectionCarte({ tr, prestations, nota, avecPrix = true, fiches = 
   return '<section class="section section--carte" id="carte" aria-labelledby="titre-carte">'
     + '<div class="section__dedans">'
     + teteDeSection({ surtitre: tr('mx.carte.surtitre'), titre: tr('mx.carte.titre'), id: 'titre-carte' })
-    + (fiches ? '<div class="fiches">' + html + '</div>' : '<div class="menu' + (unSeul ? ' menu--simple' : '') + '">' + html + '</div>')
+    + (lignes ? '<div class="prestations">' + html + '</div>' : fiches ? '<div class="fiches">' + html + '</div>' : '<div class="menu' + (unSeul ? ' menu--simple' : '') + '">' + html + '</div>')
     + (nota ? '<p class="menu__nota">' + e(nota) + '</p>' : '')
     + '</div>'
     + '</section>';
@@ -432,12 +514,12 @@ export function sectionReserver({ tr, rdv, file }) {
  * Les professionnels de la maison. Un nom n'est montre que s'il a ete DONNE
  * (le coiffeur d'un fauteuil) : « Sillón 2 » n'est pas une personne.
  */
-export function sectionEquipe({ tr, membres, rdvActifs }) {
+export function sectionEquipe({ tr, membres, rdvActifs, titre = null }) {
   if (!membres.length) return '';
   const initiales = (nom) => String(nom).split(/\s+/).filter(Boolean).slice(0, 2).map((m) => m.charAt(0).toUpperCase()).join('');
   return '<section class="section section--equipe" id="equipe" aria-labelledby="titre-equipe">'
     + '<div class="section__dedans">'
-    + teteDeSection({ surtitre: tr('mx.equipe.surtitre'), titre: tr('mx.equipe.titre'), id: 'titre-equipe' })
+    + teteDeSection({ surtitre: tr('mx.equipe.surtitre'), titre: titre || tr('mx.equipe.titre'), id: 'titre-equipe' })
     + '<ul class="equipe equipe--' + Math.min(membres.length, 4) + '">'
     + membres.map((m) => '<li class="membre">'
       + '<span class="membre__portrait" aria-hidden="true">' + monogramme(initiales(m.nom), { classe: 'membre__monogramme' }) + '</span>'
@@ -486,7 +568,7 @@ export function sectionGalerie({ tr, photos, ruban = false }) {
     + '</section>';
 }
 
-const visionneuseHtml = (tr) => '<div class="visionneuse" data-visionneuse hidden role="dialog" aria-modal="true" aria-label="' + e(tr('vt.galerie.visionneuse')) + '">'
+export const visionneuseHtml = (tr) => '<div class="visionneuse" data-visionneuse hidden role="dialog" aria-modal="true" aria-label="' + e(tr('vt.galerie.visionneuse')) + '">'
   + '<button class="visionneuse__fermer" type="button" data-fermer aria-label="' + e(tr('vt.galerie.fermer')) + '">' + icone('croix') + '</button>'
   + '<button class="visionneuse__fleche visionneuse__fleche--avant" type="button" data-precedente aria-label="' + e(tr('vt.galerie.precedente')) + '">' + icone('retour') + '</button>'
   + '<figure class="visionneuse__cadre"><img class="visionneuse__image" alt="" data-image>'

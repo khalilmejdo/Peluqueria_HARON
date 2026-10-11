@@ -13,6 +13,7 @@ import { authRoutes } from './routes/auth.js';
 import { fileRoutes } from './routes/file.js';
 import { avisosRoutes } from './routes/avisos.js';
 import { photosRoutes, photosPubliquesRoutes } from './routes/photos.js';
+import { avisRoutes } from './routes/avis.js';
 import { marqueRoutes, marquePubliqueRoutes } from './routes/marque.js';
 import { rdvPublicRoutes, agendaRoutes } from './routes/rendezvous.js';
 import { siteRdvRoutes } from './site/rendezvous.js';
@@ -61,6 +62,7 @@ export function buildRouter() {
   // Reserve au gerant.
   router.mount('/api/fermetures', fermeturesRoutes);
   router.mount('/api/photos', photosRoutes);
+  router.mount('/api/avis', avisRoutes);
   router.mount('/api/reglages', reglagesRoutes);
   router.mount('/api/comptes', comptesRoutes);
   router.mount('/api/service', serviceRoutes);
