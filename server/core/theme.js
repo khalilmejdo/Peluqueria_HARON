@@ -95,6 +95,10 @@ export const PALETTES_DEF = {
   LILAS: { fond: '#f8f5fd', surface: '#ffffff', surface2: '#ece4f9', texte: '#241b33', texteDoux: '#6d6183', bordure: '#e0d5f2', accent: '#8a5cd6' },
   // Beige rose et terracotta : le nude des instituts.
   NUDE: { fond: '#f7efe8', surface: '#fffaf5', surface2: '#eedfd2', texte: '#2e221b', texteDoux: '#7b665a', bordure: '#e6d3c3', accent: '#c1694f' },
+  // Nacre et or rose : l'institut de luxe, clair et chaud.
+  NACRE: { fond: '#faf5ef', surface: '#fffdfa', surface2: '#f2e7db', texte: '#2a1d1a', texteDoux: '#806c62', bordure: '#eadbcc', accent: '#b9836a' },
+  // Prune profonde et or rose : le meme luxe, de nuit.
+  PRUNE: { fond: '#1a1016', surface: '#24161e', surface2: '#2e1c27', texte: '#f6ece8', texteDoux: '#b9a3a6', bordure: '#3d2733', accent: '#dba58f' },
   // Vert bouteille et laiton : le club anglais.
   EMERAUDE: { fond: '#0a1612', surface: '#0f1f1a', surface2: '#152a23', texte: '#eef1ea', texteDoux: '#9db0a5', bordure: '#22392f', accent: '#c8a96a' },
   // Bordeaux et or rose : le velours.
@@ -143,6 +147,14 @@ export const TYPOGRAPHIES_DEF = {
     ui: "'Manrope', 'Segoe UI', system-ui, sans-serif",
     poids: 500, casse: 'none', espacement: '0.005em', echelle: 1,
   },
+  // Une serif de haute couture pour les titres, un menu et des boutons en
+  // minuscules : le luxe d'aujourd'hui, sans la raideur des capitales.
+  COUTURE: {
+    titre: "'Cormorant Garamond', Georgia, 'Times New Roman', serif",
+    ui: "'Manrope', 'Segoe UI', system-ui, sans-serif",
+    poids: 500, casse: 'none', espacement: '0em', echelle: 1.04,
+    uiCasse: 'none', uiEspacement: '0.02em', uiGrossir: 1.2,
+  },
   PRESTIGE: {
     titre: "'Marcellus', 'Cormorant Garamond', Georgia, serif",
     ui: "'Jost', 'Segoe UI', system-ui, sans-serif",
@@ -183,8 +195,8 @@ export const STYLE_DE_L_ACTIVITE = {
   BARBERIA: { palette: 'ONYX', typographie: 'CLASSIQUE', angles: 'NETS', accueil: 'CLASSIQUE' },
   PELUQUERIA: { palette: 'POUDRE', typographie: 'PRESTIGE', angles: 'ARRONDIS', accueil: 'IMAGES' },
   UNISEX: { palette: 'IVOIRE', typographie: 'DOUCE', angles: 'DOUX', accueil: 'IMAGES' },
-  ESTETICA: { palette: 'NUDE', typographie: 'DOUCE', angles: 'ARRONDIS', accueil: 'IMAGES' },
-  ONGLES: { palette: 'CORAIL', typographie: 'DOUCE', angles: 'ARRONDIS', accueil: 'IMAGES' },
+  ESTETICA: { palette: 'NUDE', typographie: 'COUTURE', angles: 'ARRONDIS', accueil: 'IMAGES' },
+  ONGLES: { palette: 'NACRE', typographie: 'COUTURE', angles: 'ARRONDIS', accueil: 'IMAGES' },
 };
 
 /* ------------------------------------------------------------------ */

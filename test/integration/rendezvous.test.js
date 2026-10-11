@@ -100,6 +100,28 @@ test('rendez-vous et marque blanche', { skip: IGNORE }, async (t) => {
     assert.equal(n.n, 1);
   });
 
+  await t.test('sans preference de fauteuil : jamais plus de rendez-vous a une heure que de fauteuils', async () => {
+    await banc.reinitialiserDebit();
+    // Un jour a part : les tests suivants comptent sur les heures de demain.
+    const plusTard = plusJours(jourLocal(), 5);
+    const fauteuils = (await banc.db.one('SELECT COUNT(*)::int AS n FROM postes WHERE actif')).n;
+    const demande = (n) => banc.client().post('/api/public/rdv', {
+      prenom: 'Foule', nom: 'Simultanee', telephone: '6125007' + String(n).padStart(2, '0'), tarifaIds: [prestation.id], jour: plusTard, heure: '12:00',
+    });
+    const reponses = await Promise.all(Array.from({ length: fauteuils + 4 }, (_, i) => demande(i)));
+    const prises = reponses.filter((r) => r.status === 201).length;
+    assert.ok(prises >= 1 && prises <= fauteuils, prises + ' rendez-vous pour ' + fauteuils + ' fauteuil(s) : ' + reponses.map((r) => r.status).join(','));
+    for (const r of reponses.filter((x) => x.status !== 201)) assert.equal(r.status, 409, JSON.stringify(r.body));
+    // Aucun fauteuil ne porte deux rendez-vous qui se recouvrent.
+    const doubles = await banc.db.one(`SELECT COUNT(*)::int AS n FROM rendez_vous a JOIN rendez_vous b
+      ON a.poste_id = b.poste_id AND a.id < b.id AND a.debut < b.fin AND b.debut < a.fin
+      WHERE a.statut = 'CONFIRME' AND b.statut = 'CONFIRME'`);
+    assert.equal(doubles.n, 0);
+    // L'heure prise n'est plus proposee a la cliente suivante.
+    const apres = await banc.client().get('/api/public/rdv/creneaux?jour=' + plusTard + '&tarifaIds=' + prestation.id);
+    if (prises === fauteuils) assert.ok(!apres.body.creneaux.some((c) => c.heure === '12:00'), '12:00 encore proposee alors que tout est pris');
+  });
+
   await t.test('la base refuse elle-meme un chevauchement, quel que soit le code', async () => {
     const un = await banc.db.one("SELECT poste_id, debut, fin FROM rendez_vous WHERE statut = 'CONFIRME' LIMIT 1");
     await assert.rejects(
@@ -359,7 +381,7 @@ test('rendez-vous et marque blanche', { skip: IGNORE }, async (t) => {
     assert.equal(piege.status, 422);
     const ecran = await admin.get('/api/marque');
     assert.equal(ecran.status, 200);
-    assert.equal(ecran.body.palettes.length, 9);
+    assert.equal(ecran.body.palettes.length, 11);
     // Le pays et la page d'accueil se reglent sur le meme ecran.
     for (const cle of ['pays.fuseau', 'pays.indicatif', 'marque.accueil']) {
       assert.ok(ecran.body.catalogue.some((e) => e.cle === cle), cle + ' absent de l ecran Marque');
@@ -405,6 +427,7 @@ test('rendez-vous et marque blanche', { skip: IGNORE }, async (t) => {
     const avant = (await admin.get('/api/marque')).body.valeurs;
     const classique = String((await banc.client().get('/')).body);
     assert.ok(!classique.includes('une--images') && !classique.includes('data-ruban'), 'par defaut, l accueil reste classique');
+    assert.ok(!classique.includes('id="soin"') && !classique.includes('class="invitation"'), 'l accueil classique ne recoit aucune promesse nouvelle');
 
     try {
       const ok = await admin.put('/api/reglages', {
@@ -426,6 +449,29 @@ test('rendez-vous et marque blanche', { skip: IGNORE }, async (t) => {
       assert.match(vide, /class="fiche__lien" href="\/rendez-vous\?p=[0-9a-f-]+"/, 'une fiche mene a la reservation deja cochee');
       const css = String((await banc.client().get('/theme.css')).body);
       assert.ok(css.includes('--accent: #f0725c') && css.includes('--r-bouton: 999px'));
+
+      // Le soin : les quatre engagements de l'onglerie, trois rappeles en ouverture,
+      // les trois gestes de la reservation, et l'invitation finale.
+      assert.equal(vide.split('class="engagement"').length - 1, 4);
+      assert.ok(vide.includes('Higiene impecable') && vide.includes('limas nuevas'));
+      assert.equal((vide.split('class="une__atouts"')[1] || '').split('</ul>')[0].split('<li>').length - 1, 3);
+      assert.equal(vide.split('class="rituel__geste"').length - 1, 3);
+      assert.ok(vide.includes('class="invitation"') && vide.includes('Regálese este momento'));
+      // Le salon reecrit ses engagements : les siens remplacent ceux de l'activite.
+      const ecrits = await gerant.put('/api/reglages', { valeurs: { 'salon.engagements': 'Marcas veganas : Solo esmaltes sin crueldad.\nSin esperas' } });
+      assert.equal(ecrits.status, 200, JSON.stringify(ecrits.body));
+      const reecrit = String((await banc.client().get('/')).body);
+      assert.equal(reecrit.split('class="engagement"').length - 1, 2);
+      assert.ok(reecrit.includes('Marcas veganas') && reecrit.includes('Solo esmaltes sin crueldad.') && !reecrit.includes('Higiene impecable'));
+      // Une balise ecrite dans un engagement reste du texte.
+      assert.equal((await gerant.put('/api/reglages', { valeurs: { 'salon.engagements': '<img src=x onerror=alert(1)> : <b>gras</b>' } })).status, 200);
+      const piege = String((await banc.client().get('/')).body);
+      assert.ok(!piege.includes('<img src=x') && !piege.includes('<b>gras</b>'));
+      // Les deux sections se retirent ; l'ouverture ne garde alors aucune promesse.
+      assert.equal((await gerant.put('/api/reglages', { valeurs: { 'salon.engagements': '', 'vitrine.engagements': false, 'vitrine.etapes': false } })).status, 200);
+      const sobre = String((await banc.client().get('/')).body);
+      assert.ok(!sobre.includes('id="soin"') && !sobre.includes('une__atouts') && !sobre.includes('rituel__geste'));
+      assert.equal((await gerant.put('/api/reglages', { valeurs: { 'vitrine.engagements': true, 'vitrine.etapes': true } })).status, 200);
 
       // Avec des photos : elles montent dans l'ouverture ET dans le ruban.
       const { pngCouleur } = await banc.importer('server/core/png.js');

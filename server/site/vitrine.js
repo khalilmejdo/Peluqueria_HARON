@@ -123,7 +123,7 @@ export function ouverture({ tr, nom, accroche, metier, actions, reperes = '', co
  * @param {Array<{src:string, legende?:string, largeur?:number, hauteur?:number}>} o.photos  trois au plus
  * @param {{ href:string, jour:string, heure:string }|null} o.prochain  la prochaine heure libre
  */
-export function ouvertureImages({ tr, nom, accroche, metier, actions, reperes = '', photos = [], lettres = '', prochain = null }) {
+export function ouvertureImages({ tr, nom, accroche, metier, actions, reperes = '', photos = [], lettres = '', prochain = null, atouts = [] }) {
   const { petit, grand } = decouperNom(nom);
   const cadres = [0, 1, 2].map((i) => {
     const p = photos[i];
@@ -152,9 +152,14 @@ export function ouvertureImages({ tr, nom, accroche, metier, actions, reperes = 
       ? '<div class="une__actions">' + actions.map((a) => '<a class="bouton ' + (a.principal ? 'bouton--principal' : 'bouton--contour')
         + ' bouton--grand" href="' + e(a.href) + '"' + (a.principal ? ' data-appel-principal' : '') + '>' + e(a.texte) + '</a>').join('') + '</div>'
       : '')
+    + (atouts.length
+      ? '<ul class="une__atouts">' + atouts.map((a) => '<li>' + icone('coche') + e(a) + '</li>').join('') + '</ul>'
+      : '')
     + (reperes ? '<ul class="une__reperes">' + reperes + '</ul>' : '')
     + '</div>'
     + '<div class="collage" role="group" aria-label="' + e(tr('mx.une.photos')) + '">'
+    + '<span class="collage__filet" aria-hidden="true"></span>'
+    + '<span class="collage__eclat" aria-hidden="true">' + icone('eclat') + '</span>'
     + cadres
     + (prochain
       ? '<a class="collage__carte" href="' + e(prochain.href) + '">'
@@ -163,6 +168,83 @@ export function ouvertureImages({ tr, nom, accroche, metier, actions, reperes = 
         + '<span class="collage__carte-valeur">' + e(prochain.jour) + ' · ' + e(prochain.heure) + '</span></span></a>'
       : '')
     + '</div>'
+    + '</div>'
+    + '</section>';
+}
+
+/* ------------------------------------------------------------------ */
+/*  L'exigence, le rituel, l'invitation (accueil en images)            */
+/* ------------------------------------------------------------------ */
+
+const FAMILLE_DE_SOIN = { BARBERIA: 'BARBIER', ONGLES: 'ONGLES' };
+const ICONES_DE_SOIN = ['bouclier', 'diamant', 'coeur', 'horloge'];
+
+/**
+ * LES ENGAGEMENTS DE LA MAISON.
+ *
+ * Ceux que le salon a ECRITS (un par ligne, « Titre : texte ») passent avant
+ * tout. Sinon, ceux de son activite : une onglerie parle d'hygiene et de
+ * limes neuves, un barbier de rasoirs propres. Ce sont des PROMESSES faites
+ * au nom du salon — d'ou le reglage pour les reecrire ou les retirer.
+ *
+ * @returns {Array<{titre:string, texte:string}>} quatre au plus
+ */
+export function engagementsDe({ tr, activite, ecrits = '' }) {
+  const lignes = String(ecrits || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, 4);
+  if (lignes.length) {
+    return lignes.map((l) => {
+      const coupe = l.indexOf(':');
+      return coupe === -1 ? { titre: l, texte: '' } : { titre: l.slice(0, coupe).trim(), texte: l.slice(coupe + 1).trim() };
+    }).filter((x) => x.titre);
+  }
+  const famille = FAMILLE_DE_SOIN[activite] || 'BEAUTE';
+  return [1, 2, 3, 4].map((n) => ({ titre: tr('mx.soin.' + famille + '.' + n + '.titre'), texte: tr('mx.soin.' + famille + '.' + n + '.texte') }));
+}
+
+export function sectionEngagements({ tr, engagements }) {
+  if (!engagements.length) return '';
+  return '<section class="section section--soin" id="soin" aria-labelledby="titre-soin">'
+    + '<div class="section__dedans">'
+    + teteDeSection({ surtitre: tr('mx.soin.surtitre'), titre: tr('mx.soin.titre'), id: 'titre-soin' })
+    + '<ul class="engagements engagements--' + engagements.length + '">'
+    + engagements.map((x, i) => '<li class="engagement">'
+      + '<span class="engagement__icone" aria-hidden="true">' + icone(ICONES_DE_SOIN[i % ICONES_DE_SOIN.length]) + '</span>'
+      + '<h3 class="engagement__titre">' + e(x.titre) + '</h3>'
+      + (x.texte ? '<p class="engagement__texte">' + e(x.texte) + '</p>' : '')
+      + '</li>').join('')
+    + '</ul>'
+    + '</div>'
+    + '</section>';
+}
+
+/** Les trois gestes de la reservation : seulement quand on PEUT reserver. */
+export function sectionRituel({ tr }) {
+  return '<section class="section section--rituel" aria-labelledby="titre-rituel">'
+    + '<div class="section__dedans">'
+    + teteDeSection({ surtitre: tr('mx.rituel.surtitre'), titre: tr('mx.rituel.titre'), id: 'titre-rituel' })
+    + '<ol class="rituel">'
+    + [1, 2, 3].map((n) => '<li class="rituel__geste">'
+      + '<span class="rituel__numero" aria-hidden="true">' + n + '</span>'
+      + '<h3 class="rituel__titre">' + e(tr('mx.rituel.' + n + '.titre')) + '</h3>'
+      + '<p class="rituel__texte">' + e(tr('mx.rituel.' + n + '.texte')) + '</p>'
+      + '</li>').join('')
+    + '</ol>'
+    + '</div>'
+    + '</section>';
+}
+
+/** Le dernier mot de la page : une invitation, et le bouton qui la tient. */
+export function sectionInvitation({ tr, action, telephone = null }) {
+  if (!action) return '';
+  return '<section class="invitation" aria-labelledby="titre-invitation">'
+    + '<div class="invitation__dedans">'
+    + '<span class="invitation__eclat" aria-hidden="true">' + icone('eclat') + '</span>'
+    + '<h2 class="invitation__titre" id="titre-invitation">' + e(tr('mx.invitation.titre')) + '</h2>'
+    + '<p class="invitation__texte">' + e(tr('mx.invitation.texte')) + '</p>'
+    + '<a class="bouton bouton--grand invitation__bouton" href="' + e(action.href) + '">' + e(action.texte) + '</a>'
+    + (telephone
+      ? '<p class="invitation__appel"><a href="tel:' + e(String(telephone).replace(/[^+0-9]/g, '')) + '">' + e(tr('mx.invitation.appeler', { telephone })) + '</a></p>'
+      : '')
     + '</div>'
     + '</section>';
 }
@@ -336,7 +418,7 @@ export function sectionReserver({ tr, rdv, file }) {
   }
   return '<section class="section section--reserver" id="reserver" aria-labelledby="titre-reserver">'
     + '<div class="section__dedans">'
-    + teteDeSection({ surtitre: tr('mx.venir.surtitre'), titre: tr('mx.venir.titre'), id: 'titre-reserver', chapo: tr('mx.venir.chapo') })
+    + teteDeSection({ surtitre: tr('mx.venir.surtitre'), titre: tr('mx.venir.titre'), id: 'titre-reserver', chapo: rdv && file ? tr('mx.venir.chapo') : null })
     + '<div class="offres offres--' + cartes.length + '">' + cartes.join('') + '</div>'
     + '</div>'
     + '</section>';

@@ -1671,3 +1671,181 @@ a.collage__cadre:hover { transform: translateY(-0.35rem); }
 @media (prefers-reduced-motion: reduce) {
   .collage, .collage__cadre, .ruban__image, .fiche { animation: none; transition: none; }
 }
+
+/* ================================================================== */
+/*  L'ACCUEIL EN IMAGES : LE SOIN, LE RITUEL, L'INVITATION             */
+/* ================================================================== */
+
+/* --- l'ouverture : les trois engagements, le filet, l'eclat --- */
+
+.une__atouts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.4rem;
+  margin: 1.7rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.88rem;
+  color: var(--texte-doux);
+}
+.une__atouts li { display: inline-flex; align-items: center; gap: 0.45rem; }
+.une__atouts svg { width: 1rem; height: 1rem; color: var(--accent); stroke-width: 2; }
+
+.collage__filet {
+  position: absolute;
+  top: 1.5%;
+  left: -3.5%;
+  width: 57%;
+  height: 84%;
+  border: 1px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  border-radius: var(--arche) var(--arche) var(--r-grand) var(--r-grand);
+  pointer-events: none;
+}
+.collage__eclat {
+  position: absolute;
+  top: -3%;
+  left: 49%;
+  z-index: 1;
+  width: 2.6rem;
+  height: 2.6rem;
+  color: var(--accent);
+  animation: scintiller 5s ease-in-out infinite;
+}
+.collage__eclat svg { width: 100%; height: 100%; fill: currentColor; stroke: none; }
+@keyframes scintiller {
+  0%, 100% { opacity: 0.55; transform: scale(0.9) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.08) rotate(12deg); }
+}
+
+/* --- notre exigence --- */
+
+.engagements {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14.5rem), 1fr));
+  gap: clamp(0.8rem, 2vw, 1.4rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.engagement {
+  position: relative;
+  padding: clamp(1.5rem, 3vw, 2.1rem) clamp(1.2rem, 2.4vw, 1.7rem);
+  border: 1px solid var(--bordure);
+  border-radius: max(var(--r-grand), 0.25rem);
+  background: var(--surface);
+  text-align: center;
+  transition: transform var(--lent), box-shadow var(--lent), border-color var(--lent);
+}
+.engagement:hover { transform: translateY(-0.3rem); border-color: color-mix(in srgb, var(--accent) 55%, var(--bordure)); box-shadow: var(--ombre); }
+.engagement__icone {
+  display: grid;
+  place-items: center;
+  width: 3.6rem;
+  height: 3.6rem;
+  margin: 0 auto 1.2rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent-lisible);
+}
+.engagement__icone svg { width: 1.6rem; height: 1.6rem; stroke-width: 1.3; }
+.engagement__titre {
+  font-family: var(--police-titre);
+  font-size: calc(1.45rem * var(--titre-echelle));
+  font-weight: var(--titre-poids);
+  text-transform: var(--titre-casse);
+  letter-spacing: var(--titre-espacement);
+  line-height: 1.2;
+}
+.engagement__texte { margin-top: 0.6rem; color: var(--texte-doux); font-size: 0.95rem; line-height: 1.65; }
+
+/* --- les trois gestes --- */
+
+.accueil-images .section--rituel { padding-bottom: 0; }
+.rituel {
+  display: grid;
+  gap: clamp(1.6rem, 4vw, 3rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+@media (min-width: 48rem) {
+  .rituel { grid-template-columns: repeat(3, 1fr); }
+}
+.rituel__geste { position: relative; text-align: center; }
+@media (min-width: 48rem) {
+  .rituel__geste + .rituel__geste::before {
+    content: '';
+    position: absolute;
+    top: 1.75rem;
+    right: calc(50% + 2.4rem);
+    width: calc(100% - 4.8rem + clamp(1.6rem, 4vw, 3rem));
+    border-top: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+}
+.rituel__numero {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin: 0 auto 1.1rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--sur-accent);
+  font-family: var(--police-titre);
+  font-size: 1.5rem;
+  font-variant-numeric: lining-nums;
+}
+.rituel__titre {
+  font-family: var(--police-titre);
+  font-size: calc(1.45rem * var(--titre-echelle));
+  font-weight: var(--titre-poids);
+  text-transform: var(--titre-casse);
+  letter-spacing: var(--titre-espacement);
+}
+.rituel__texte { max-width: 30ch; margin: 0.5rem auto 0; color: var(--texte-doux); font-size: 0.95rem; line-height: 1.65; }
+
+/* --- l'invitation --- */
+
+.invitation { padding: clamp(3rem, 7vw, 5.5rem) var(--marge) clamp(1rem, 3vw, 2rem); }
+.invitation__dedans {
+  position: relative;
+  width: min(var(--largeur), 100%);
+  margin: 0 auto;
+  padding: clamp(2.8rem, 7vw, 5rem) clamp(1.4rem, 5vw, 4rem);
+  overflow: hidden;
+  border-radius: max(var(--r-grand), 0.25rem);
+  background:
+    radial-gradient(ellipse at 12% 0%, color-mix(in srgb, var(--accent-clair) 60%, transparent), transparent 55%),
+    radial-gradient(ellipse at 95% 100%, color-mix(in srgb, var(--accent-profond) 55%, transparent), transparent 60%),
+    var(--accent);
+  color: var(--sur-accent);
+  text-align: center;
+  box-shadow: var(--ombre);
+}
+.invitation__eclat { display: block; width: 2.2rem; height: 2.2rem; margin: 0 auto 1rem; opacity: 0.8; }
+.invitation__eclat svg { width: 100%; height: 100%; fill: currentColor; stroke: none; }
+.invitation__titre {
+  font-family: var(--police-titre);
+  font-size: var(--t-1);
+  font-weight: var(--titre-poids);
+  text-transform: var(--titre-casse);
+  letter-spacing: var(--titre-espacement);
+  line-height: 1.05;
+  text-wrap: balance;
+}
+.invitation__texte { max-width: 44ch; margin: 1rem auto 0; font-size: 1.05rem; opacity: 0.88; }
+.invitation__bouton {
+  margin-top: 1.9rem;
+  background: var(--surface);
+  color: var(--texte);
+  box-shadow: 0 14px 30px -18px rgb(0 0 0 / 55%);
+}
+.invitation__bouton:hover { background: var(--fond); color: var(--texte); transform: translateY(-2px); }
+.invitation__appel { margin-top: 1.2rem; font-size: 0.92rem; }
+.invitation__appel a { color: inherit; opacity: 0.9; text-underline-offset: 0.25em; }
+
+@media (prefers-reduced-motion: reduce) {
+  .collage__eclat, .engagement { animation: none; transition: none; }
+}

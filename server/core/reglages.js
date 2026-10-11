@@ -65,8 +65,8 @@ const CLE_PANTALLA_MIN = 20;
  * (voir peutEcrire()). Le gerant regle sa journee, pas son identite.
  */
 export const ACTIVITES = ['BARBERIA', 'PELUQUERIA', 'UNISEX', 'ESTETICA', 'ONGLES'];
-export const PALETTES = ['ONYX', 'IVOIRE', 'POUDRE', 'CORAIL', 'LILAS', 'NUDE', 'EMERAUDE', 'BORDEAUX', 'MINUIT', 'PERSO'];
-export const TYPOGRAPHIES = ['CLASSIQUE', 'PRESTIGE', 'MODERNE', 'DOUCE'];
+export const PALETTES = ['ONYX', 'IVOIRE', 'NACRE', 'POUDRE', 'CORAIL', 'LILAS', 'NUDE', 'PRUNE', 'EMERAUDE', 'BORDEAUX', 'MINUIT', 'PERSO'];
+export const TYPOGRAPHIES = ['CLASSIQUE', 'COUTURE', 'PRESTIGE', 'MODERNE', 'DOUCE'];
 /** La composition de la page d'accueil : centree et solennelle, ou en images. */
 export const ACCUEILS = ['CLASSIQUE', 'IMAGES'];
 export const ANGLES = ['NETS', 'DOUX', 'ARRONDIS'];
@@ -150,7 +150,7 @@ export const CATALOGUE = {
   },
   // Quelques lignes sur la maison, en tete de la vitrine. Vide : pas de section.
   'salon.presentation': {
-    type: 'texte', defaut: '', maxLongueur: 600,
+    type: 'texte', defaut: '', maxLongueur: 600, lignes: true,
   },
   'salon.adresse': {
     type: 'texte', defaut: '', maxLongueur: 160,
@@ -256,6 +256,15 @@ export const CATALOGUE = {
   },
   'vitrine.etapes': {
     type: 'booleen', defaut: true,
+  },
+  // « Notre exigence » : quatre engagements de la maison (accueil en images).
+  'vitrine.engagements': {
+    type: 'booleen', defaut: true,
+  },
+  // Les engagements ecrits par le salon, un par ligne, « Titre : texte ».
+  // Vide : ceux de l'activite.
+  'salon.engagements': {
+    type: 'texte', defaut: '', maxLongueur: 600, lignes: true,
   },
 
   // La fiche de prix elle-meme vit dans sa propre table, avec son propre ecran.
@@ -525,7 +534,11 @@ export function versTexte(cle, valeur) {
       return texte;
     }
     default: {
-      const texte = String(valeur).replace(/\s+/g, ' ').trim();
+      // Un texte « a lignes » (presentation, engagements) garde ses retours :
+      // ce sont eux qui font les paragraphes. Une ligne vide au plus entre deux.
+      const texte = regle.lignes
+        ? String(valeur).split(/\r?\n/).map((l) => l.replace(/\s+/g, ' ').trim()).join('\n').replace(/\n{3,}/g, '\n\n').trim()
+        : String(valeur).replace(/\s+/g, ' ').trim();
       if (texte.length > (regle.maxLongueur ?? 200)) {
         throw new ValidationError({ [cle]: t('valid.texteTropLong', { max: regle.maxLongueur ?? 200 }) });
       }

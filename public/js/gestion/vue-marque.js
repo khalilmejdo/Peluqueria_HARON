@@ -19,6 +19,7 @@ const POLICES = {
   CLASSIQUE: { titre: "'Cormorant Garamond', Georgia, serif", ui: "'Manrope', system-ui, sans-serif", casse: 'none', espacement: '0.005em', poids: '500' },
   PRESTIGE: { titre: "'Marcellus', Georgia, serif", ui: "'Jost', system-ui, sans-serif", casse: 'none', espacement: '0.04em', poids: '400' },
   MODERNE: { titre: "'Jost', system-ui, sans-serif", ui: "'Jost', system-ui, sans-serif", casse: 'uppercase', espacement: '0.14em', poids: '300' },
+  COUTURE: { titre: "'Cormorant Garamond', Georgia, serif", ui: "'Manrope', system-ui, sans-serif", casse: 'none', espacement: '0em', poids: '500' },
   DOUCE: { titre: "'Jost', system-ui, sans-serif", ui: "'Manrope', system-ui, sans-serif", casse: 'none', espacement: '-0.02em', poids: '500' },
 };
 const RAYONS = { NETS: ['0px', '2px'], DOUX: ['8px', '14px'], ARRONDIS: ['999px', '22px'] };

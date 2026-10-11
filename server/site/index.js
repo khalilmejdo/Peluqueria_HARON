@@ -33,7 +33,7 @@ import {
 } from '../domain/file.js';
 import { pourVitrine as photosVitrine } from '../domain/photos.js';
 import {
-  ouverture, ouvertureImages, reperes, pastilleEtat, sectionMaison, sectionCarte, sectionReserver, sectionEquipe, sectionGalerie,
+  ouverture, ouvertureImages, reperes, pastilleEtat, engagementsDe, sectionEngagements, sectionRituel, sectionInvitation, sectionMaison, sectionCarte, sectionReserver, sectionEquipe, sectionGalerie,
   sectionLieu, horairesDuJour, etatDuMoment,
 } from './vitrine.js';
 import { pourVitrine } from '../domain/tarifas.js';
@@ -267,6 +267,10 @@ siteRoutes.get('/', async (ctx) => {
   ].filter(Boolean);
 
   const telephone = r['salon.telephone'];
+  const engagements = enImages && r['vitrine.engagements']
+    ? engagementsDe({ tr, activite: r['marque.activite'], ecrits: r['salon.engagements'] })
+    : [];
+  const actionFinale = principale && principale.href !== '#carte' ? principale : null;
   const corps = entete({
     sections,
     action: principale && principale.href !== '#carte' ? { href: principale.href === '#reserver' ? '/#reserver' : principale.href, texte: principale.texte } : null,
@@ -284,6 +288,7 @@ siteRoutes.get('/', async (ctx) => {
         photos: aLaUne.slice(0, 3),
         lettres: theme.monogramme,
         prochain: rdvOuvert && rdv.prochains.length ? rdv.prochains[0] : null,
+        atouts: engagements.slice(0, 3).map((x) => x.titre),
       })
       : ouverture({
         tr,
@@ -304,11 +309,14 @@ siteRoutes.get('/', async (ctx) => {
     })
     // En images, la galerie vient TOUT DE SUITE : c'est elle qui vend.
     + (enImages ? sectionGalerie({ tr, photos, ruban: true }) : '')
+    + sectionEngagements({ tr, engagements })
     + sectionMaison({ tr, presentation: r['salon.presentation'], lettres: theme.monogramme, photo: enImages ? (aLaUne[3] || aLaUne[0] || null) : null })
     + (avecCarte ? sectionCarte({ tr, prestations, nota: r['tarifas.nota'], avecPrix: avecTarifs, fiches: enImages, reserver: rdvOuvert }) : '')
+    + (enImages && rdvOuvert && r['vitrine.etapes'] ? sectionRituel({ tr }) : '')
     + sectionReserver({ tr, rdv: rdv && (rdv.ouvert || rdv.fermeture) ? rdv : null, file })
     + sectionEquipe({ tr, membres, rdvActifs: rdvOuvert })
     + (enImages ? '' : sectionGalerie({ tr, photos }))
+    + (enImages ? sectionInvitation({ tr, action: actionFinale, telephone: avecContact ? telephone : null }) : '')
     + sectionLieu({
       tr,
       avecLieu,
