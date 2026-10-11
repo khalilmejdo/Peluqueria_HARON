@@ -109,6 +109,64 @@ export function ouverture({ tr, nom, accroche, metier, actions, reperes = '', co
     + '</section>';
 }
 
+/**
+ * L'OUVERTURE « EN IMAGES ».
+ *
+ * Le texte d'un cote, trois photos de l'autre, dans des cadres en arche : ce
+ * qu'un salon de beaute vend se REGARDE, et une cliente decide sur une image
+ * avant de lire un prix. Les photos sont celles de la galerie (la couverture
+ * d'abord). Un salon qui n'en a pas encore garde la meme composition : les
+ * arches sont peintes aux couleurs de la marque, le monogramme dans la
+ * premiere — jamais un cadre gris qui s'excuse.
+ *
+ * @param {object} o
+ * @param {Array<{src:string, legende?:string, largeur?:number, hauteur?:number}>} o.photos  trois au plus
+ * @param {{ href:string, jour:string, heure:string }|null} o.prochain  la prochaine heure libre
+ */
+export function ouvertureImages({ tr, nom, accroche, metier, actions, reperes = '', photos = [], lettres = '', prochain = null }) {
+  const { petit, grand } = decouperNom(nom);
+  const cadres = [0, 1, 2].map((i) => {
+    const p = photos[i];
+    const classe = 'collage__cadre collage__cadre--' + (i + 1);
+    if (!p) {
+      return '<span class="' + classe + ' collage__cadre--vide" aria-hidden="true">'
+        + (i === 0 ? monogramme(lettres, { classe: 'collage__monogramme' }) : '') + '</span>';
+    }
+    return '<a class="' + classe + '" href="#galerie" aria-label="' + e(tr('mx.une.voirGalerie')) + '">'
+      + '<img class="collage__image" src="' + e(p.src) + '" alt="' + e(p.legende || tr('vt.galerie.photo', { n: i + 1 })) + '"'
+      + (p.largeur ? ' width="' + p.largeur + '" height="' + p.hauteur + '"' : '')
+      + (i === 0 ? ' fetchpriority="high"' : '') + ' decoding="async"></a>';
+  }).join('');
+
+  return '<section class="une une--images" aria-labelledby="titre-une">'
+    + '<span class="une__halo une__halo--1" aria-hidden="true"></span><span class="une__halo une__halo--2" aria-hidden="true"></span>'
+    + '<div class="une__grille">'
+    + '<div class="une__dedans">'
+    + (memeMot(petit, metier) ? '' : '<p class="etiquette-pilule une__surtitre">' + e(metier) + '</p>')
+    + '<h1 class="une__titre" id="titre-une">'
+    + (petit ? '<span class="une__titre-petit">' + e(petit) + '</span>' : '')
+    + '<span class="une__titre-grand">' + e(grand) + '</span>'
+    + '</h1>'
+    + (accroche ? '<p class="une__accroche">' + e(accroche) + '</p>' : '')
+    + (actions.length
+      ? '<div class="une__actions">' + actions.map((a) => '<a class="bouton ' + (a.principal ? 'bouton--principal' : 'bouton--contour')
+        + ' bouton--grand" href="' + e(a.href) + '"' + (a.principal ? ' data-appel-principal' : '') + '>' + e(a.texte) + '</a>').join('') + '</div>'
+      : '')
+    + (reperes ? '<ul class="une__reperes">' + reperes + '</ul>' : '')
+    + '</div>'
+    + '<div class="collage" role="group" aria-label="' + e(tr('mx.une.photos')) + '">'
+    + cadres
+    + (prochain
+      ? '<a class="collage__carte" href="' + e(prochain.href) + '">'
+        + '<span class="collage__carte-icone" aria-hidden="true">' + icone('calendrier') + '</span>'
+        + '<span class="collage__carte-mots"><span class="collage__carte-quoi">' + e(tr('mx.une.prochain')) + '</span>'
+        + '<span class="collage__carte-valeur">' + e(prochain.jour) + ' · ' + e(prochain.heure) + '</span></span></a>'
+      : '')
+    + '</div>'
+    + '</div>'
+    + '</section>';
+}
+
 const sansAccent = (v) => normalize(String(v || ''));
 const memeMot = (a, b) => Boolean(a) && Boolean(b) && (sansAccent(a).includes(sansAccent(b)) || sansAccent(b).includes(sansAccent(a)));
 
@@ -147,13 +205,16 @@ export function reperes({ tr, aujourdhui, adresse, telephone }) {
 /*  La maison                                                          */
 /* ------------------------------------------------------------------ */
 
-export function sectionMaison({ tr, presentation, lettres }) {
+export function sectionMaison({ tr, presentation, lettres, photo = null }) {
   const texte = String(presentation || '').trim();
   if (!texte) return '';
   const paragraphes = texte.split(/\n{2,}|\r\n\r\n/).map((p) => '<p>' + e(p.trim()) + '</p>').join('');
   return '<section class="section section--maison" id="maison" aria-labelledby="titre-maison">'
     + '<div class="section__dedans maison">'
-    + '<div class="maison__embleme" aria-hidden="true">' + monogramme(lettres, { classe: 'maison__monogramme' }) + '</div>'
+    + (photo
+      ? '<div class="maison__photo"><img src="' + e(photo.src) + '" alt="' + e(photo.legende || '') + '"'
+        + (photo.largeur ? ' width="' + photo.largeur + '" height="' + photo.hauteur + '"' : '') + ' loading="lazy" decoding="async"></div>'
+      : '<div class="maison__embleme" aria-hidden="true">' + monogramme(lettres, { classe: 'maison__monogramme' }) + '</div>')
     + '<div class="maison__texte">'
     + teteDeSection({ surtitre: tr('mx.maison.surtitre'), titre: tr('mx.maison.titre'), id: 'titre-maison', classe: 'section__tete--gauche' })
     + '<div class="maison__corps">' + paragraphes + '</div>'
@@ -174,7 +235,7 @@ export function sectionMaison({ tr, presentation, lettres }) {
  * jusqu'au chiffre, sans hesiter sur la colonne. Les chapitres viennent de la
  * carte du salon ; une carte sans chapitre en a un seul, sans titre.
  */
-export function sectionCarte({ tr, prestations, nota, avecPrix = true }) {
+export function sectionCarte({ tr, prestations, nota, avecPrix = true, fiches = false, reserver = false }) {
   if (!prestations.length) return '';
   const chapitres = [];
   for (const p of prestations) {
@@ -187,7 +248,26 @@ export function sectionCarte({ tr, prestations, nota, avecPrix = true }) {
     c.lignes.push(p);
   }
   const unSeul = chapitres.length === 1;
-  const html = chapitres.map((c) => '<div class="menu__chapitre">'
+  // EN FICHES (l'accueil « en images ») : une prestation = une carte, avec son
+  // icone dans une pastille, et un lien qui ouvre la reservation DEJA cochee.
+  const enFiches = () => chapitres.map((c) => '<div class="fiches__chapitre">'
+    + (c.titre ? '<h3 class="fiches__titre">' + e(c.titre) + '</h3>' : (unSeul ? '' : '<h3 class="fiches__titre">' + e(tr('mx.carte.autres')) + '</h3>'))
+    + '<ul class="fiches__liste">'
+    + c.lignes.map((p) => {
+      const lien = reserver && p.reservable !== false && p.id;
+      return '<li class="fiche">'
+        + '<span class="fiche__icone" aria-hidden="true">' + iconeTarifa(p.icono) + '</span>'
+        + '<div class="fiche__mots"><p class="fiche__nom">' + e(p.nombre) + '</p>'
+        + '<p class="fiche__detail">' + e(tr('mx.carte.duree', { n: p.duracionMin })) + (p.nota ? ' · ' + e(p.nota) : '') + '</p></div>'
+        + (avecPrix ? '<p class="fiche__prix">' + e(p.precioTexte || p.precio) + '</p>' : '')
+        + (lien
+          ? '<a class="fiche__lien" href="/rendez-vous?p=' + e(p.id) + '" aria-label="' + e(tr('mx.carte.reserverCe', { nom: p.nombre })) + '">'
+            + e(tr('mx.carte.reserver')) + icone('fleche') + '</a>'
+          : '')
+        + '</li>';
+    }).join('')
+    + '</ul></div>').join('');
+  const html = fiches ? enFiches() : chapitres.map((c) => '<div class="menu__chapitre">'
     + (c.titre ? '<h3 class="menu__titre">' + e(c.titre) + '</h3>' : (unSeul ? '' : '<h3 class="menu__titre">' + e(tr('mx.carte.autres')) + '</h3>'))
     + '<ul class="menu__liste">'
     + c.lignes.map((p) => {
@@ -204,7 +284,7 @@ export function sectionCarte({ tr, prestations, nota, avecPrix = true }) {
   return '<section class="section section--carte" id="carte" aria-labelledby="titre-carte">'
     + '<div class="section__dedans">'
     + teteDeSection({ surtitre: tr('mx.carte.surtitre'), titre: tr('mx.carte.titre'), id: 'titre-carte' })
-    + '<div class="menu' + (unSeul ? ' menu--simple' : '') + '">' + html + '</div>'
+    + (fiches ? '<div class="fiches">' + html + '</div>' : '<div class="menu' + (unSeul ? ' menu--simple' : '') + '">' + html + '</div>')
     + (nota ? '<p class="menu__nota">' + e(nota) + '</p>' : '')
     + '</div>'
     + '</section>';
@@ -298,8 +378,9 @@ export function sectionEquipe({ tr, membres, rdvActifs }) {
  * Aucune photo, aucune section : une vitrine qui s'excuse d'etre inachevee
  * fait moins bonne impression qu'une vitrine qui ne dit rien.
  */
-export function sectionGalerie({ tr, photos }) {
+export function sectionGalerie({ tr, photos, ruban = false }) {
   if (!photos.length) return '';
+  if (ruban) return galerieEnRuban({ tr, photos });
   const vignettes = photos.map((p, i) => '<li class="galerie__case' + (i === 0 ? ' galerie__case--grande' : '') + '">'
     + '<a class="galerie__lien" href="' + e(p.src) + '" data-agrandir data-legende="' + e(p.legende || '') + '">'
     + '<img class="galerie__image" src="' + e(p.src) + '" alt="' + e(p.legende || tr('vt.galerie.photo', { n: i + 1 })) + '"'
@@ -320,6 +401,46 @@ export function sectionGalerie({ tr, photos }) {
     + '<figcaption class="visionneuse__legende" data-legende-grande></figcaption></figure>'
     + '<button class="visionneuse__fleche visionneuse__fleche--apres" type="button" data-suivante aria-label="' + e(tr('vt.galerie.suivante')) + '">' + icone('fleche') + '</button>'
     + '</div>'
+    + '</section>';
+}
+
+const visionneuseHtml = (tr) => '<div class="visionneuse" data-visionneuse hidden role="dialog" aria-modal="true" aria-label="' + e(tr('vt.galerie.visionneuse')) + '">'
+  + '<button class="visionneuse__fermer" type="button" data-fermer aria-label="' + e(tr('vt.galerie.fermer')) + '">' + icone('croix') + '</button>'
+  + '<button class="visionneuse__fleche visionneuse__fleche--avant" type="button" data-precedente aria-label="' + e(tr('vt.galerie.precedente')) + '">' + icone('retour') + '</button>'
+  + '<figure class="visionneuse__cadre"><img class="visionneuse__image" alt="" data-image>'
+  + '<figcaption class="visionneuse__legende" data-legende-grande></figcaption></figure>'
+  + '<button class="visionneuse__fleche visionneuse__fleche--apres" type="button" data-suivante aria-label="' + e(tr('vt.galerie.suivante')) + '">' + icone('fleche') + '</button>'
+  + '</div>';
+
+/**
+ * LA GALERIE EN RUBAN : une rangee de grandes photos qui defile au doigt,
+ * placee HAUT dans la page. Elle deborde de la colonne jusqu'aux bords de
+ * l'ecran — on voit qu'il y en a d'autres sans avoir a le dire. Les deux
+ * fleches n'existent que pour la souris ; au doigt, on glisse. Sans
+ * JavaScript, le ruban defile quand meme et chaque photo reste un lien.
+ */
+function galerieEnRuban({ tr, photos }) {
+  const cases = photos.map((p, i) => '<li class="ruban__case">'
+    + '<a class="ruban__lien" href="' + e(p.src) + '" data-agrandir data-legende="' + e(p.legende || '') + '">'
+    + '<img class="ruban__image" src="' + e(p.src) + '" alt="' + e(p.legende || tr('vt.galerie.photo', { n: i + 1 })) + '"'
+    + (p.largeur ? ' width="' + p.largeur + '" height="' + p.hauteur + '"' : '')
+    + (i > 2 ? ' loading="lazy"' : '') + ' decoding="async">'
+    + (p.legende ? '<span class="ruban__legende">' + e(p.legende) + '</span>' : '')
+    + '</a></li>').join('');
+  return '<section class="section section--galerie section--ruban" id="galerie" aria-labelledby="titre-galerie">'
+    + '<div class="section__dedans ruban__tete">'
+    + '<div><p class="etiquette-pilule">' + e(tr('mx.galerie.surtitre')) + '</p>'
+    + '<h2 class="section__titre" id="titre-galerie">' + e(tr('mx.galerie.titre')) + '</h2>'
+    + '<p class="section__chapo">' + e(tr('mx.galerie.chapo')) + '</p></div>'
+    + (photos.length > 2
+      ? '<div class="ruban__fleches" data-ruban-fleches hidden>'
+        + '<button class="ruban__fleche" type="button" data-ruban-avant aria-label="' + e(tr('mx.galerie.avant')) + '">' + icone('retour') + '</button>'
+        + '<button class="ruban__fleche" type="button" data-ruban-apres aria-label="' + e(tr('mx.galerie.apres')) + '">' + icone('fleche') + '</button>'
+        + '</div>'
+      : '')
+    + '</div>'
+    + '<ul class="ruban" data-ruban tabindex="0" aria-label="' + e(tr('mx.une.photos')) + '">' + cases + '</ul>'
+    + visionneuseHtml(tr)
     + '</section>';
 }
 

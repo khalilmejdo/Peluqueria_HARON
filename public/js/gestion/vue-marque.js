@@ -19,6 +19,7 @@ const POLICES = {
   CLASSIQUE: { titre: "'Cormorant Garamond', Georgia, serif", ui: "'Manrope', system-ui, sans-serif", casse: 'none', espacement: '0.005em', poids: '500' },
   PRESTIGE: { titre: "'Marcellus', Georgia, serif", ui: "'Jost', system-ui, sans-serif", casse: 'none', espacement: '0.04em', poids: '400' },
   MODERNE: { titre: "'Jost', system-ui, sans-serif", ui: "'Jost', system-ui, sans-serif", casse: 'uppercase', espacement: '0.14em', poids: '300' },
+  DOUCE: { titre: "'Jost', system-ui, sans-serif", ui: "'Manrope', system-ui, sans-serif", casse: 'none', espacement: '-0.02em', poids: '500' },
 };
 const RAYONS = { NETS: ['0px', '2px'], DOUX: ['8px', '14px'], ARRONDIS: ['999px', '22px'] };
 
@@ -154,7 +155,7 @@ export async function vueMarque(conteneur) {
 
   const typographies = cartesAChoisir('marque.typographie', (o) => {
     const e = el('span.echantillon', { texte: 'Aa' });
-    const typo = POLICES[o.valeur];
+    const typo = POLICES[o.valeur] || POLICES.CLASSIQUE;
     e.style.setProperty('font-family', typo.titre);
     e.style.setProperty('text-transform', typo.casse);
     e.style.setProperty('font-weight', typo.poids);
@@ -166,6 +167,20 @@ export async function vueMarque(conteneur) {
     e.style.setProperty('border-radius', (RAYONS[o.valeur] || RAYONS.NETS)[1]);
     return e;
   });
+
+  /** La composition de l'accueil, dessinee en miniature. */
+  const accueils = cartesAChoisir('marque.accueil', (o) => (o.valeur === 'IMAGES'
+    ? el('span.maquette.maquette--images', el('span.maquette__texte'), el('span.maquette__photo'), el('span.maquette__photo'))
+    : el('span.maquette', el('span.maquette__texte'))));
+
+  /** Un nombre entier (l'indicatif du pays). */
+  const champNombre = (cle) => {
+    const r = regle(cle);
+    const entree = el('input', { type: 'number', inputmode: 'numeric', id: 'm-' + cle, value: valeurs[cle] ?? '', min: r.min ?? null, max: r.max ?? null, step: 1 });
+    entree.addEventListener('input', () => { valeurs[cle] = entree.value === '' ? '' : Number(entree.value); });
+    return el('div.champ', el('label', { for: 'm-' + cle, texte: r.libelle }), entree,
+      r.aide ? el('p.champ__aide', { texte: r.aide }) : null);
+  };
 
   /* ---------------- le logo ---------------- */
 
@@ -234,6 +249,8 @@ export async function vueMarque(conteneur) {
         valeurs['marque.palette'] = style.palette;
         valeurs['marque.typographie'] = style.typographie;
         valeurs['marque.angles'] = style.angles;
+        valeurs['marque.accueil'] = style.accueil;
+        accueils.peindre();
         palettes.peindre();
         typographies.peindre();
         angles.peindre();
@@ -248,7 +265,11 @@ export async function vueMarque(conteneur) {
     palettes.noeud,
     couleurs,
     typographies.noeud,
-    angles.noeud),
+    angles.noeud,
+    accueils.noeud),
+  el('section.carte',
+    el('h2.reglages__titre', { texte: t('marque.section.pays') }),
+    el('div.marque__duo', champChoix('pays.fuseau'), champNombre('pays.indicatif'))),
   alerte,
   el('div.marque__pied', enregistrer, el('p.texte-doux', { texte: t('marque.noteRechargement') })));
 

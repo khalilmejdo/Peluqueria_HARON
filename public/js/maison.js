@@ -181,6 +181,35 @@ if (visionneuse && vignettes.length) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Le ruban de la galerie                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Les deux fleches du ruban. Elles restent cachees tant que le script n'a pas
+ * constate qu'il y a de quoi defiler : sans JavaScript, ou sur un ecran assez
+ * large pour tout montrer, deux boutons morts n'ont rien a faire la.
+ */
+const ruban = document.querySelector('[data-ruban]');
+const fleches = document.querySelector('[data-ruban-fleches]');
+if (ruban && fleches) {
+  const avant = fleches.querySelector('[data-ruban-avant]');
+  const apres = fleches.querySelector('[data-ruban-apres]');
+  const mesurer = () => {
+    const course = ruban.scrollWidth - ruban.clientWidth;
+    fleches.hidden = course <= 4;
+    avant.disabled = ruban.scrollLeft <= 4;
+    apres.disabled = ruban.scrollLeft >= course - 4;
+  };
+  const avancer = (sens) => ruban.scrollBy({ left: sens * ruban.clientWidth * 0.8, behavior: 'smooth' });
+  avant.addEventListener('click', () => avancer(-1));
+  apres.addEventListener('click', () => avancer(1));
+  ruban.addEventListener('scroll', mesurer, { passive: true });
+  window.addEventListener('resize', mesurer);
+  window.addEventListener('load', mesurer);
+  mesurer();
+}
+
+/* ------------------------------------------------------------------ */
 /*  La carte, au clic                                                  */
 /* ------------------------------------------------------------------ */
 

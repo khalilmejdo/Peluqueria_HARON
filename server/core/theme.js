@@ -89,6 +89,12 @@ export const PALETTES_DEF = {
   IVOIRE: { fond: '#f8f4ec', surface: '#fffdf8', surface2: '#efe7d8', texte: '#1d1a16', texteDoux: '#6c6457', bordure: '#e2d8c6', accent: '#a8823d' },
   // Rose poudre et or rose : la beaute, la douceur.
   POUDRE: { fond: '#f6eeeb', surface: '#fffaf8', surface2: '#efdfda', texte: '#2a1d1f', texteDoux: '#7a6365', bordure: '#e8d3cd', accent: '#b07a6c' },
+  // Blanc casse et corail : frais, lumineux, le bar a ongles.
+  CORAIL: { fond: '#fff8f4', surface: '#ffffff', surface2: '#ffece4', texte: '#2b1c1a', texteDoux: '#7d635d', bordure: '#f6d9cd', accent: '#f0725c' },
+  // Lavande et prune : doux, contemporain.
+  LILAS: { fond: '#f8f5fd', surface: '#ffffff', surface2: '#ece4f9', texte: '#241b33', texteDoux: '#6d6183', bordure: '#e0d5f2', accent: '#8a5cd6' },
+  // Beige rose et terracotta : le nude des instituts.
+  NUDE: { fond: '#f7efe8', surface: '#fffaf5', surface2: '#eedfd2', texte: '#2e221b', texteDoux: '#7b665a', bordure: '#e6d3c3', accent: '#c1694f' },
   // Vert bouteille et laiton : le club anglais.
   EMERAUDE: { fond: '#0a1612', surface: '#0f1f1a', surface2: '#152a23', texte: '#eef1ea', texteDoux: '#9db0a5', bordure: '#22392f', accent: '#c8a96a' },
   // Bordeaux et or rose : le velours.
@@ -142,6 +148,15 @@ export const TYPOGRAPHIES_DEF = {
     ui: "'Jost', 'Segoe UI', system-ui, sans-serif",
     poids: 400, casse: 'none', espacement: '0.04em', echelle: 0.92,
   },
+  // Une geometrique ronde, en casse normale et serree : la voix des marques
+  // d'aujourd'hui, celle d'un bar a ongles ou d'un salon jeune.
+  DOUCE: {
+    titre: "'Jost', 'Segoe UI', system-ui, sans-serif",
+    ui: "'Manrope', 'Segoe UI', system-ui, sans-serif",
+    poids: 500, casse: 'none', espacement: '-0.02em', echelle: 0.9,
+    // Les boutons et le menu parlent en minuscules, plus gros, sans interlettrage.
+    uiCasse: 'none', uiEspacement: '0.01em', uiGrossir: 1.22, boutonUni: true,
+  },
   MODERNE: {
     titre: "'Jost', 'Segoe UI', system-ui, sans-serif",
     ui: "'Jost', 'Segoe UI', system-ui, sans-serif",
@@ -165,10 +180,11 @@ export const ANGLES_DEF = {
  * coherent quand on change d'activite.
  */
 export const STYLE_DE_L_ACTIVITE = {
-  BARBERIA: { palette: 'ONYX', typographie: 'CLASSIQUE', angles: 'NETS' },
-  PELUQUERIA: { palette: 'IVOIRE', typographie: 'PRESTIGE', angles: 'DOUX' },
-  UNISEX: { palette: 'MINUIT', typographie: 'PRESTIGE', angles: 'NETS' },
-  ESTETICA: { palette: 'POUDRE', typographie: 'MODERNE', angles: 'ARRONDIS' },
+  BARBERIA: { palette: 'ONYX', typographie: 'CLASSIQUE', angles: 'NETS', accueil: 'CLASSIQUE' },
+  PELUQUERIA: { palette: 'POUDRE', typographie: 'PRESTIGE', angles: 'ARRONDIS', accueil: 'IMAGES' },
+  UNISEX: { palette: 'IVOIRE', typographie: 'DOUCE', angles: 'DOUX', accueil: 'IMAGES' },
+  ESTETICA: { palette: 'NUDE', typographie: 'DOUCE', angles: 'ARRONDIS', accueil: 'IMAGES' },
+  ONGLES: { palette: 'CORAIL', typographie: 'DOUCE', angles: 'ARRONDIS', accueil: 'IMAGES' },
 };
 
 /* ------------------------------------------------------------------ */
@@ -223,6 +239,14 @@ export function themeDe(r) {
       '--titre-casse': typo.casse,
       '--titre-espacement': typo.espacement,
       '--titre-echelle': String(typo.echelle),
+      '--ui-casse': typo.uiCasse || 'uppercase',
+      '--ui-espacement': typo.uiEspacement || '0.2em',
+      '--ui-grossir': String(typo.uiGrossir || 1),
+      // Le bouton principal : un reflet de metal (les maisons classiques) ou
+      // un aplat lumineux (les marques d'aujourd'hui).
+      '--bouton-image': typo.boutonUni
+        ? 'linear-gradient(110deg, ' + p.accent + ' 0%, ' + melanger(p.accent, '#ffffff', 0.22) + ' 50%, ' + p.accent + ' 100%)'
+        : 'linear-gradient(110deg, ' + melanger(p.accent, '#000000', 0.32) + ' 0%, ' + p.accent + ' 30%, ' + melanger(p.accent, '#ffffff', 0.35) + ' 50%, ' + p.accent + ' 70%, ' + melanger(p.accent, '#000000', 0.32) + ' 100%)',
       '--r-petit': angles.petit,
       '--r': angles.moyen,
       '--r-grand': angles.grand,

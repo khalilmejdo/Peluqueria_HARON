@@ -89,7 +89,7 @@ const MOTIFS = {
 };
 
 const motifDe = (activite) => (activite === 'BARBERIA' ? MOTIFS.BARBERIA
-  : activite === 'ESTETICA' ? MOTIFS.ESTETICA : MOTIFS.CISEAUX);
+  : (activite === 'ESTETICA' || activite === 'ONGLES') ? MOTIFS.ESTETICA : MOTIFS.CISEAUX);
 
 /**
  * L'icone : un carre plein (les lanceurs le rognent eux-memes), un filet

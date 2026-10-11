@@ -33,7 +33,7 @@ import {
 } from '../domain/file.js';
 import { pourVitrine as photosVitrine } from '../domain/photos.js';
 import {
-  ouverture, reperes, pastilleEtat, sectionMaison, sectionCarte, sectionReserver, sectionEquipe, sectionGalerie,
+  ouverture, ouvertureImages, reperes, pastilleEtat, sectionMaison, sectionCarte, sectionReserver, sectionEquipe, sectionGalerie,
   sectionLieu, horairesDuJour, etatDuMoment,
 } from './vitrine.js';
 import { pourVitrine } from '../domain/tarifas.js';
@@ -246,6 +246,13 @@ siteRoutes.get('/', async (ctx) => {
       : '');
 
   const photos = r['vitrine.galerie'] ? galeriePhotos.photos : [];
+  // L'accueil « en images » : la couverture d'abord, puis les photos de la
+  // galerie, sans doublon. Trois pour le collage, la suivante pour « la maison ».
+  const enImages = r['marque.accueil'] === 'IMAGES';
+  const aLaUne = [];
+  for (const p of [galeriePhotos.couverture, ...photos]) {
+    if (p && !aLaUne.some((x) => x.src === p.src)) aLaUne.push(p);
+  }
   const avecLieu = r['vitrine.localisation'] && Boolean(r['salon.adresse'] || r['salon.coordenadas']);
   const avecContact = r['vitrine.contact'] && Boolean(r['salon.telephone'] || r['salon.whatsapp'] || horairesActifs);
   const avecCarte = avecTarifs && prestations.length > 0;
@@ -263,19 +270,31 @@ siteRoutes.get('/', async (ctx) => {
   const corps = entete({
     sections,
     action: principale && principale.href !== '#carte' ? { href: principale.href === '#reserver' ? '/#reserver' : principale.href, texte: principale.texte } : null,
-    surImage: Boolean(galeriePhotos.couverture),
+    surImage: !enImages && Boolean(galeriePhotos.couverture),
   })
     + '<main id="principal" class="vitrine">'
-    + ouverture({
-      tr,
-      nom,
-      accroche: r['salon.accroche'],
-      metier: tr('mx.une.metier'),
-      actions,
-      reperes: pastilles,
-      couverture: galeriePhotos.couverture,
-      lettres: theme.monogramme,
-    })
+    + (enImages
+      ? ouvertureImages({
+        tr,
+        nom,
+        accroche: r['salon.accroche'],
+        metier: tr('mx.une.metier'),
+        actions,
+        reperes: pastilles,
+        photos: aLaUne.slice(0, 3),
+        lettres: theme.monogramme,
+        prochain: rdvOuvert && rdv.prochains.length ? rdv.prochains[0] : null,
+      })
+      : ouverture({
+        tr,
+        nom,
+        accroche: r['salon.accroche'],
+        metier: tr('mx.une.metier'),
+        actions,
+        reperes: pastilles,
+        couverture: galeriePhotos.couverture,
+        lettres: theme.monogramme,
+      }))
     + bandeauFermeture(prise, aujourdhui, tr)
     + reperes({
       tr,
@@ -283,11 +302,13 @@ siteRoutes.get('/', async (ctx) => {
       adresse: avecLieu ? r['salon.adresse'] : null,
       telephone: avecContact ? telephone : null,
     })
-    + sectionMaison({ tr, presentation: r['salon.presentation'], lettres: theme.monogramme })
-    + (avecCarte ? sectionCarte({ tr, prestations, nota: r['tarifas.nota'], avecPrix: avecTarifs }) : '')
+    // En images, la galerie vient TOUT DE SUITE : c'est elle qui vend.
+    + (enImages ? sectionGalerie({ tr, photos, ruban: true }) : '')
+    + sectionMaison({ tr, presentation: r['salon.presentation'], lettres: theme.monogramme, photo: enImages ? (aLaUne[3] || aLaUne[0] || null) : null })
+    + (avecCarte ? sectionCarte({ tr, prestations, nota: r['tarifas.nota'], avecPrix: avecTarifs, fiches: enImages, reserver: rdvOuvert }) : '')
     + sectionReserver({ tr, rdv: rdv && (rdv.ouvert || rdv.fermeture) ? rdv : null, file })
     + sectionEquipe({ tr, membres, rdvActifs: rdvOuvert })
-    + sectionGalerie({ tr, photos })
+    + (enImages ? '' : sectionGalerie({ tr, photos }))
     + sectionLieu({
       tr,
       avecLieu,
@@ -315,7 +336,7 @@ siteRoutes.get('/', async (ctx) => {
     base: ctx.base,
     chemin: '/',
     langue: tr.langue,
-    classe: 'page-accueil',
+    classe: 'page-accueil' + (enImages ? ' accueil-images' : ''),
     image: galeriePhotos.couverture ? galeriePhotos.couverture.src : null,
     scripts: formulaireEnPage ? ['/js/maison.js', '/js/join.js'] : ['/js/maison.js'],
     pied: piedDePage({

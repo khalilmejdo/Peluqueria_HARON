@@ -21,6 +21,7 @@ import { t } from '../langue.js';
 const GROUPES = [
   { titre: 'reglages.groupe.identite', prefixes: ['salon.'], identite: true },
   { titre: 'reglages.groupe.marque', prefixes: ['marque.'] },
+  { titre: 'reglages.groupe.pays', prefixes: ['pays.'] },
   // Les deux facons de venir : la file en ligne, les rendez-vous.
   { titre: 'reglages.groupe.rdv', prefixes: ['accueil.', 'rdv.'] },
   { titre: 'reglages.groupe.file', prefixes: ['file.'] },
@@ -59,8 +60,8 @@ function blocServeur(identite) {
   return el('div.identite',
     el('h3.identite__titre', { texte: t('identite.serveurTitre') }),
     el('ul.identite__liste',
-      ligne('identite.fuseau', identite.timezone, 'APP_TIMEZONE'),
-      ligne('identite.indicatif', '+' + identite.indicatif, 'TELEPHONE_INDICATIF_DEFAUT'),
+      ligne('identite.fuseau', identite.timezone, t('marque.titre')),
+      ligne('identite.indicatif', '+' + identite.indicatif, t('marque.titre')),
       ligne(
         'identite.whatsappLangue',
         identite.whatsappLangue || t('identite.whatsappInactif'),

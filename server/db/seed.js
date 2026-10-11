@@ -114,7 +114,8 @@ export async function seed({ silencieux = false } = {}) {
           : cle === 'marque.palette' ? style.palette
             : cle === 'marque.typographie' ? style.typographie
               : cle === 'marque.angles' ? style.angles
-                : defautDe(cle);
+                : cle === 'marque.accueil' ? style.accueil
+                  : defautDe(cle);
     const valeur = regle.type === 'booleen' ? (defaut ? 'true' : 'false') : String(defaut ?? '');
     poses += await execute(
       'INSERT INTO reglages (cle, valeur) VALUES ($1, $2) ON CONFLICT (cle) DO NOTHING',

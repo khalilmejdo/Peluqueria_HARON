@@ -248,11 +248,11 @@ p { margin: 0; }
   border: 1px solid transparent;
   border-radius: var(--r-bouton);
   font-family: var(--police-ui);
-  font-size: 0.76rem;
+  font-size: calc(0.76rem * var(--ui-grossir, 1));
   font-weight: 600;
-  letter-spacing: 0.2em;
+  letter-spacing: var(--ui-espacement, 0.2em);
   line-height: 1.2;
-  text-transform: uppercase;
+  text-transform: var(--ui-casse, uppercase);
   text-decoration: none;
   text-align: center;
   cursor: pointer;
@@ -273,7 +273,7 @@ p { margin: 0; }
  */
 .bouton--principal {
   color: var(--sur-accent);
-  background-image: linear-gradient(110deg, var(--accent-profond) 0%, var(--accent) 30%, var(--accent-clair) 50%, var(--accent) 70%, var(--accent-profond) 100%);
+  background-image: var(--bouton-image, linear-gradient(110deg, var(--accent-profond) 0%, var(--accent) 30%, var(--accent-clair) 50%, var(--accent) 70%, var(--accent-profond) 100%));
   background-size: 220% 100%;
   background-position: 100% 0;
   box-shadow: 0 10px 28px -16px color-mix(in srgb, var(--accent) 70%, transparent);

@@ -19,7 +19,7 @@ import { TERMES as TERMES_CLIENT } from '../../public/js/langue.js';
 import { TEXTES } from '../../server/core/textes.js';
 import { CATALOGUES } from '../../server/domain/catalogues.js';
 import { ICONES } from '../../server/site/icones-tarifas.js';
-import { ACTIVITES, PALETTES, TYPOGRAPHIES, ANGLES, CATALOGUE } from '../../server/core/reglages.js';
+import { ACTIVITES, ACCUEILS, PALETTES, TYPOGRAPHIES, ANGLES, CATALOGUE } from '../../server/core/reglages.js';
 import { monogramme, filet, icone, NOMS_ICONES, planStylise } from '../../server/site/ornements.js';
 import { faviconSvg, icone as iconePng } from '../../server/core/images-marque.js';
 import { aLeRole, rolesAttribuables } from '../../server/core/roles.js';
@@ -118,6 +118,7 @@ test('les listes du catalogue de reglages et du theme disent la meme chose', () 
   assert.deepEqual([...ACTIVITES].sort(), Object.keys(STYLE_DE_L_ACTIVITE).sort());
   assert.deepEqual([...ACTIVITES].sort(), Object.keys(CATALOGUES).sort());
   for (const style of Object.values(STYLE_DE_L_ACTIVITE)) {
+    assert.ok(ACCUEILS.includes(style.accueil), 'accueil inconnu : ' + style.accueil);
     assert.ok(PALETTES_DEF[style.palette] && TYPOGRAPHIES_DEF[style.typographie] && ANGLES_DEF[style.angles]);
   }
   // Ce qui est de la marque est reserve a l'administrateur de la plateforme.

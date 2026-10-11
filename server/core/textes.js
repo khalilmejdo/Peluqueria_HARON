@@ -1274,14 +1274,12 @@ es: '{nom}: servicios, tarifas y reserva en línea. Elige tu hora o pide turno d
   'identite.indicatif': { es: 'Prefijo telefónico', fr: 'Indicatif téléphonique' },
   'identite.whatsappLangue': { es: 'Idioma de las plantillas de WhatsApp', fr: 'Langue des modèles WhatsApp' },
   'identite.envNote': {
-    es: 'Estos tres valores NO se cambian aquí, sino en el archivo .env del servidor '
-      + '(APP_TIMEZONE, TELEPHONE_INDICATIF_DEFAUT, WHATSAPP_LANGUE). La zona horaria decide qué día es « hoy » '
-      + 'para la fila: cambiarla a media tarde movería la jornada en curso y la fila de hoy parecería vacía. '
-      + 'No es un ajuste de pantalla, es una decisión de instalación.',
-    fr: 'Ces trois valeurs ne se changent PAS ici, mais dans le fichier .env du serveur '
-      + '(APP_TIMEZONE, TELEPHONE_INDICATIF_DEFAUT, WHATSAPP_LANGUE). Le fuseau décide de ce qu’est « aujourd’hui » '
-      + 'pour la file : le changer en milieu d’après-midi déplacerait la journée en cours et la file du jour '
-      + 'paraîtrait vide. Ce n’est pas un réglage d’écran, c’est une décision d’installation.',
+    es: 'La zona horaria y el prefijo se eligen en la pantalla « Marca » (superadministrador); el archivo .env del servidor '
+      + 'solo da su valor de partida. El idioma de las plantillas de WhatsApp sigue en el .env (WHATSAPP_LANGUE). '
+      + 'La zona horaria decide qué día es « hoy »: cámbiela con el salón cerrado, nunca a media tarde.',
+    fr: 'Le fuseau et l’indicatif se choisissent dans l’écran « Marque » (super-administrateur) ; le fichier .env du serveur '
+      + 'ne donne que leur valeur de départ. La langue des modèles WhatsApp reste dans le .env (WHATSAPP_LANGUE). '
+      + 'Le fuseau décide de ce qu’est « aujourd’hui » : changez-le salon fermé, jamais en milieu d’après-midi.',
   },
   'identite.coherenceOk': {
     es: 'La zona horaria y el prefijo concuerdan con la moneda elegida.',
@@ -1318,6 +1316,28 @@ es: '{nom}: servicios, tarifas y reserva en línea. Elige tu hora o pide turno d
 
   'valid.couleur': { es: 'Un color en formato #rrggbb, por ejemplo #c9a45c.', fr: 'Une couleur au format #rrggbb, par exemple #c9a45c.' },
   'reglage.salon.nom.defaut': { es: 'Mi salón', fr: 'Mon salon' },
+  'reglage.pays.fuseau.libelle': { es: 'Zona horaria', fr: 'Fuseau horaire' },
+  'reglage.pays.fuseau.aide': {
+    es: 'Decide qué día es « hoy » y a qué hora abre el salón. Cámbiela con el salón cerrado: a media jornada, la fila de hoy parecería vacía.',
+    fr: 'Décide de ce qu’est « aujourd’hui » et de l’heure d’ouverture. À changer salon fermé : en pleine journée, la file du jour paraîtrait vide.',
+  },
+  'reglage.pays.indicatif.libelle': { es: 'Prefijo telefónico del país', fr: 'Indicatif téléphonique du pays' },
+  'reglage.pays.indicatif.aide': {
+    es: 'Sin el « + »: 34 para España, 212 para Marruecos, 33 para Francia. Se añade a los números escritos sin prefijo.',
+    fr: 'Sans le « + » : 212 pour le Maroc, 34 pour l’Espagne, 33 pour la France. Il s’ajoute aux numéros saisis sans indicatif.',
+  },
+  'reglage.marque.activite.ONGLES': { es: 'Salón de uñas', fr: 'Bar à ongles' },
+  'reglage.marque.palette.CORAIL': { es: 'Coral luminoso', fr: 'Corail lumineux' },
+  'reglage.marque.palette.LILAS': { es: 'Lila y ciruela', fr: 'Lilas et prune' },
+  'reglage.marque.palette.NUDE': { es: 'Nude y terracota', fr: 'Nude et terracotta' },
+  'reglage.marque.typographie.DOUCE': { es: 'Suave — Jost y Manrope', fr: 'Douce — Jost et Manrope' },
+  'reglage.marque.accueil.libelle': { es: 'Página de inicio', fr: 'Page d’accueil' },
+  'reglage.marque.accueil.aide': {
+    es: '« En imágenes » pone las fotos del salón arriba del todo y la galería justo debajo. Las fotos se añaden en « Fotos ».',
+    fr: '« En images » place les photos du salon tout en haut et la galerie juste dessous. Les photos s’ajoutent dans « Photos ».',
+  },
+  'reglage.marque.accueil.CLASSIQUE': { es: 'Clásica — centrada', fr: 'Classique — centrée' },
+  'reglage.marque.accueil.IMAGES': { es: 'En imágenes — moderna', fr: 'En images — moderne' },
   'reglage.marque.activite.libelle': { es: 'Actividad', fr: 'Activité' },
   'reglage.marque.activite.aide': {
     es: 'Decide el vocabulario de la página ({pro}, {metier}) y la carta de partida que se puede aplicar.',
@@ -1384,6 +1404,17 @@ es: '{nom}: servicios, tarifas y reserva en línea. Elige tu hora o pide turno d
   /*  Cartes de depart, par activite                                  */
   /* ---------------------------------------------------------------- */
 
+  'seed.cat.mainsSeules': { es: 'Manos', fr: 'Mains' },
+  'seed.cat.gel': { es: 'Gel y nail art', fr: 'Gel et nail art' },
+  'seed.cat.pieds': { es: 'Pies', fr: 'Pieds' },
+  'seed.tarif.o.manucureExpress': { es: 'Manicura exprés', fr: 'Manucure express' },
+  'seed.tarif.o.deposeSemi': { es: 'Retirada de semipermanente', fr: 'Dépose semi-permanent' },
+  'seed.tarif.o.poseGel': { es: 'Uñas de gel — puesta completa', fr: 'Pose complète gel' },
+  'seed.tarif.o.remplissage': { es: 'Relleno de gel', fr: 'Remplissage gel' },
+  'seed.tarif.o.nailArt': { es: 'Nail art', fr: 'Nail art' },
+  'seed.tarif.o.babyboomer': { es: 'Baby boomer', fr: 'Baby boomer' },
+  'seed.tarif.o.pedicureSemi': { es: 'Pedicura con semipermanente', fr: 'Pédicure semi-permanent' },
+  'seed.tarif.o.duo': { es: 'Dúo manos y pies', fr: 'Duo mains et pieds' },
   'seed.cat.coupes': { es: 'Cortes', fr: 'Coupes' },
   'seed.cat.barbe': { es: 'Barba', fr: 'Barbe' },
   'seed.cat.soins': { es: 'Cuidados', fr: 'Soins' },
@@ -1497,6 +1528,16 @@ es: '{nom}: servicios, tarifas y reserva en línea. Elige tu hora o pide turno d
   'vt.nav.carte': { es: 'La carta', fr: 'La carte' },
   'vt.nav.equipe': { es: 'El equipo', fr: 'L’équipe' },
   'vt.nav.menu': { es: 'Menú', fr: 'Menu' },
+  'mx.une.photos': { es: 'Fotos del salón', fr: 'Photos du salon' },
+  'mx.une.prochain': { es: 'Próxima hora libre', fr: 'Prochain créneau libre' },
+  'mx.une.voirGalerie': { es: 'Ver la galería', fr: 'Voir la galerie' },
+  'mx.galerie.surtitre': { es: 'Galería', fr: 'Galerie' },
+  'mx.galerie.titre': { es: 'Nuestros trabajos', fr: 'Nos réalisations' },
+  'mx.galerie.chapo': { es: 'Toque una foto para verla en grande.', fr: 'Touchez une photo pour la voir en grand.' },
+  'mx.galerie.avant': { es: 'Fotos anteriores', fr: 'Photos précédentes' },
+  'mx.galerie.apres': { es: 'Fotos siguientes', fr: 'Photos suivantes' },
+  'mx.carte.reserver': { es: 'Reservar', fr: 'Réserver' },
+  'mx.carte.reserverCe': { es: 'Reservar: {nom}', fr: 'Réserver : {nom}' },
   'mx.une.metier': { es: '{metier}', fr: '{metier}' },
   'mx.une.rdv': { es: 'Reservar cita', fr: 'Prendre rendez-vous' },
   'mx.une.tour': { es: 'Pedir turno', fr: 'Prendre mon tour' },

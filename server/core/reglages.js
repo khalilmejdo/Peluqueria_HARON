@@ -64,11 +64,37 @@ const CLE_PANTALLA_MIN = 20;
  * `reserve: 'SUPERADMIN'` : seul l'editeur qui livre l'application les change
  * (voir peutEcrire()). Le gerant regle sa journee, pas son identite.
  */
-export const ACTIVITES = ['BARBERIA', 'PELUQUERIA', 'UNISEX', 'ESTETICA'];
-export const PALETTES = ['ONYX', 'IVOIRE', 'POUDRE', 'EMERAUDE', 'BORDEAUX', 'MINUIT', 'PERSO'];
-export const TYPOGRAPHIES = ['CLASSIQUE', 'PRESTIGE', 'MODERNE'];
+export const ACTIVITES = ['BARBERIA', 'PELUQUERIA', 'UNISEX', 'ESTETICA', 'ONGLES'];
+export const PALETTES = ['ONYX', 'IVOIRE', 'POUDRE', 'CORAIL', 'LILAS', 'NUDE', 'EMERAUDE', 'BORDEAUX', 'MINUIT', 'PERSO'];
+export const TYPOGRAPHIES = ['CLASSIQUE', 'PRESTIGE', 'MODERNE', 'DOUCE'];
+/** La composition de la page d'accueil : centree et solennelle, ou en images. */
+export const ACCUEILS = ['CLASSIQUE', 'IMAGES'];
 export const ANGLES = ['NETS', 'DOUX', 'ARRONDIS'];
 const choix = (valeurs) => valeurs.map((valeur) => ({ valeur }));
+
+/**
+ * LE PAYS : le fuseau horaire et l'indicatif telephonique.
+ *
+ * Ils venaient du fichier .env seul. Une application vendue en Espagne et au
+ * Maroc doit pouvoir les regler a l'ecran, comme la langue et la monnaie. Le
+ * .env reste la valeur de DEPART (celle d'une base qui n'a encore rien
+ * choisi) : un salon deja en service ne change donc pas d'heure en recevant
+ * cette version.
+ *
+ * Les fuseaux sont une liste fermee de noms IANA : un nom libre mal tape
+ * ferait planter le calcul de « aujourd'hui » pour tout le salon.
+ */
+const FUSEAU_ENV = config.timezone;
+const INDICATIF_ENV = Number(config.indicatifDefaut) || 34;
+const FUSEAUX = [
+  ['Europe/Madrid', 'España — Madrid'], ['Atlantic/Canary', 'España — Canarias'], ['Africa/Casablanca', 'Maroc — Casablanca'],
+  ['Europe/Paris', 'France — Paris'], ['Europe/Brussels', 'Belgique — Bruxelles'], ['Europe/Lisbon', 'Portugal — Lisboa'],
+  ['Europe/London', 'United Kingdom — London'], ['Europe/Rome', 'Italia — Roma'], ['Europe/Berlin', 'Deutschland — Berlin'],
+  ['Africa/Algiers', 'Algérie — Alger'], ['Africa/Tunis', 'Tunisie — Tunis'], ['Africa/Cairo', 'Egypt — Cairo'],
+  ['Asia/Riyadh', 'Saudi Arabia — Riyadh'], ['Asia/Dubai', 'UAE — Dubai'], ['America/Toronto', 'Canada — Montréal / Toronto'],
+];
+if (!FUSEAUX.some(([v]) => v === FUSEAU_ENV)) FUSEAUX.unshift([FUSEAU_ENV, FUSEAU_ENV]);
+export const CODES_FUSEAUX = FUSEAUX.map(([v]) => v);
 
 export const CATALOGUE = {
   'salon.nom': {
@@ -86,6 +112,12 @@ export const CATALOGUE = {
   'salon.moneda': {
     type: 'choix', defaut: DEVISE_DEFAUT, options: optionsDevises(), reserve: 'SUPERADMIN',
   },
+  'pays.fuseau': {
+    type: 'choix', defaut: FUSEAU_ENV, options: FUSEAUX.map(([valeur, libelle]) => ({ valeur, libelle })), reserve: 'SUPERADMIN',
+  },
+  'pays.indicatif': {
+    type: 'entier', defaut: INDICATIF_ENV, min: 1, max: 9999, reserve: 'SUPERADMIN',
+  },
   'marque.palette': {
     type: 'choix', defaut: 'ONYX', options: choix(PALETTES), reserve: 'SUPERADMIN',
   },
@@ -101,6 +133,9 @@ export const CATALOGUE = {
   },
   'marque.angles': {
     type: 'choix', defaut: 'NETS', options: choix(ANGLES), reserve: 'SUPERADMIN',
+  },
+  'marque.accueil': {
+    type: 'choix', defaut: 'CLASSIQUE', options: choix(ACCUEILS), reserve: 'SUPERADMIN',
   },
   // Les lettres du monogramme, quand il n'y a pas de logo. Vide : les
   // initiales du nom.
@@ -584,6 +619,10 @@ export async function lireTous({ frais = false } = {}) {
   sortie['salon.moneda'] = devise;
   nomActif = sortie['salon.nom'] || defautDe('salon.nom') || NOM_PAR_DEFAUT;
   poserActivite(sortie['marque.activite']);
+  // Le fuseau et l'indicatif choisis a l'ecran deviennent ceux de TOUT le
+  // serveur : les calculs de jour et la lecture des numeros lisent `config`.
+  config.timezone = sortie['pays.fuseau'] || FUSEAU_ENV;
+  config.indicatifDefaut = String(sortie['pays.indicatif'] || INDICATIF_ENV);
   poserTheme(sortie, logos[0] || null);
 
   cache = sortie;
@@ -771,7 +810,7 @@ export function coherenceIdentite(reglages) {
 
   if (attendu.timezone && config.timezone !== attendu.timezone) {
     avertissements.push({
-      champ: 'APP_TIMEZONE',
+      champ: t('reglage.pays.fuseau.libelle'),
       message: t('identite.fuseauIncoherent', {
         devise: DEVISES[devise]?.symbole ?? devise,
         actuel: config.timezone,
@@ -781,7 +820,7 @@ export function coherenceIdentite(reglages) {
   }
   if (attendu.indicatif && config.indicatifDefaut !== attendu.indicatif) {
     avertissements.push({
-      champ: 'TELEPHONE_INDICATIF_DEFAUT',
+      champ: t('reglage.pays.indicatif.libelle'),
       message: t('identite.indicatifIncoherent', {
         devise: DEVISES[devise]?.symbole ?? devise,
         actuel: config.indicatifDefaut,

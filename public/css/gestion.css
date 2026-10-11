@@ -1688,3 +1688,32 @@ html.page-gestion {
 }
 input.agenda__date { width: auto; flex: 0 0 auto; }
 .vue__tete:not(.agenda__tete) { display: block; }
+
+/* La miniature de la page d'accueil, dans l'ecran « Marque ». */
+.maquette {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 3.4rem;
+  padding: 0.5rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--r-petit);
+  background: var(--fond);
+}
+.maquette__texte {
+  width: 55%;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0.9rem 0 -0.12rem color-mix(in srgb, var(--texte) 35%, transparent);
+  transform: translateY(-0.4rem);
+}
+.maquette--images { grid-template-columns: 1.3fr 0.7fr 0.7fr; gap: 0.35rem; }
+.maquette--images .maquette__texte { width: 80%; }
+.maquette__photo {
+  align-self: stretch;
+  justify-self: stretch;
+  border-radius: 999px 999px 0.3rem 0.3rem;
+  background: linear-gradient(160deg, var(--accent-clair), var(--accent));
+}
+.maquette__photo:last-child { margin-top: 0.6rem; opacity: 0.7; }

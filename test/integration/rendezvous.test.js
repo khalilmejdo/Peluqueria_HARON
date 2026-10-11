@@ -359,7 +359,116 @@ test('rendez-vous et marque blanche', { skip: IGNORE }, async (t) => {
     assert.equal(piege.status, 422);
     const ecran = await admin.get('/api/marque');
     assert.equal(ecran.status, 200);
-    assert.equal(ecran.body.palettes.length, 6);
+    assert.equal(ecran.body.palettes.length, 9);
+    // Le pays et la page d'accueil se reglent sur le meme ecran.
+    for (const cle of ['pays.fuseau', 'pays.indicatif', 'marque.accueil']) {
+      assert.ok(ecran.body.catalogue.some((e) => e.cle === cle), cle + ' absent de l ecran Marque');
+    }
+  });
+
+  await t.test('le fuseau et l indicatif du pays se reglent a l ecran, par l administrateur seul', async () => {
+    const admin = await banc.connecter('SUPERADMIN');
+    const { config } = await banc.importer('server/core/config.js');
+    const { telephoneInternational } = await banc.importer('server/core/text.js');
+    const depart = { fuseau: config.timezone, indicatif: config.indicatifDefaut };
+    assert.deepEqual(depart, { fuseau: 'Europe/Madrid', indicatif: '34' });
+
+    assert.equal((await gerant.put('/api/reglages', { valeurs: { 'pays.fuseau': 'Africa/Casablanca' } })).status, 403);
+    assert.equal((await gerant.put('/api/reglages', { valeurs: { 'pays.indicatif': 212 } })).status, 403);
+    assert.equal((await admin.put('/api/reglages', { valeurs: { 'pays.fuseau': 'Mars/Olympus' } })).status, 422);
+    assert.equal((await admin.put('/api/reglages', { valeurs: { 'pays.indicatif': 0 } })).status, 422);
+    assert.equal(config.timezone, 'Europe/Madrid', 'un refus ne change rien');
+
+    try {
+      const ok = await admin.put('/api/reglages', { valeurs: { 'pays.fuseau': 'Africa/Casablanca', 'pays.indicatif': 212 } });
+      assert.equal(ok.status, 200, JSON.stringify(ok.body));
+      // Ce que TOUT le code lit : l'heure du salon et l'indicatif des numeros.
+      assert.equal(config.timezone, 'Africa/Casablanca');
+      assert.equal(config.indicatifDefaut, '212');
+      assert.equal(telephoneInternational('0612345678', config.indicatifDefaut), '212612345678');
+      const lu = await gerant.get('/api/reglages');
+      assert.equal(lu.body.identite.timezone, 'Africa/Casablanca');
+      assert.equal(String(lu.body.identite.indicatif), '212');
+      // Un numero marocain saisi sans indicatif est accepte tel quel.
+      await banc.reinitialiserDebit();
+      const tour = await banc.client().post('/api/public/tickets', { prenom: 'Salma', nom: 'Alaoui', telephone: '0612345678', source: 'ONLINE' });
+      assert.equal(tour.status, 201, JSON.stringify(tour.body));
+    } finally {
+      const retour = await admin.put('/api/reglages', { valeurs: { 'pays.fuseau': depart.fuseau, 'pays.indicatif': Number(depart.indicatif) } });
+      assert.equal(retour.status, 200, JSON.stringify(retour.body));
+    }
+    assert.deepEqual({ fuseau: config.timezone, indicatif: config.indicatifDefaut }, depart);
+  });
+
+  await t.test('un bar a ongles : son vocabulaire, sa carte, et l accueil en images', async () => {
+    const admin = await banc.connecter('SUPERADMIN');
+    const avant = (await admin.get('/api/marque')).body.valeurs;
+    const classique = String((await banc.client().get('/')).body);
+    assert.ok(!classique.includes('une--images') && !classique.includes('data-ruban'), 'par defaut, l accueil reste classique');
+
+    try {
+      const ok = await admin.put('/api/reglages', {
+        valeurs: { 'marque.activite': 'ONGLES', 'marque.palette': 'CORAIL', 'marque.typographie': 'DOUCE', 'marque.angles': 'ARRONDIS', 'marque.accueil': 'IMAGES' },
+      });
+      assert.equal(ok.status, 200, JSON.stringify(ok.body));
+      const type = await gerant.post('/api/tarifas/catalogue', { activite: 'ONGLES' });
+      assert.equal(type.status, 200, JSON.stringify(type.body));
+      assert.ok(type.body.ajoutees >= 8, 'la carte type des ongles est ajoutee');
+      assert.ok(type.body.items.some((l) => /gel/i.test(l.nombre)));
+
+      // Sans photo : la meme composition, des arches peintes — jamais un trou.
+      const vide = String((await banc.client().get('/')).body);
+      assert.ok(vide.includes('data-activite="ONGLES"') && vide.includes('accueil-images'));
+      assert.ok(vide.includes('une--images') && vide.includes('collage__cadre--vide'));
+      assert.ok(!vide.includes('data-ruban'), 'pas de galerie sans photo');
+      assert.ok(vide.includes('Salón de uñas'), 'le metier est nomme');
+      assert.ok(vide.includes('class="fiche"') && !vide.includes('menu__ligne'), 'la carte est en fiches');
+      assert.match(vide, /class="fiche__lien" href="\/rendez-vous\?p=[0-9a-f-]+"/, 'une fiche mene a la reservation deja cochee');
+      const css = String((await banc.client().get('/theme.css')).body);
+      assert.ok(css.includes('--accent: #f0725c') && css.includes('--r-bouton: 999px'));
+
+      // Avec des photos : elles montent dans l'ouverture ET dans le ruban.
+      const { pngCouleur } = await banc.importer('server/core/png.js');
+      const image = (r, g, b) => {
+        const rgb = new Uint8Array(40 * 50 * 3);
+        for (let i = 0; i < rgb.length; i += 3) { rgb[i] = r; rgb[i + 1] = g; rgb[i + 2] = b; }
+        return pngCouleur({ largeur: 40, hauteur: 50, rgb });
+      };
+      const envoyer = async (contenu, legende) => {
+        const res = await fetch(banc.base + '/api/photos?legende=' + encodeURIComponent(legende), {
+          method: 'POST',
+          headers: { Origin: banc.base, Cookie: gerant.cookie, 'X-CSRF-Token': gerant.csrf, 'Content-Type': 'image/png' },
+          body: contenu,
+        });
+        assert.equal(res.status, 201, await res.text());
+      };
+      await envoyer(image(240, 114, 92), 'French rose');
+      await envoyer(image(138, 92, 214), 'Baby boomer');
+      await envoyer(image(193, 105, 79), 'Nail art');
+
+      const plein = String((await banc.client().get('/')).body);
+      assert.equal(plein.split('class="collage__image"').length - 1, 3, 'trois photos dans l ouverture');
+      assert.ok(!plein.includes('collage__cadre--vide'));
+      assert.equal(plein.split('data-agrandir').length - 1, 3, 'chaque photo une seule fois dans la galerie');
+      assert.equal(plein.split('data-visionneuse').length - 1, 1, 'une seule visionneuse');
+      assert.ok(plein.includes('data-ruban') && plein.includes('French rose'));
+      assert.ok(plein.indexOf('id="galerie"') < plein.indexOf('id="carte"'), 'la galerie passe avant la carte');
+      assert.ok(!plein.includes('entete--sur-image'), 'l en-tete reste lisible : pas de photo dessous');
+
+      // La section galerie eteinte : plus de ruban ; seule la photo de
+      // couverture reste dans l'ouverture, comme sur l'accueil classique.
+      assert.equal((await gerant.put('/api/reglages', { valeurs: { 'vitrine.galerie': false } })).status, 200);
+      const sans = String((await banc.client().get('/')).body);
+      assert.ok(!sans.includes('data-ruban') && !sans.includes('data-agrandir'));
+      assert.ok(sans.split('class="collage__image"').length - 1 <= 1);
+      assert.equal((await gerant.put('/api/reglages', { valeurs: { 'vitrine.galerie': true } })).status, 200);
+    } finally {
+      const cles = ['marque.activite', 'marque.palette', 'marque.typographie', 'marque.angles', 'marque.accueil'];
+      const retour = await admin.put('/api/reglages', { valeurs: Object.fromEntries(cles.map((c) => [c, avant[c]])) });
+      assert.equal(retour.status, 200, JSON.stringify(retour.body));
+    }
+    const apres = String((await banc.client().get('/')).body);
+    assert.ok(!apres.includes('une--images') && apres.includes('data-agrandir'), 'retour au classique : la mosaique revient');
   });
 
   await t.test('le gerant ne peut ni creer, ni toucher, ni devenir administrateur de plateforme', async () => {

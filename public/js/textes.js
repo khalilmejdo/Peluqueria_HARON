@@ -473,14 +473,12 @@ export const TEXTES = {
   'identite.whatsappLangue': { es: 'Idioma de las plantillas de WhatsApp', fr: 'Langue des modèles WhatsApp' },
   'identite.whatsappInactif': { es: 'envío automático desactivado', fr: 'envoi automatique désactivé' },
   'identite.envNote': {
-    es: 'Estos tres valores NO se cambian aquí, sino en el archivo .env del servidor '
-      + '(APP_TIMEZONE, TELEPHONE_INDICATIF_DEFAUT, WHATSAPP_LANGUE). La zona horaria decide qué día es « hoy » '
-      + 'para la fila: cambiarla a media tarde movería la jornada en curso y la fila de hoy parecería vacía. '
-      + 'No es un ajuste de pantalla, es una decisión de instalación.',
-    fr: 'Ces trois valeurs ne se changent PAS ici, mais dans le fichier .env du serveur '
-      + '(APP_TIMEZONE, TELEPHONE_INDICATIF_DEFAUT, WHATSAPP_LANGUE). Le fuseau décide de ce qu’est « aujourd’hui » '
-      + 'pour la file : le changer en milieu d’après-midi déplacerait la journée en cours et la file du jour '
-      + 'paraîtrait vide. Ce n’est pas un réglage d’écran, c’est une décision d’installation.',
+    es: 'La zona horaria y el prefijo se eligen en la pantalla « Marca » (superadministrador); el archivo .env del servidor '
+      + 'solo da su valor de partida. El idioma de las plantillas de WhatsApp sigue en el .env (WHATSAPP_LANGUE). '
+      + 'La zona horaria decide qué día es « hoy »: cámbiela con el salón cerrado, nunca a media tarde.',
+    fr: 'Le fuseau et l’indicatif se choisissent dans l’écran « Marque » (super-administrateur) ; le fichier .env du serveur '
+      + 'ne donne que leur valeur de départ. La langue des modèles WhatsApp reste dans le .env (WHATSAPP_LANGUE). '
+      + 'Le fuseau décide de ce qu’est « aujourd’hui » : changez-le salon fermé, jamais en milieu d’après-midi.',
   },
   'identite.coherenceOk': {
     es: 'La zona horaria y el prefijo concuerdan con la moneda elegida.',
@@ -915,6 +913,9 @@ export const TEXTES = {
   'marque.titre': { es: 'Marca', fr: 'Marque' },
   'marque.intro': { es: 'El nombre, la actividad, el logo y el estilo del salón. Cambian toda la aplicación: escaparate, reservas, pantalla y gestión.', fr: 'Le nom, l’activité, le logo et le style du salon. Ils changent toute l’application : vitrine, réservation, écran et gestion.' },
   'marque.section.identite': { es: 'Identidad', fr: 'Identité' },
+  'marque.section.pays': { es: 'País: hora y teléfono', fr: 'Pays : heure et téléphone' },
+  'marque.section.accueil': { es: 'Página de inicio', fr: 'Page d’accueil' },
+  'reglages.groupe.pays': { es: 'País: hora y teléfono', fr: 'Pays : heure et téléphone' },
   'marque.section.style': { es: 'Estilo', fr: 'Style' },
   'marque.logo.titre': { es: 'Logo', fr: 'Logo' },
   'marque.logo.aucun': { es: 'Sin logo: se muestra el monograma.', fr: 'Pas de logo : le monogramme s’affiche.' },

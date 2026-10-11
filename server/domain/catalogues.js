@@ -84,6 +84,20 @@ export const CATALOGUES = {
     ['seed.tarif.e.massage', 'seed.cat.corps', { EUR: 7000, MAD: 45000 }, 'hoja', 60],
     ['seed.tarif.e.maquillage', 'seed.cat.evenements', { EUR: 6000, MAD: 40000 }, 'labial', 60, { ...desde, ...surDemande }],
   ],
+
+  ONGLES: [
+    ['seed.tarif.o.manucureExpress', 'seed.cat.mainsSeules', { EUR: 1800, MAD: 10000 }, 'esmalte', 25],
+    ['seed.tarif.e.manucure', 'seed.cat.mainsSeules', { EUR: 3000, MAD: 18000 }, 'esmalte', 45],
+    ['seed.tarif.e.semiPermanent', 'seed.cat.mainsSeules', { EUR: 3500, MAD: 22000 }, 'esmalte', 50],
+    ['seed.tarif.o.deposeSemi', 'seed.cat.mainsSeules', { EUR: 1000, MAD: 6000 }, 'gota', 20],
+    ['seed.tarif.o.poseGel', 'seed.cat.gel', { EUR: 5500, MAD: 35000 }, 'destello', 90],
+    ['seed.tarif.o.remplissage', 'seed.cat.gel', { EUR: 4000, MAD: 25000 }, 'destello', 60],
+    ['seed.tarif.o.nailArt', 'seed.cat.gel', { EUR: 500, MAD: 3000 }, 'diadema', 15, desde],
+    ['seed.tarif.o.babyboomer', 'seed.cat.gel', { EUR: 6000, MAD: 38000 }, 'destello', 90],
+    ['seed.tarif.e.pedicure', 'seed.cat.pieds', { EUR: 4000, MAD: 25000 }, 'hoja', 50],
+    ['seed.tarif.o.pedicureSemi', 'seed.cat.pieds', { EUR: 4800, MAD: 30000 }, 'hoja', 60],
+    ['seed.tarif.o.duo', 'seed.cat.pieds', { EUR: 7500, MAD: 48000 }, 'labial', 100, { nota: 'seed.tarif.leplusdemande' }],
+  ],
 };
 
 /** Les lignes d'une carte, ecrites dans la langue et la monnaie du salon. */

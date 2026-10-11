@@ -129,6 +129,7 @@ export const TERMES = {
   PELUQUERIA: { es: { pro: 'estilista', metier: 'Peluquería' }, fr: { pro: 'coiffeuse', metier: 'Salon de coiffure' } },
   UNISEX: { es: { pro: 'estilista', metier: 'Peluquería' }, fr: { pro: 'styliste', metier: 'Coiffure' } },
   ESTETICA: { es: { pro: 'esteticista', metier: 'Estética y belleza' }, fr: { pro: 'esthéticienne', metier: 'Institut de beauté' } },
+  ONGLES: { es: { pro: 'manicurista', metier: 'Salón de uñas' }, fr: { pro: 'styliste ongulaire', metier: 'Bar à ongles' } },
 };
 
 let activite = 'BARBERIA';

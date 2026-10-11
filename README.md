@@ -209,7 +209,7 @@ Installation neuve (lues une seule fois, sur une base vierge) :
 ```bash
 APP_LANGUE=fr
 APP_MONNAIE=MAD
-APP_ACTIVITE=PELUQUERIA    # BARBERIA | PELUQUERIA | UNISEX | ESTETICA
+APP_ACTIVITE=PELUQUERIA    # BARBERIA | PELUQUERIA | UNISEX | ESTETICA | ONGLES
 ```
 
 ## Les rendez-vous
