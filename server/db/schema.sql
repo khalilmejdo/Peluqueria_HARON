@@ -771,3 +771,21 @@ CREATE TRIGGER photos_touch BEFORE UPDATE ON photos
 DROP TRIGGER IF EXISTS rendez_vous_touch ON rendez_vous;
 CREATE TRIGGER rendez_vous_touch BEFORE UPDATE ON rendez_vous
   FOR EACH ROW EXECUTE FUNCTION haron_touch_updated_at();
+
+-- ---------------------------------------------------------------------------
+--  FIDELITE : une carte par numero de telephone.
+--
+--  La cle est l'INDEX AVEUGLE du numero (le meme que tickets.telephone_idx),
+--  jamais le numero : on ne remonte pas d'une carte a un telephone.
+--  seances : celles qui ont ete servies pendant que le programme etait allume.
+--  cadeaux : ceux qui ont deja ete REMIS. Ceux qui restent a remettre se
+--            deduisent : floor(seances / objectif) - cadeaux.
+--  A part des tickets, expres : la purge de l'historique n'y touche pas.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS fidelite (
+  telephone_idx text PRIMARY KEY,
+  seances       integer NOT NULL DEFAULT 0 CHECK (seances >= 0),
+  cadeaux       integer NOT NULL DEFAULT 0 CHECK (cadeaux >= 0),
+  derniere_at   timestamptz,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);

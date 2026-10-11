@@ -119,6 +119,14 @@ async function marqueVerrouillee(user) {
   return (n?.n ?? 0) > 0;
 }
 
+/** La prestation offerte se choisit parmi les lignes de la carte : on les glisse dans le catalogue. */
+async function avecLaCarte(catalogue) {
+  const lignes = await all('SELECT id, nombre FROM tarifas ORDER BY ordre, nombre_lower');
+  return catalogue.map((regle) => (regle.cle === 'fidelite.prestation'
+    ? { ...regle, options: [{ valeur: '', libelle: t('fidelite.aucunePrestation') }, ...lignes.map((l) => ({ valeur: l.id, libelle: l.nombre }))] }
+    : regle));
+}
+
 reglagesRoutes.get('/', async (ctx) => {
   const valeurs = await lireTous({ frais: true });
   ctx.ok({
@@ -128,7 +136,7 @@ reglagesRoutes.get('/', async (ctx) => {
     // Le catalogue arrive DEJA traduit : libelles, aides et intitules d'options.
     // Le rendre brut obligerait l'interface a porter un second dictionnaire, et
     // les deux auraient divergé.
-    catalogue: catalogueTraduit(valeurs['salon.idioma']),
+    catalogue: await avecLaCarte(catalogueTraduit(valeurs['salon.idioma'])),
     horaires: horairesLisibles(valeurs, valeurs['salon.idioma']),
     adressePublique: adressePublique(valeurs, ctx.base),
     // Ce qui vient du fichier .env, et ce qui ne concorde pas avec le choix fait

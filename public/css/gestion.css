@@ -1717,3 +1717,25 @@ input.agenda__date { width: auto; flex: 0 0 auto; }
   background: linear-gradient(160deg, var(--accent-clair), var(--accent));
 }
 .maquette__photo:last-child { margin-top: 0.6rem; opacity: 0.7; }
+
+/* La fidelite sur la carte d'un client. */
+.fidelite-file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.45rem 0;
+  font-size: 0.82rem;
+  color: var(--texte-doux);
+}
+.fidelite-file__texte {
+  padding: 0.22rem 0.7rem;
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+}
+.fidelite-file--cadeau .fidelite-file__texte {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--texte);
+  font-weight: 700;
+}

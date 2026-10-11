@@ -56,7 +56,7 @@ const CONDITIONS = {
 };
 
 /** Ce que la purge ne touche pas. Sert a l'ecran de confirmation. */
-export const PRESERVE = ['utilisateurs', 'reglages', 'postes', 'tarifas', 'abonnements_push', 'photos'];
+export const PRESERVE = ['utilisateurs', 'reglages', 'postes', 'tarifas', 'abonnements_push', 'photos', 'fidelite'];
 
 /**
  * Vide l'historique.

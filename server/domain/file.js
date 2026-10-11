@@ -33,6 +33,7 @@ import {
   STATUTS_ACTIFS, STATUTS_EN_ATTENTE, STATUTS_EN_COURS,
 } from './journee.js';
 import { enfilerEnvoi } from './notifications.js';
+import { compterSeance, programme as programmeFidelite, cartesDuJour } from './fidelite.js';
 import { prevenirLePersonnel } from './push.js';
 import { fermetureDuJour, prochaine as prochaineFermeture, messageDeFermeture } from './fermetures.js';
 import {
@@ -453,8 +454,14 @@ export async function chargerEtat(jour) {
   const auxFauteuils = actifs.filter((t) => STATUTS_EN_COURS.includes(t.statut));
   const attente = actifs.filter((t) => STATUTS_EN_ATTENTE.includes(t.statut));
 
+  // La fidelite : le programme et la carte de chaque client du jour. Rien
+  // n'est lu quand le programme est eteint.
+  const prog = await programmeFidelite(reglages);
+  const fidelite = prog ? { ...prog, cartes: await cartesDuJour(jour, prog.objectif) } : null;
+
   return {
     jour,
+    fidelite,
     ouverte: journee ? journee.ouverte : true,
     mode,
     dureeMoyenneMinutes,
@@ -486,6 +493,13 @@ export async function chargerEtat(jour) {
       auComptoir: tickets.filter((t) => t.source === 'COMPTOIR').length,
     },
   };
+}
+
+/** La carte de fidelite d'un ticket, avec le cadeau promis ; null si le programme est eteint. */
+function carteFidelite(etat, ticketId) {
+  if (!etat.fidelite) return null;
+  const carte = etat.fidelite.cartes.get(ticketId);
+  return carte ? { ...carte, cadeau: etat.fidelite.cadeau } : null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -526,6 +540,7 @@ export function pourSalon(etat) {
       termineA: t.termine_at,
       motif: t.motif,
       version: t.version,
+      fidelite: carteFidelite(etat, t.id),
     };
   };
 
@@ -700,6 +715,7 @@ export function pourClient(etat, ticketId) {
     nomSalon: etat.nomSalon,
     adresseSalon: etat.adresseSalon,
     maj: etat.maj,
+    fidelite: carteFidelite(etat, t.id),
   };
 }
 
@@ -1095,7 +1111,7 @@ export const commencerService = geste('service', async ({ tx, ticket, user }) =>
  * Une interface qui refuse un geste evident pendant le travail est une
  * interface qu'on contourne.
  */
-export const terminer = geste('servi', async ({ tx, ticket, user }) => {
+export const terminer = geste('servi', async ({ tx, ticket, user, reglages }) => {
   if (ticket.statut === 'COMPLETED') return ticket;
   if (!STATUTS_ACTIFS.includes(ticket.statut)) {
     throw conflict(t('file.dejaDansCetEtat', { numero: ticket.numero_affiche, statut: libelleStatut(ticket.statut).toLowerCase() }));
@@ -1107,6 +1123,8 @@ export const terminer = geste('servi', async ({ tx, ticket, user }) => {
     [ticket.id],
   );
   await tracer(tx, maj, { statut: 'COMPLETED', user, detail: t('trace.clientServi') });
+  // La seance compte ICI, et seulement ici : un ticket servi ne l'est qu'une fois.
+  await compterSeance(tx, ticket.id, reglages);
   return maj;
 });
 

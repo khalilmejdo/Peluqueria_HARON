@@ -27,6 +27,26 @@ function prestationsDe(ticket) {
     ticket.dureeMin ? el('span.presta-duree', { texte: '≈ ' + ticket.dureeMin + ' min' }) : null);
 }
 
+/**
+ * La fidelite du client, sur sa carte : ou il en est, et — s'il a un cadeau a
+ * recevoir — le cadeau en toutes lettres avec le bouton qui le note remis.
+ * Rien quand le programme est eteint.
+ */
+function fideliteDe(ticket) {
+  const f = ticket.fidelite;
+  if (!f) return null;
+  if (f.cadeaux > 0) {
+    return el('p.fidelite-file.fidelite-file--cadeau',
+      el('span.fidelite-file__texte', { texte: t('file.cadeauAOffrir', { cadeau: f.cadeau }) }),
+      el('button.bouton.bouton--principal.bouton--petit', {
+        type: 'button',
+        texte: t('file.cadeauRemis'),
+        surClick: () => geste('/api/file/' + ticket.id + '/cadeau', { annonce: t('file.cadeauRemisAnnonce') }).catch(() => {}),
+      }));
+  }
+  return el('p.fidelite-file', el('span.fidelite-file__texte', { texte: t('file.fidelite', { n: f.acquis, objectif: f.objectif }) }));
+}
+
 let flux = null;
 let conteneurCourant = null;
 /**
@@ -153,6 +173,7 @@ function carteFauteuil(poste, file, seul) {
     el('p.actuel__numero', { texte: actuel.numero }),
     el('h1.actuel__nom', { texte: actuel.prenom + ' ' + actuel.nom }),
     prestationsDe(actuel),
+    fideliteDe(actuel),
     el('p.actuel__etat', {
       texte: appele
         ? t('file.appeleDepuis', { depuis: depuis(actuel.appeleA) })
@@ -315,6 +336,7 @@ function carteAttente(ticket, index, file = null) {
       el('span.carte-file__source', { texte: libelleSource(ticket.source) })),
     el('p.carte-file__nom', { texte: ticket.prenom + ' ' + ticket.nom }),
     prestationsDe(ticket),
+    fideliteDe(ticket),
     el('p.carte-file__meta',
       el('span', { texte: t('file.arriveA', { heure: heure(ticket.arriveA) }) }),
       el('span', { texte: '·' }),

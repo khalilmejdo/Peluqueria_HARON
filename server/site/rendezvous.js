@@ -37,6 +37,8 @@ import { parMoment } from '../domain/creneaux.js';
 import { page, entete, piedDePage, pageErreur } from './mise-en-page.js';
 import { filet, icone } from './ornements.js';
 import { iconeTarifa } from './icones-tarifas.js';
+import { programme as programmeFidelite, carteDuRendezVous } from '../domain/fidelite.js';
+import { carteFidelite } from './fidelite.js';
 
 export const siteRdvRoutes = new Router();
 
@@ -375,6 +377,8 @@ siteRdvRoutes.get('/rdv/:jeton', async (ctx) => {
   if (!trouve) return;
   const { rdv, jeton } = trouve;
   const vue = await pourClient(rdv, { langue: tr.langue });
+  const prog = await programmeFidelite(r);
+  const fidelite = prog ? carteFidelite({ tr, carte: { ...(await carteDuRendezVous(rdv.id, prog.objectif)), cadeau: prog.cadeau } }) : '';
   const lien = adressePublique(r, ctx.base) + '/rdv/' + jeton;
   const nouveau = ctx.queryBool('nouveau');
   const actif = ['CONFIRME', 'ARRIVE', 'INSTALLE'].includes(vue.statut) && !vue.passe;
@@ -438,6 +442,7 @@ siteRdvRoutes.get('/rdv/:jeton', async (ctx) => {
     + actions
     + annulation
     + '</section>'
+    + fidelite
     + blocLien
     + '</main>';
 

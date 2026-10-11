@@ -84,6 +84,7 @@ const choix = (valeurs) => valeurs.map((valeur) => ({ valeur }));
  * Les fuseaux sont une liste fermee de noms IANA : un nom libre mal tape
  * ferait planter le calcul de « aujourd'hui » pour tout le salon.
  */
+const IDENTIFIANT_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const FUSEAU_ENV = config.timezone;
 const INDICATIF_ENV = Number(config.indicatifDefaut) || 34;
 const FUSEAUX = [
@@ -267,6 +268,25 @@ export const CATALOGUE = {
     type: 'texte', defaut: '', maxLongueur: 600, lignes: true,
   },
 
+  // LE PROGRAMME DE FIDELITE. Eteint par defaut : c'est une promesse faite
+  // aux clients, elle se decide.
+  'fidelite.active': {
+    type: 'booleen', defaut: false,
+  },
+  // Le nombre de seances qui donne droit au cadeau.
+  'fidelite.seances': {
+    type: 'entier', defaut: 10, min: 2, max: 50,
+  },
+  // La prestation offerte : une ligne de la carte (ses options viennent de la
+  // base, d'ou « dynamique »), ou aucune.
+  'fidelite.prestation': {
+    type: 'choix', defaut: '', options: [], dynamique: true,
+  },
+  // Un cadeau decrit librement, seul ou en plus de la prestation.
+  'fidelite.cadeau': {
+    type: 'texte', defaut: '', maxLongueur: 120,
+  },
+
   // La fiche de prix elle-meme vit dans sa propre table, avec son propre ecran.
   // Ces deux reglages ne disent que comment la SECTION se presente en vitrine.
   'tarifas.visible': {
@@ -444,6 +464,7 @@ function depuisTexte(cle, brut) {
     case 'heure':
       return heureValide(brut) ? brut : '';
     case 'choix':
+      if (regle.dynamique) return IDENTIFIANT_RE.test(brut) ? brut : regle.defaut;
       return regle.options.some((o) => o.valeur === brut) ? brut : regle.defaut;
     case 'coordenadas':
       return normaliserCoordonnees(brut) || '';
@@ -494,6 +515,12 @@ export function versTexte(cle, valeur) {
       // ISO, et les mettre en majuscules comme les autres choix aurait donne
       // « ES » dans « <html lang> ». Les autres choix restent en majuscules.
       const brut = String(valeur).trim();
+      // Un choix dont les options vivent en base (une ligne de la carte) :
+      // vide, ou un identifiant. Qu'il existe encore se verifie a l'usage.
+      if (regle.dynamique) {
+        if (brut !== '' && !IDENTIFIANT_RE.test(brut)) throw new ValidationError({ [cle]: t('valid.choix', { valeurs: '—' }) });
+        return brut;
+      }
       const texte = regle.options.some((o) => o.valeur === brut) ? brut : brut.toUpperCase();
       if (!regle.options.some((o) => o.valeur === texte)) {
         throw new ValidationError({ [cle]: t('valid.choix', { valeurs: regle.options.map((o) => o.valeur).join(', ') }) });

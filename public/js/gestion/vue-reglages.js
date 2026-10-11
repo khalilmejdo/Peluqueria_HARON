@@ -25,6 +25,7 @@ const GROUPES = [
   // Les deux facons de venir : la file en ligne, les rendez-vous.
   { titre: 'reglages.groupe.rdv', prefixes: ['accueil.', 'rdv.'] },
   { titre: 'reglages.groupe.file', prefixes: ['file.'] },
+  { titre: 'reglages.groupe.fidelite', prefixes: ['fidelite.'] },
   { titre: 'reglages.groupe.horaires', prefixes: ['horaires.'] },
   // Les sections de la vitrine, et la note des tarifs avec elles : tout ce qui
   // decide de ce que le visiteur voit, au meme endroit.

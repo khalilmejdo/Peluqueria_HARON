@@ -29,6 +29,7 @@ import { cloturer } from '../domain/journee.js';
 import { detailTicket } from '../domain/statistiques.js';
 import { lienWhatsappCoiffeur, texteMessage } from '../domain/notifications.js';
 import { t } from '../core/langue.js';
+import { remettreCadeau } from '../domain/fidelite.js';
 
 export const fileRoutes = new Router();
 
@@ -124,6 +125,14 @@ fileRoutes.post('/:id/commencer', async (ctx) => {
 fileRoutes.post('/:id/servi', async (ctx) => {
   const ticket = await terminer(idDe(ctx), { user: ctx.user });
   await repondreAvecLaFile(ctx, { servi: ticket.numero_affiche });
+}, { rateLimit: PROFILES.file });
+
+/** CADEAU DE FIDELITE REMIS au client de ce ticket. */
+fileRoutes.post('/:id/cadeau', async (ctx) => {
+  const carte = await remettreCadeau(idDe(ctx));
+  log.info('Cadeau de fidelite remis', { ticket: idDe(ctx), par: ctx.user.identifiant, restants: carte.cadeaux });
+  annoncerChangement(jourLocal());
+  await repondreAvecLaFile(ctx, { cadeauRemis: true });
 }, { rateLimit: PROFILES.file });
 
 /** ABSENT : le client repart en fin de file, il n'est jamais supprime. */

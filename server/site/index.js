@@ -32,6 +32,8 @@ import {
   prendreTour, ticketParJeton, chargerEtat, pourClient, pourPantalla, etatPriseDeTour, attenteNouvelArrivant,
 } from '../domain/file.js';
 import { pourVitrine as photosVitrine } from '../domain/photos.js';
+import { programme as programmeFidelite } from '../domain/fidelite.js';
+import { carteFidelite, sectionFidelite } from './fidelite.js';
 import {
   ouverture, ouvertureImages, reperes, pastilleEtat, engagementsDe, sectionEngagements, sectionRituel, sectionInvitation, sectionMaison, sectionCarte, sectionReserver, sectionEquipe, sectionGalerie,
   sectionLieu, horairesDuJour, etatDuMoment,
@@ -312,6 +314,7 @@ siteRoutes.get('/', async (ctx) => {
     + sectionEngagements({ tr, engagements })
     + sectionMaison({ tr, presentation: r['salon.presentation'], lettres: theme.monogramme, photo: enImages ? (aLaUne[3] || aLaUne[0] || null) : null })
     + (avecCarte ? sectionCarte({ tr, prestations, nota: r['tarifas.nota'], avecPrix: avecTarifs, fiches: enImages, reserver: rdvOuvert }) : '')
+    + sectionFidelite({ tr, programme: await programmeFidelite(r) })
     + (enImages && rdvOuvert && r['vitrine.etapes'] ? sectionRituel({ tr }) : '')
     + sectionReserver({ tr, rdv: rdv && (rdv.ouvert || rdv.fermeture) ? rdv : null, file })
     + sectionEquipe({ tr, membres, rdvActifs: rdvOuvert })
@@ -774,6 +777,7 @@ siteRoutes.get('/ticket/:jeton', async (ctx) => {
       ? '<p class="surtitre surtitre--centre">' + escapeHtml(tr('ticket.tourDu', { date: dateDuJour })) + '</p>'
       : '')
     + blocTicket(vue, tr)
+    + carteFidelite({ tr, carte: vue.fidelite })
     + blocLien
     + (vue.actif
       ? '<section class="carte carte--discrete">'

@@ -1849,3 +1849,64 @@ a.collage__cadre:hover { transform: translateY(-0.35rem); }
 @media (prefers-reduced-motion: reduce) {
   .collage__eclat, .engagement { animation: none; transition: none; }
 }
+
+/* ================================================================== */
+/*  LA CARTE DE FIDELITE                                               */
+/* ================================================================== */
+
+.tampons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1.1rem 0;
+  padding: 0;
+  list-style: none;
+}
+.tampon {
+  display: grid;
+  place-items: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  border: 1px dashed color-mix(in srgb, var(--accent) 60%, transparent);
+  border-radius: 50%;
+  color: var(--accent-lisible);
+}
+.tampon svg { width: 1.05rem; height: 1.05rem; stroke-width: 2; }
+.tampon--acquis { border-style: solid; border-color: var(--accent); background: var(--accent); color: var(--sur-accent); }
+.tampon--cadeau { border-style: solid; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.tampon--cadeau.tampon--acquis { background: var(--accent); }
+
+.fidelite { margin-top: 1.4rem; text-align: center; }
+.fidelite--pret { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+.fidelite__label { margin-bottom: 0.5rem; }
+.fidelite__titre {
+  font-family: var(--police-titre);
+  font-size: calc(1.5rem * var(--titre-echelle));
+  font-weight: var(--titre-poids);
+  line-height: 1.25;
+  font-variant-numeric: lining-nums;
+}
+.fidelite__texte { color: var(--texte); }
+.fidelite__note { margin-top: 0.5rem; font-size: 0.85rem; color: var(--texte-doux); }
+
+.section--fidelite { padding-block: clamp(3rem, 7vw, 5.5rem); }
+.fidelite-vitrine {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: clamp(1.6rem, 4vw, 2.6rem);
+  border: 1px solid var(--bordure);
+  border-radius: max(var(--r-grand), 0.25rem);
+  background: var(--surface);
+  text-align: center;
+  box-shadow: var(--ombre-douce);
+}
+.fidelite-vitrine .tampons { margin-top: 0; }
+.fidelite-vitrine__offre {
+  font-family: var(--police-titre);
+  font-size: calc(1.6rem * var(--titre-echelle));
+  font-weight: var(--titre-poids);
+  line-height: 1.3;
+  font-variant-numeric: lining-nums;
+}
+.fidelite-vitrine__note { margin-top: 0.6rem; color: var(--texte-doux); font-size: 0.92rem; }
