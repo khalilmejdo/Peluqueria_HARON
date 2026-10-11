@@ -22,6 +22,8 @@ import { t, poserLangueActive, LANGUE_DEFAUT } from '../core/langue.js';
 import { poserDeviseActive, deviseActive, DEVISE_DEFAUT } from '../core/devise.js';
 import { relibellerDefauts } from '../domain/relibeller.js';
 import { reprendreLesAnciennes } from '../domain/photos.js';
+import { CATALOGUES, appliquerCatalogue } from '../domain/catalogues.js';
+import { STYLE_DE_L_ACTIVITE } from '../core/theme.js';
 
 /**
  * La fiche de prix de depart : celle du tableau affiche dans le salon.
@@ -54,23 +56,7 @@ import { reprendreLesAnciennes } from '../domain/photos.js';
  * minutes depuis l'espace de gestion, et c'est bien pour cela qu'ils existent —
  * une vitrine vide le premier jour est pire qu'une vitrine approximative.
  */
-export const TARIFS_DE_DEPART = [
-  ['seed.tarif.coupe', { EUR: 700, MAD: 4000 }, 'tijeras', null, 15],
-  ['seed.tarif.barbe', { EUR: 500, MAD: 2000 }, 'barba', null, 15],
-  ['seed.tarif.coupeBarbe', { EUR: 1200, MAD: 5500 }, 'navaja', 'seed.tarif.leplusdemande', 25],
-  ['seed.tarif.masque', { EUR: 300, MAD: 2000 }, 'mascarilla', null, 3],
-  ['seed.tarif.dark', { EUR: 800, MAD: 5000 }, 'bote', null, 10],
-  ['seed.tarif.keratine', { EUR: 4000, MAD: 30000 }, 'gota', null, 30],
-  ['seed.tarif.meches', { EUR: 2000, MAD: 15000 }, 'mechas', null, 25],
-  ['seed.tarif.mechesBlanches', { EUR: 4000, MAD: 30000 }, 'mechas', null, 25],
-  ['seed.tarif.coiffage', { EUR: 300, MAD: 3000 }, 'peine', null, 5],
-  ['seed.tarif.sourcils', { EUR: 300, MAD: 2000 }, 'cejas', null, 5],
-  ['seed.tarif.sourcilsCire', { EUR: 300, MAD: 2500 }, 'cera', null, 5],
-  ['seed.tarif.teinture', { EUR: 500, MAD: 5000 }, 'tinte', null, 5],
-  ['seed.tarif.coloration', { EUR: 1000, MAD: 10000 }, 'tinte', null, 5],
-  ['seed.tarif.teintureBarbe', { EUR: 300, MAD: 2500 }, 'barba', null, 5],
-  ['seed.tarif.shampoing', { EUR: 200, MAD: 1500 }, 'lavado', null, 1],
-];
+export const TARIFS_DE_DEPART = CATALOGUES.BARBERIA.map(([cle, , prix, icono, duree, o = {}]) => [cle, prix, icono, o.nota || null, duree]);
 
 /**
  * LA LANGUE ET LA MONNAIE D'ABORD, AVANT TOUTE ECRITURE.
@@ -101,7 +87,15 @@ async function langueDInstallation(dire) {
   if (!stockeeDevise && config.installation.monnaie) {
     dire('  Installation : monnaie « ' + deviseRetenue + ' » lue dans APP_MONNAIE.');
   }
-  return { langue: langueActive, monnaie: deviseRetenue };
+  // L'ACTIVITE, meme regle : la base fait foi, APP_ACTIVITE ne sert qu'a une
+  // installation neuve. Elle choisit la carte de depart et le style propose.
+  const stockeeActivite = await one("SELECT valeur FROM reglages WHERE cle = 'marque.activite'");
+  const activite = CATALOGUES[stockeeActivite?.valeur] ? stockeeActivite.valeur
+    : (CATALOGUES[config.installation.activite] ? config.installation.activite : 'BARBERIA');
+  if (!stockeeActivite && config.installation.activite) {
+    dire('  Installation : activite « ' + activite + ' » lue dans APP_ACTIVITE.');
+  }
+  return { langue: langueActive, monnaie: deviseRetenue, activite };
 }
 
 export async function seed({ silencieux = false } = {}) {
@@ -113,9 +107,14 @@ export async function seed({ silencieux = false } = {}) {
   for (const [cle, regle] of Object.entries(CATALOGUE)) {
     // La langue et la monnaie prennent la valeur d'installation ; les autres
     // prennent leur defaut, resolu DANS cette langue.
+    const style = STYLE_DE_L_ACTIVITE[installation.activite];
     const defaut = cle === 'salon.idioma' ? installation.langue
       : cle === 'salon.moneda' ? installation.monnaie
-        : defautDe(cle);
+        : cle === 'marque.activite' ? installation.activite
+          : cle === 'marque.palette' ? style.palette
+            : cle === 'marque.typographie' ? style.typographie
+              : cle === 'marque.angles' ? style.angles
+                : defautDe(cle);
     const valeur = regle.type === 'booleen' ? (defaut ? 'true' : 'false') : String(defaut ?? '');
     poses += await execute(
       'INSERT INTO reglages (cle, valeur) VALUES ($1, $2) ON CONFLICT (cle) DO NOTHING',
@@ -146,16 +145,8 @@ export async function seed({ silencieux = false } = {}) {
   // gestion ; les prix ci-dessous sont des ordres de grandeur, pas une verite.
   const tarifs = await one('SELECT COUNT(*)::int AS n FROM tarifas');
   if (tarifs.n === 0) {
-    for (let i = 0; i < TARIFS_DE_DEPART.length; i += 1) {
-      const [cleNom, prix, icono, cleNota, duracion] = TARIFS_DE_DEPART[i];
-      const nombre = t(cleNom);
-      const cts = prix[deviseActive()] ?? prix[DEVISE_DEFAUT];
-      await execute(
-        'INSERT INTO tarifas (id, nombre, nombre_lower, precio_cts, nota, icono, ordre, duracion_min) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-        [newId(), nombre, normalize(nombre), cts, cleNota ? t(cleNota) : null, icono || null, i, duracion || 15],
-      );
-    }
-    dire('  Fiche de prix : ' + TARIFS_DE_DEPART.length + ' ligne(s) de depart creee(s).');
+    const n = await appliquerCatalogue(installation.activite);
+    dire('  Carte : ' + n + ' ligne(s) de depart creee(s) (' + installation.activite + ').');
   } else {
     dire('  Fiche de prix : ' + tarifs.n + ' ligne(s) deja presente(s).');
   }

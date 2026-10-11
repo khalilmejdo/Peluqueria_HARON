@@ -21,10 +21,10 @@ import { ValidationError, AppError } from '../core/errors.js';
 import { validate, rules } from '../core/validate.js';
 import { consommerPriseDeTour, consume, PROFILES, suiviBloque, noterEchecSuivi, consommerJeton } from '../core/ratelimit.js';
 import {
-  lireTous, adressePublique, horairesLisibles, nomDuSalon, estOuvert, plagesDuJour,
+  lireTous, adressePublique, horairesLisibles, nomDuSalon, estOuvert, plagesDuJour, themeCourant,
 } from '../core/reglages.js';
 import { jetonPlausible } from '../core/crypto.js';
-import { jourLocal, attenteNue, dateLongue, jourSemaine, minutesDepuisMinuit } from '../core/temps.js';
+import { jourLocal, attenteNue, dateLongue, jourSemaine, minutesDepuisMinuit, jourRelatif } from '../core/temps.js';
 import { traduire, t, langueActive } from '../core/langue.js';
 import { encoder, versSvg, versMatrice } from '../core/qrcode.js';
 import { pngNoirEtBlanc } from '../core/png.js';
@@ -33,12 +33,14 @@ import {
 } from '../domain/file.js';
 import { pourVitrine as photosVitrine } from '../domain/photos.js';
 import {
-  ouverture, infosPratiques, sectionReservation, sectionGalerie, sectionLieu, horairesDuJour, etatDuMoment,
+  ouverture, reperes, pastilleEtat, sectionMaison, sectionCarte, sectionReserver, sectionEquipe, sectionGalerie,
+  sectionLieu, horairesDuJour, etatDuMoment,
 } from './vitrine.js';
 import { pourVitrine } from '../domain/tarifas.js';
 import { page, marque, entete, piedDePage, pageErreur } from './mise-en-page.js';
-import { matDeBarbier, emblemeRond, ciseauxPetits } from './illustrations.js';
-import { iconeTarifa } from './icones-tarifas.js';
+import { filet, icone } from './ornements.js';
+import { listerActifs as listerPostesActifs } from '../domain/postes.js';
+import { prochainesHeures } from '../domain/rendezvous.js';
 import { exigerClePantalla } from '../routes/public.js';
 
 export const siteRoutes = new Router();
@@ -58,85 +60,6 @@ const duSalon = () => traduire(langueActive());
 /*  Accueil                                                            */
 /* ------------------------------------------------------------------ */
 
-/**
- * La fiche de prix, telle qu'elle s'affiche en vitrine.
- *
- * Une ligne = un nom, un filet de pointilles, un prix. C'est la forme d'une
- * carte de salon depuis toujours, et elle se lit d'un coup d'oeil : le regard
- * suit le pointille du service jusqu'au chiffre, sans hesiter sur la colonne.
- *
- * Les prix arrivent DEJA mis en forme par le domaine. Cette fonction ne fait
- * aucun calcul sur de l'argent.
- */
-function ficheDePrix(lignes, nota, tr = duSalon()) {
-  if (!lignes.length) return '';
-  const items = lignes.map((t) => {
-    const icone = iconeTarifa(t.icono);
-    return '<li class="tarifa">'
-      + (icone ? '<span class="tarifa__icone" aria-hidden="true">' + icone + '</span>' : '<span class="tarifa__icone"></span>')
-      + '<span class="tarifa__nombre">' + escapeHtml(t.nombre) + '</span>'
-      + '<span class="tarifa__filete" aria-hidden="true"></span>'
-      + '<span class="tarifa__precio">' + escapeHtml(t.precio) + '</span>'
-      + (t.nota ? '<span class="tarifa__nota">' + escapeHtml(t.nota) + '</span>' : '')
-      + '</li>';
-  }).join('');
-
-  return '<section class="enveloppe seccion seccion--tarifas" id="tarifas">'
-    + '<div class="seccion__tete">'
-    + '<h2 class="seccion__titulo">' + escapeHtml(tr('tarifs.titre')) + '</h2>'
-    + '<p class="seccion__intro">' + escapeHtml(tr('tarifs.intro')) + '</p>'
-    + '</div>'
-    // Le cadre reprend le tableau accroche dans le salon : un double filet de
-    // laiton, l'embleme en haut, et la devise en bas sur une plaque.
-    + '<div class="tarifas__cadre">'
-    // Le mat tourne, et c'est la seule chose qui bouge ici. Il n'apparait qu'a
-    // partir de la largeur ou il ne vole de place a aucun prix.
-    + '<div class="tarifas__mat" aria-hidden="true">' + matDeBarbier() + '</div>'
-    + '<div class="tarifas__contenu">'
-    + '<div class="tarifas__entete">'
-    + '<span class="tarifas__embleme" aria-hidden="true">' + emblemeRond({ nom: nomDuSalon(), devise: tr('tarifs.medaillon') }) + '</span>'
-    + '<span class="tarifas__bandeau">' + escapeHtml(tr('tarifs.bandeau')) + '</span>'
-    + '</div>'
-    + '<div class="tarifas__filet-orne" aria-hidden="true">'
-    + '<span class="tarifas__filet"></span>' + ciseauxPetits() + '<span class="tarifas__filet"></span>'
-    + '</div>'
-    + '<ul class="tarifas">' + items + '</ul>'
-    + '<p class="tarifas__devise">' + escapeHtml(tr('tarifs.devise')) + '</p>'
-    + '</div>'
-    + '</div>'
-    + (nota ? '<p class="tarifas__nota">' + escapeHtml(nota) + '</p>' : '')
-    + '</section>';
-}
-
-/**
- * LA FILE, EN MARQUES.
- *
- * Une marque par personne qui attend. Un chiffre se lit, une longueur se VOIT :
- * « 7 » demande un instant de traduction, sept traits n'en demandent aucun, et
- * c'est ce coup d'oeil-la que donne un passant devant la vitrine.
- *
- * DIX AU PLUS, puis « +n ». Au-dela, la rangee deviendrait une bouillie ou
- * douze et quinze se ressemblent — et un nombre qu'on ne peut plus estimer ne
- * vaut pas mieux qu'un nombre qu'on ne montre pas.
- *
- * Elle est rendue par le SERVEUR, pas seulement par le script : une page sans
- * JavaScript montre la file du chargement, elle ne montre pas un vide.
- *
- * `aria-hidden` : la phrase juste au-dessus dit deja « 7 personas en la fila ».
- * Faire lire sept traits a un lecteur d'ecran serait du bruit pur.
- */
-function colaDeMarques(enAttente) {
-  const n = Math.max(0, Math.trunc(Number(enAttente) || 0));
-  const montrees = Math.min(n, MARQUES_MAX);
-  const reste = n - montrees;
-
-  return '<ul class="cola" data-cola aria-hidden="true">'
-    + '<li class="cola__marque"></li>'.repeat(montrees)
-    + (reste ? '<li class="cola__reste" data-cola-reste>+' + reste + '</li>' : '')
-    + '</ul>';
-}
-
-const MARQUES_MAX = 10;
 
 /**
  * LE BANDEAU DES CONGES.
@@ -159,7 +82,7 @@ const MARQUES_MAX = 10;
 function bandeauFermeture(prise, aujourdhui, tr = duSalon()) {
   if (!prise.ouverte && prise.code === 'SALON_EN_CONGES' && prise.fermeture) {
     const jusqua = prise.fermeture.au;
-    return '<section class="enveloppe">'
+    return '<section class="bandeau-conges">'
       + '<div class="alerte-conges alerte-conges--maintenant" role="status">'
       + '<span class="alerte-conges__pastille">' + escapeHtml(tr('commun.ferme')) + '</span>'
       + '<p class="alerte-conges__titre">' + escapeHtml(tr('conges.ferme'))
@@ -185,7 +108,7 @@ function bandeauFermeture(prise, aujourdhui, tr = duSalon()) {
       : proche ? tr('conges.fermonsDans', { n: jours })
         : tr('conges.prochaineFermeture');
 
-  return '<section class="enveloppe">'
+  return '<section class="bandeau-conges">'
     + '<div class="alerte-conges' + (proche ? ' alerte-conges--proche' : ' alerte-conges--loin') + '" role="status">'
     + (proche ? '<span class="alerte-conges__pastille">' + escapeHtml(tr('commun.avis')) + '</span>' : '')
     + '<p class="alerte-conges__titre">' + escapeHtml(titre)
@@ -227,126 +150,161 @@ function joursEntre(depuis, jusqua) {
 export const _bandeauFermeture = bandeauFermeture;
 
 
+/**
+ * LA VITRINE.
+ *
+ * Deux facons de venir, chacune activable : le RENDEZ-VOUS (les prochaines
+ * heures libres, en lien direct) et la FILE (l'attente en direct, et le
+ * formulaire). L'appel principal est le rendez-vous quand il est ouvert : c'est
+ * ce que cherche le client d'une maison qui en prend.
+ */
 siteRoutes.get('/', async (ctx) => {
-  const reglages = await lireTous();
-  const tr = traduire(reglages['salon.idioma']);
-  const nom = reglages['salon.nom'];
-  const avecTarifs = reglages['tarifas.visible'];
-  const avecGalerie = reglages['vitrine.galerie'];
+  const r = await lireTous();
+  const tr = traduire(r['salon.idioma']);
+  const nom = r['salon.nom'];
+  const theme = themeCourant();
+  const avecTarifs = r['tarifas.visible'];
+  const fileEnLigne = Boolean(r['accueil.file']);
+  const aujourdhui = jourLocal();
 
-  const [etat, prise, tarifas, galeriePhotos, prestations] = await Promise.all([
-    chargerEtat(jourLocal()),
+  const [etat, prise, prestations, galeriePhotos, postes] = await Promise.all([
+    fileEnLigne ? chargerEtat(aujourdhui) : Promise.resolve(null),
     etatPriseDeTour(),
-    avecTarifs ? pourVitrine() : Promise.resolve([]),
-    photosVitrine(),
     pourVitrine(),
+    photosVitrine(),
+    listerPostesActifs(),
   ]);
-  const coiffeurs = prise.ouverte ? await coiffeursProposes(reglages) : [];
 
-  // L'etat du moment : seulement si le salon a declare ses horaires. Sans eux,
-  // « ouvert » serait une supposition, et la pastille disparait.
+  // L'etat du moment : seulement si le salon a declare ses horaires.
   const jourCourant = jourSemaine();
-  const horairesActifs = Boolean(reglages['horaires.actifs']);
-  const maintenant = horairesActifs ? estOuvert(reglages, jourCourant, minutesDepuisMinuit()) : null;
+  const horairesActifs = Boolean(r['horaires.actifs']);
+  const maintenant = horairesActifs ? estOuvert(r, jourCourant, minutesDepuisMinuit()) : null;
   const etatMoment = etatDuMoment({ tr, horaires: maintenant, prise });
-  const semaine = horairesActifs ? horairesLisibles(reglages, tr.langue) : null;
+  const semaine = horairesActifs ? horairesLisibles(r, tr.langue) : null;
 
-  const photos = avecGalerie ? galeriePhotos.photos : [];
-  const avecLieu = reglages['vitrine.localisation'] && Boolean(reglages['salon.adresse'] || reglages['salon.coordenadas']);
-  const avecContact = reglages['vitrine.contact']
-    && Boolean(reglages['salon.telephone'] || reglages['salon.whatsapp'] || horairesActifs);
+  // --- les rendez-vous
+  let rdv = null;
+  if (r['rdv.actifs']) {
+    const premiere = prestations.find((p) => p.reservable);
+    const { etat: etatRdv, heures } = await prochainesHeures({ n: 6, duree: premiere ? premiere.duracionMin : r['file.dureeMoyenneMinutes'] });
+    rdv = {
+      ouvert: etatRdv.ouvert,
+      prochains: heures.map((h) => ({
+        href: '/rendez-vous?jour=' + h.jour + '&heure=' + encodeURIComponent(h.heure),
+        jour: jourRelatif(h.jour, aujourdhui, tr.langue),
+        heure: h.heure,
+      })),
+      fermeture: etatRdv.ouvert ? null : tr('rdv.ferme.' + etatRdv.raison),
+    };
+  }
+  const rdvOuvert = Boolean(rdv && rdv.ouvert);
 
-  // La navigation ne pointe que vers ce qui existe sur la page.
+  // --- la file
+  let file = null;
+  const formulaireEnPage = fileEnLigne && prise.ouverte && !rdvOuvert;
+  if (fileEnLigne) {
+    const attente = attenteNouvelArrivant(etat);
+    const direct = '<p class="direct" data-affluence>'
+      + '<span class="direct__pouls" aria-hidden="true"></span>'
+      + '<span class="direct__forte" data-forte>' + escapeHtml(etat.compteurs.enAttente === 0
+        ? tr('accueil.sansAttente') : tr('accueil.enFile', { n: etat.compteurs.enAttente })) + '</span>'
+      + '<span class="direct__detail" data-detail>' + escapeHtml(etat.compteurs.enAttente === 0
+        ? tr('accueil.sansAttenteDetail') : tr('accueil.attenteEstimee', { duree: '≈ ' + attenteNue(attente, tr.langue) })) + '</span>'
+      + '</p>';
+    const coiffeurs = formulaireEnPage ? await coiffeursProposes(r) : [];
+    file = {
+      ouverte: prise.ouverte,
+      statut: prise.ouverte ? direct : '',
+      message: prise.ouverte ? '' : tr(prise.code === 'SALON_EN_CONGES' ? 'accueil.salonFerme' : 'accueil.plusDeTours') + ' — ' + (prise.message || ''),
+      formulaire: formulaireEnPage
+        ? formulaire({ source: 'ONLINE', coiffeurs, prestations, tr, avecPrix: avecTarifs })
+        : null,
+    };
+  }
+
+  // --- l'equipe : seulement les fauteuils qui portent un nom de personne
+  const membres = r['vitrine.equipe']
+    ? postes.filter((p) => p.coiffeur && p.coiffeur.trim()).map((p) => ({ id: p.id, nom: p.coiffeur.trim(), rdv: p.rdv }))
+    : [];
+
+  // --- les actions de l'ouverture
+  const actions = [];
+  if (rdvOuvert) actions.push({ href: '/rendez-vous', texte: tr('mx.une.rdv'), principal: true });
+  if (fileEnLigne && prise.ouverte) {
+    actions.push({ href: formulaireEnPage ? '#reserver' : '/join', texte: tr('mx.une.tour'), principal: !rdvOuvert });
+  }
+  if (actions.length < 2 && avecTarifs && prestations.length) actions.push({ href: '#carte', texte: tr('mx.une.carte'), principal: !actions.length });
+  const principale = actions.find((a) => a.principal) || null;
+
+  const pastilles = (etatMoment ? pastilleEtat(etatMoment) : '')
+    + (fileEnLigne && prise.ouverte
+      ? pastilleEtat({
+        classe: 'file',
+        texte: etat.compteurs.enAttente === 0 ? tr('accueil.sansAttente') : tr('accueil.enFile', { n: etat.compteurs.enAttente }),
+        attributs: ' data-affluence-court',
+      })
+      : '');
+
+  const photos = r['vitrine.galerie'] ? galeriePhotos.photos : [];
+  const avecLieu = r['vitrine.localisation'] && Boolean(r['salon.adresse'] || r['salon.coordenadas']);
+  const avecContact = r['vitrine.contact'] && Boolean(r['salon.telephone'] || r['salon.whatsapp'] || horairesActifs);
+  const avecCarte = avecTarifs && prestations.length > 0;
+
   const sections = [
-    avecTarifs && tarifas.length ? { ancre: 'tarifas', cle: 'vt.nav.tarifs' } : null,
+    String(r['salon.presentation'] || '').trim() ? { ancre: 'maison', cle: 'vt.nav.maison' } : null,
+    avecCarte ? { ancre: 'carte', cle: 'vt.nav.carte' } : null,
+    rdv || file ? { ancre: 'reserver', cle: 'vt.nav.reserver' } : null,
+    membres.length ? { ancre: 'equipe', cle: 'vt.nav.equipe' } : null,
     photos.length ? { ancre: 'galerie', cle: 'vt.nav.galerie' } : null,
-    { ancre: 'reserver', cle: 'vt.nav.reserver' },
-    avecLieu || avecContact ? { ancre: 'contact', cle: 'vt.nav.contact' } : null,
+    avecLieu || avecContact ? { ancre: 'acces', cle: 'vt.nav.contact' } : null,
   ].filter(Boolean);
 
-  // L'attente du prochain qui arrive : la MEME simulation que son ticket.
-  const attente = attenteNouvelArrivant(etat);
-  const affluence = '<div class="vt-direct" data-affluence>'
-    + '<p class="vt-direct__pouls"><span class="pouls" aria-hidden="true"></span>' + escapeHtml(tr('accueil.enDirect')) + '</p>'
-    + (etat.compteurs.enAttente === 0
-      ? '<p class="vt-direct__forte" data-forte>' + escapeHtml(tr('accueil.sansAttente')) + '</p>'
-        + '<p class="vt-direct__detail" data-detail>' + escapeHtml(tr('accueil.sansAttenteDetail')) + '</p>'
-      : '<p class="vt-direct__forte" data-forte>' + escapeHtml(tr('accueil.enFile', { n: etat.compteurs.enAttente })) + '</p>'
-        + '<p class="vt-direct__detail" data-detail>'
-        + escapeHtml(tr('accueil.attenteEstimee', { duree: '≈ ' + attenteNue(attente, tr.langue) })) + '</p>')
-    + colaDeMarques(etat.compteurs.enAttente)
-    // Le compteur du jour n'apparait qu'a partir de trois : « 1 atendido hoy »
-    // fait plus vide qu'un silence.
-    + (etat.compteurs.servis >= 3
-      ? '<p class="vt-direct__servis" data-servis>' + escapeHtml(tr('accueil.servisAujourdhui', { n: etat.compteurs.servis })) + '</p>'
-      : '<p class="vt-direct__servis" data-servis hidden></p>')
-    + '</div>';
-
-  // Conges, arret des tours, hors horaires : on le dit a la place du bouton.
-  // Un client qui appuie pour se voir refuser a l'ecran suivant repart plus
-  // agace que s'il avait su tout de suite.
-  const telephone = reglages['salon.telephone'];
-  const appelerSalon = telephone
-    ? '<a class="bouton bouton--discret" href="tel:' + escapeHtml(telephone.replace(/[^+0-9]/g, '')) + '">'
-      + escapeHtml(tr('commun.appelerSalon')) + '</a>'
-    : '';
-  const avisFerme = '<div class="avis-ferme" data-ferme>'
-    + '<p class="avis-ferme__titre">'
-    + escapeHtml(tr(prise.code === 'SALON_EN_CONGES' ? 'accueil.salonFerme' : 'accueil.plusDeTours')) + '</p>'
-    + '<p class="avis-ferme__texte">' + escapeHtml(prise.message || '') + '</p>'
-    + '</div>';
-
-  const appel = prise.ouverte
-    ? '<div class="vt-une__actions">'
-      + '<a class="bouton bouton--principal bouton--geant" href="#reserver" data-appel-principal>' + escapeHtml(tr('vt.une.reserver')) + '</a>'
-      + (avecTarifs && tarifas.length
-        ? '<a class="bouton bouton--discret bouton--geant" href="#tarifas">' + escapeHtml(tr('vt.une.tarifs')) + '</a>'
-        : '')
-      + '</div>'
-    : avisFerme + (appelerSalon ? '<div class="vt-une__actions">' + appelerSalon + '</div>' : '');
-
-  const reservation = prise.ouverte
-    ? formulaire({ source: 'ONLINE', coiffeurs, prestations, tr, avecPrix: avecTarifs })
-    : avisFerme + appelerSalon;
-
-  const corps = entete({ sections, etat: etatMoment, appel: prise.ouverte })
-    + '<main id="principal" class="vt-page">'
+  const telephone = r['salon.telephone'];
+  const corps = entete({
+    sections,
+    action: principale && principale.href !== '#carte' ? { href: principale.href === '#reserver' ? '/#reserver' : principale.href, texte: principale.texte } : null,
+    surImage: Boolean(galeriePhotos.couverture),
+  })
+    + '<main id="principal" class="vitrine">'
     + ouverture({
       tr,
       nom,
-      accroche: reglages['salon.accroche'],
-      affluence: prise.ouverte ? affluence : '',
-      appel,
+      accroche: r['salon.accroche'],
+      metier: tr('mx.une.metier'),
+      actions,
+      reperes: pastilles,
       couverture: galeriePhotos.couverture,
+      lettres: theme.monogramme,
     })
-    + bandeauFermeture(prise, jourLocal(), tr)
-    + infosPratiques({
+    + bandeauFermeture(prise, aujourdhui, tr)
+    + reperes({
       tr,
-      aujourdhui: horairesDuJour({ tr, plages: plagesDuJour(reglages, jourCourant), actifs: horairesActifs }),
-      adresse: avecLieu ? reglages['salon.adresse'] : null,
+      aujourdhui: horairesDuJour({ tr, plages: plagesDuJour(r, jourCourant), actifs: horairesActifs }),
+      adresse: avecLieu ? r['salon.adresse'] : null,
       telephone: avecContact ? telephone : null,
     })
-    + (avecTarifs ? ficheDePrix(tarifas, reglages['tarifas.nota'], tr) : '')
-    + sectionReservation({ tr, contenu: reservation, etapes: reglages['vitrine.etapes'] })
+    + sectionMaison({ tr, presentation: r['salon.presentation'], lettres: theme.monogramme })
+    + (avecCarte ? sectionCarte({ tr, prestations, nota: r['tarifas.nota'], avecPrix: avecTarifs }) : '')
+    + sectionReserver({ tr, rdv: rdv && (rdv.ouvert || rdv.fermeture) ? rdv : null, file })
+    + sectionEquipe({ tr, membres, rdvActifs: rdvOuvert })
     + sectionGalerie({ tr, photos })
     + sectionLieu({
       tr,
       avecLieu,
       avecContact,
-      adresse: reglages['salon.adresse'],
-      coordonnees: reglages['salon.coordenadas'],
-      commentVenir: reglages['salon.comoLlegar'],
+      adresse: r['salon.adresse'],
+      coordonnees: r['salon.coordenadas'],
+      commentVenir: r['salon.comoLlegar'],
       telephone,
-      whatsapp: reglages['salon.whatsapp'],
+      whatsapp: r['salon.whatsapp'],
       horaires: semaine,
       jourCourant,
     })
-    // L'appel qui suit le pouce, sur telephone. Seulement quand on peut
-    // vraiment prendre un tour : une barre qui mene a un refus est pire que
-    // pas de barre du tout.
-    + (prise.ouverte
-      ? '<div class="appel-fixe"><a class="bouton bouton--principal" href="#reserver">'
-        + escapeHtml(tr('vt.une.reserver')) + '</a></div>'
+    // L'appel qui suit le pouce, sur telephone : seulement quand il mene
+    // vraiment quelque part.
+    + (principale && principale.href !== '#carte'
+      ? '<div class="appel-fixe" data-appel-fixe><a class="bouton bouton--principal bouton--large" href="' + escapeHtml(principale.href) + '">'
+        + escapeHtml(principale.texte) + '</a></div>'
       : '')
     + '</main>';
 
@@ -357,13 +315,12 @@ siteRoutes.get('/', async (ctx) => {
     base: ctx.base,
     chemin: '/',
     langue: tr.langue,
-    classe: 'theme-sombre page-accueil page-vitrine',
-    // join.js : le formulaire de reservation vit DANS la vitrine, il a donc
-    // besoin de la meme validation immediate et du meme total des prestations.
-    scripts: ['/js/accueil.js', '/js/join.js'],
+    classe: 'page-accueil',
+    image: galeriePhotos.couverture ? galeriePhotos.couverture.src : null,
+    scripts: formulaireEnPage ? ['/js/maison.js', '/js/join.js'] : ['/js/maison.js'],
     pied: piedDePage({
       horaires: semaine,
-      adresse: reglages['salon.adresse'] || null,
+      adresse: r['salon.adresse'] || null,
       telephone: telephone || null,
     }),
   }), { noStore: false, entetes: { 'Cache-Control': 'no-cache' } });
@@ -526,7 +483,7 @@ function formulaire({
     + (coiffeurs.length ? choixDuCoiffeur(coiffeurs, posteId, tr) : '')
     + choixDesPrestations(prestations, tarifaIds, tr, { avecPrix })
     + champs
-    + '<button class="bouton bouton--principal bouton--geant" type="submit">'
+    + '<button class="bouton bouton--principal bouton--large" type="submit">'
     + escapeHtml(tr('join.envoyer')) + '</button>'
     + '<p class="formulaire__note">'
     + escapeHtml(tr(config.whatsapp.actif ? 'join.noteAvecWhatsapp' : 'join.noteSansWhatsapp'))
@@ -537,27 +494,38 @@ function formulaire({
 function pageJoin(ctx, reglages, options) {
   const { prise = null } = options;
   const tr = traduire(reglages['salon.idioma']);
-  // Salon fermé : pas de formulaire du tout. Rien n'est plus agaçant qu'un
-  // formulaire qu'on remplit pour se voir refuser à la validation.
+  const telephone = reglages['salon.telephone'];
+  const appeler = telephone
+    ? '<a class="bouton bouton--contour" href="tel:' + escapeHtml(telephone.replace(/[^+0-9]/g, '')) + '">'
+      + escapeHtml(tr('commun.appelerSalon')) + '</a>'
+    : '';
+  // Salon ferme, file coupee, ou salon sur rendez-vous : pas de formulaire du
+  // tout. Rien n'est plus agacant qu'un formulaire qu'on remplit pour se voir
+  // refuser a la validation.
+  const horsLigne = prise && prise.code === 'FILE_HORS_LIGNE';
   const contenu = prise && !prise.ouverte
-    ? '<section class="carte carte--centree">'
-      + '<p class="pastille pastille--neutre">'
-      + escapeHtml(tr(prise.code === 'SALON_EN_CONGES' ? 'commun.conges' : 'commun.ferme')) + '</p>'
+    ? '<section class="carte carte--centree carte--avis">'
+      + '<p class="surtitre">' + escapeHtml(tr(horsLigne ? 'mx.rdv.titre' : (prise.code === 'SALON_EN_CONGES' ? 'commun.conges' : 'commun.ferme'))) + '</p>'
       + '<h1 class="titre-page">'
-      + escapeHtml(tr(prise.code === 'SALON_EN_CONGES' ? 'join.fermeTitre' : 'accueil.plusDeTours')) + '</h1>'
+      + escapeHtml(tr(horsLigne ? 'join.horsLigneTitre' : (prise.code === 'SALON_EN_CONGES' ? 'join.fermeTitre' : 'accueil.plusDeTours'))) + '</h1>'
+      + filet()
       + '<p class="texte-doux">' + escapeHtml(prise.message) + '</p>'
-      + (reglages['salon.telephone']
-        ? '<a class="bouton bouton--discret" href="tel:' + escapeHtml(reglages['salon.telephone'].replace(/[^+0-9]/g, '')) + '">'
-          + escapeHtml(tr('commun.appelerSalon')) + '</a>'
-        : '')
-      + '<a class="bouton bouton--principal" href="/">' + escapeHtml(tr('commun.retourAccueil')) + '</a>'
+      + '<div class="carte__actions">'
+      + (horsLigne && reglages['rdv.actifs'] ? '<a class="bouton bouton--principal" href="/rendez-vous">' + escapeHtml(tr('mx.une.rdv')) + '</a>' : '')
+      + appeler
+      + '<a class="bouton ' + (horsLigne && reglages['rdv.actifs'] ? 'bouton--lien' : 'bouton--principal') + '" href="/">' + escapeHtml(tr('commun.retourAccueil')) + '</a>'
+      + '</div>'
       + '</section>'
-    : '<h1 class="titre-page">' + escapeHtml(tr('join.h1')) + '</h1>'
-      + '<p class="texte-doux">' + escapeHtml(tr('join.sousTitre')) + '</p>'
-      + '<section class="carte">' + formulaire({ ...options, tr, avecPrix: Boolean(reglages['tarifas.visible']) }) + '</section>';
+    : '<header class="page__tete">'
+      + '<p class="surtitre">' + escapeHtml(tr('mx.file.titre')) + '</p>'
+      + '<h1 class="titre-page">' + escapeHtml(tr('join.h1')) + '</h1>'
+      + filet()
+      + '<p class="page__chapo">' + escapeHtml(tr('join.sousTitre')) + '</p>'
+      + '</header>'
+      + '<section class="carte carte--formulaire">' + formulaire({ ...options, tr, avecPrix: Boolean(reglages['tarifas.visible']) }) + '</section>';
 
   const corps = entete({ retour: { href: '/', texte: tr('commun.accueil') } })
-    + '<main class="enveloppe page-etroite" id="principal">'
+    + '<main class="page page--etroite" id="principal">'
     + contenu
     + '</main>';
   return page({
@@ -567,9 +535,9 @@ function pageJoin(ctx, reglages, options) {
     base: ctx.base,
     chemin: '/join',
     langue: tr.langue,
-    classe: 'theme-sombre',
+    classe: 'page-join',
     scripts: ['/js/join.js'],
-    pied: piedDePage({ adresse: reglages['salon.adresse'] || null }),
+    pied: piedDePage({ adresse: reglages['salon.adresse'] || null, telephone: telephone || null }),
   });
 }
 
@@ -684,7 +652,8 @@ const TONS = { tour: 'tour', proche: 'proche', attente: 'attente', fini: 'fini' 
 function blocTicket(vue, tr = duSalon()) {
   const ton = TONS[vue.ton] || 'attente';
   return '<section class="ticket ticket--' + ton + '" data-ticket>'
-    + '<p class="ticket__label">' + escapeHtml(tr('ticket.label')) + '</p>'
+    + '<span class="ticket__encoche ticket__encoche--g" aria-hidden="true"></span><span class="ticket__encoche ticket__encoche--d" aria-hidden="true"></span>'
+    + '<p class="surtitre ticket__label">' + escapeHtml(tr('ticket.label')) + '</p>'
     + '<p class="ticket__prenom" data-prenom>' + escapeHtml(vue.prenom) + '</p>'
     + '<p class="ticket__numero" data-numero>' + escapeHtml(vue.numero) + '</p>'
     + (vue.coiffeur
@@ -759,21 +728,21 @@ siteRoutes.get('/ticket/:jeton', async (ctx) => {
       + '<p class="lien__adresse" data-lien>' + escapeHtml(lien) + '</p>'
       + '<div class="lien__actions">'
       + '<button class="bouton bouton--principal" type="button" data-copier data-valeur="' + escapeHtml(lien) + '">'
-      + escapeHtml(tr('ticket.copier')) + '</button>'
+      + icone('copier') + escapeHtml(tr('ticket.copier')) + '</button>'
       // « Envoyer » ouvre le partage du systeme, qui propose WhatsApp parmi
       // d'autres. Annoncer WhatsApp serait inexact sur un appareil qui ne l'a
       // pas installe.
-      + '<button class="bouton bouton--discret" type="button" data-partager hidden>'
-      + escapeHtml(tr('ticket.envoyer')) + '</button>'
+      + '<button class="bouton bouton--contour" type="button" data-partager hidden>'
+      + icone('partager') + escapeHtml(tr('ticket.envoyer')) + '</button>'
       + '</div>'
       + '<p class="lien__retour" role="status" hidden data-copie>' + escapeHtml(tr('ticket.copie')) + '</p>'
       + '</section>'
     : '';
 
-  const corps = entete()
-    + '<main class="enveloppe page-etroite" id="principal">'
+  const corps = entete({ retour: { href: '/', texte: tr('commun.accueil') } })
+    + '<main class="page page--etroite page--ticket" id="principal">'
     + (dateDuJour
-      ? '<p class="pastille pastille--neutre">' + escapeHtml(tr('ticket.tourDu', { date: dateDuJour })) + '</p>'
+      ? '<p class="surtitre surtitre--centre">' + escapeHtml(tr('ticket.tourDu', { date: dateDuJour })) + '</p>'
       : '')
     + blocTicket(vue, tr)
     + blocLien
@@ -781,7 +750,7 @@ siteRoutes.get('/ticket/:jeton', async (ctx) => {
       ? '<section class="carte carte--discrete">'
         + '<p class="texte-doux">' + escapeHtml(tr('ticket.sActualise')) + '</p>'
         + (vue.adresseSalon ? '<p class="texte-doux">' + escapeHtml(vue.adresseSalon) + '</p>' : '')
-        + '<button class="bouton bouton--discret" type="button" data-annuler>' + escapeHtml(tr('ticket.annuler')) + '</button>'
+        + '<button class="bouton bouton--lien bouton--danger" type="button" data-annuler>' + escapeHtml(tr('ticket.annuler')) + '</button>'
         + '<p class="alerte alerte--refus" role="alert" hidden data-annuler-erreur></p>'
         + '</section>'
       : '<section class="carte carte--discrete">'
@@ -798,10 +767,38 @@ siteRoutes.get('/ticket/:jeton', async (ctx) => {
     langue: tr.langue,
     // Un lien de suivi est un secret : il ne doit jamais entrer dans un index.
     robots: 'noindex, nofollow, noarchive',
-    classe: 'theme-sombre',
+    classe: 'page-suivi',
     scripts: ['/js/ticket.js'],
     donnees: { jeton, vue },
     pied: piedDePage({ adresse: reglages['salon.adresse'] || null, telephone: reglages['salon.telephone'] || null }),
+  }));
+}, { public: true });
+
+/**
+ * LA PAGE HORS LIGNE, aux couleurs de la marque. Le service worker la demande
+ * une fois, a son installation, et la sert quand le reseau a disparu et
+ * qu'aucune page n'a ete gardee.
+ */
+siteRoutes.get('/hors-ligne', async (ctx) => {
+  const reglages = await lireTous();
+  const tr = traduire(reglages['salon.idioma']);
+  const corps = '<main class="page page--etroite" id="principal">'
+    + '<section class="carte carte--centree carte--avis">'
+    + marque({ taille: 'grand', lien: false })
+    + filet()
+    + '<h1 class="titre-page">' + escapeHtml(tr('commun.sansConnexion')) + '</h1>'
+    + '<p class="texte-doux">' + escapeHtml(tr('horsLigne.texte')) + '</p>'
+    + '<div class="carte__actions"><a class="bouton bouton--principal" href="">' + escapeHtml(tr('horsLigne.reessayer')) + '</a></div>'
+    + '</section></main>';
+  ctx.html(200, page({
+    titre: tr('commun.sansConnexion') + ' — ' + reglages['salon.nom'],
+    description: tr('horsLigne.texte'),
+    corps,
+    base: ctx.base,
+    chemin: '/hors-ligne',
+    langue: tr.langue,
+    robots: 'noindex, nofollow',
+    pied: '',
   }));
 }, { public: true });
 
@@ -819,7 +816,10 @@ siteRoutes.get('/ticket/:jeton', async (ctx) => {
  */
 async function adresseDuQr(ctx) {
   const reglages = await lireTous();
-  return adressePublique(reglages, ctx.base) + '/join?qr=1';
+  // Un salon qui ne recoit QUE sur rendez-vous : son QR mene a la reservation.
+  // Sinon, « /join?qr=1 », le contrat de toujours.
+  const surRdv = reglages['accueil.file'] === false && reglages['rdv.actifs'];
+  return adressePublique(reglages, ctx.base) + (surRdv ? '/rendez-vous' : '/join?qr=1');
 }
 
 /**
@@ -834,7 +834,7 @@ const CACHE_QR = 'public, max-age=60';
 siteRoutes.get('/qr.svg', async (ctx) => {
   const qr = encoder(await adresseDuQr(ctx), { niveau: 'Q' });
   ctx.file(Buffer.from(versSvg(qr, { titre: t('affiche.sousTitre') }), 'utf8'), {
-    filename: 'haron-qr.svg',
+    filename: 'qr.svg',
     mimeType: 'image/svg+xml',
     download: ctx.queryBool('telecharger'),
     cache: CACHE_QR,
@@ -846,7 +846,7 @@ siteRoutes.get('/qr.png', async (ctx) => {
   // Huit pixels par module : de quoi imprimer en A4 sans le moindre escalier.
   const echelle = ctx.queryInt('echelle', 12, { min: 4, max: 24 });
   ctx.file(pngNoirEtBlanc(versMatrice(qr, { marge: 4, echelle })), {
-    filename: 'haron-qr.png',
+    filename: 'qr.png',
     mimeType: 'image/png',
     download: ctx.queryBool('telecharger'),
     cache: CACHE_QR,
@@ -863,19 +863,21 @@ siteRoutes.get('/affiche', async (ctx) => {
   const tr = traduire(reglages['salon.idioma']);
   const adresse = await adresseDuQr(ctx);
   const qr = encoder(adresse, { niveau: 'Q' });
+  const surRdv = reglages['accueil.file'] === false && reglages['rdv.actifs'];
 
   const corps = '<main class="affiche" id="principal">'
     + '<div class="affiche__feuille">'
     + marque({ taille: 'grand', lien: false })
-    + '<p class="affiche__titre">' + escapeHtml(tr('affiche.accroche')) + '</p>'
-    + '<p class="affiche__sous-titre">' + escapeHtml(tr('affiche.sousTitre')) + '</p>'
+    + filet()
+    + '<p class="affiche__titre">' + escapeHtml(tr(surRdv ? 'affiche.accrocheRdv' : 'affiche.accroche')) + '</p>'
+    + '<p class="affiche__sous-titre">' + escapeHtml(tr(surRdv ? 'affiche.sousTitreRdv' : 'affiche.sousTitre')) + '</p>'
     + '<div class="affiche__qr">' + versSvg(qr, { titre: tr('affiche.qrAlt'), marge: 2 }) + '</div>'
     + '<p class="affiche__mention">' + escapeHtml(tr('affiche.mention')) + '</p>'
     + '<p class="affiche__adresse">' + escapeHtml(adresse.replace(/^https?:\/\//, '')) + '</p>'
     + '</div>'
     + '<div class="affiche__outils">'
-    + '<a class="bouton bouton--discret" href="/qr.svg?telecharger=1" download>' + escapeHtml(tr('affiche.telechargerSvg')) + '</a>'
-    + '<a class="bouton bouton--discret" href="/qr.png?telecharger=1" download>' + escapeHtml(tr('affiche.telechargerPng')) + '</a>'
+    + '<a class="bouton bouton--contour" href="/qr.svg?telecharger=1" download>' + escapeHtml(tr('affiche.telechargerSvg')) + '</a>'
+    + '<a class="bouton bouton--contour" href="/qr.png?telecharger=1" download>' + escapeHtml(tr('affiche.telechargerPng')) + '</a>'
     + '<button class="bouton bouton--principal" type="button" data-imprimer>' + escapeHtml(tr('affiche.imprimer')) + '</button>'
     + '</div>'
     + '</main>';
@@ -888,7 +890,7 @@ siteRoutes.get('/affiche', async (ctx) => {
     chemin: '/affiche',
     langue: tr.langue,
     robots: 'noindex, nofollow',
-    classe: 'theme-clair page-affiche',
+    classe: 'page-affiche',
     scripts: ['/js/affiche.js'],
     pied: '',
   }));
@@ -941,8 +943,8 @@ siteRoutes.get('/pantalla', async (ctx) => {
     + '<footer class="pantalla__pied">'
     + '<div class="pantalla__qr">' + versSvg(qr, { titre: tr('affiche.qrAlt'), marge: 1 }) + '</div>'
     + '<div class="pantalla__appel">'
-    + '<p class="pantalla__appel-titre">' + escapeHtml(tr('pantalla.prendreTour')) + '</p>'
-    + '<p class="pantalla__appel-texte">' + escapeHtml(tr('pantalla.prendreTourTexte')) + '</p>'
+    + '<p class="pantalla__appel-titre">' + escapeHtml(tr(reglages['accueil.file'] === false && reglages['rdv.actifs'] ? 'affiche.accrocheRdv' : 'pantalla.prendreTour')) + '</p>'
+    + '<p class="pantalla__appel-texte">' + escapeHtml(tr(reglages['accueil.file'] === false && reglages['rdv.actifs'] ? 'affiche.sousTitreRdv' : 'pantalla.prendreTourTexte')) + '</p>'
     + '</div>'
     + '<p class="pantalla__hors-ligne" data-hors-ligne hidden>' + escapeHtml(tr('commun.sansConnexion')) + '</p>'
     + '</footer>'
@@ -956,7 +958,7 @@ siteRoutes.get('/pantalla', async (ctx) => {
     chemin: '/pantalla',
     langue: tr.langue,
     robots: 'noindex, nofollow, noarchive',
-    classe: 'theme-sombre page-pantalla',
+    classe: 'page-pantalla',
     scripts: ['/js/pantalla.js'],
     pied: '',
   }));

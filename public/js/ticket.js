@@ -6,6 +6,7 @@
  * flux tombe (tunnel, veille du telephone), une relecture ordinaire prend le
  * relais au retour a l'ecran.
  */
+import './entete.js';
 import { donneesInitiales, poser, envoyer, suivreFlux, activerHorsLigne, bandeauHorsLigne } from './commun.js';
 import { t } from './langue.js';
 

@@ -45,6 +45,7 @@ const ADMIS = new Set([
   'Peluquería HARON', // nom de l'enseigne, jamais traduit
   '·', '×', '—', '#', '+', '⠿', '↑', '↓', '≈ ',
   'SVG', 'PNG', 'CSV',
+  'Aa', // l'echantillon d'une police, dans l'ecran de la marque
   'Euro (€)', 'Dirham (DH)', // noms de monnaies, identiques dans les deux langues
 ]);
 
@@ -85,7 +86,10 @@ test('aucune phrase figee dans une langue n arrive a l ecran', () => {
         if (!/\p{L}{2,}/u.test(litteral)) continue; // ni lettre, ni phrase
         if (ADMIS.has(litteral)) continue;
         // Une CLE de dictionnaire n'est pas une phrase : « nav.file », « reglage. ».
-        if (/^[a-z][a-zA-Z0-9]*(.[a-zA-Z0-9]*)+$/.test(litteral)) continue;
+        if (/^[a-z][a-zA-Z0-9]*(\.[a-zA-Z0-9]*)+$/.test(litteral)) continue;
+        // Une COULEUR (« #c9a45c ») n'est pas une phrase : les palettes de la
+        // marque en sont faites.
+        if (/^#[0-9a-f]{3,8}$/i.test(litteral)) continue;
         const ligne = src.slice(0, m.index).split('\n').length;
         fautes.push(rel + ':' + ligne + '  « ' + litteral.slice(0, 70) + ' »');
       }

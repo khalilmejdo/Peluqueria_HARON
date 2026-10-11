@@ -1,17 +1,18 @@
 <!DOCTYPE html>
-<html lang="{{langue}}" data-devise="{{devise}}" data-symbole="{{symbole}}" class="theme-gestion">
+<html lang="{{langue}}" data-devise="{{devise}}" data-symbole="{{symbole}}" data-activite="{{activite}}" data-clarte="{{clarte}}" data-salon="{{salon}}" class="page-gestion">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{{titre}}</title>
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#0e1013">
-<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/img/app-180.png">
+<meta name="theme-color" content="{{couleur}}">
+<link rel="icon" href="/favicon.svg?t={{theme}}" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icones/180.png?t={{theme}}">
 <link rel="manifest" href="/gestion.webmanifest">
 <link rel="stylesheet" href="/css/fonts.css">
-<link rel="stylesheet" href="/css/site.css">
+<link rel="stylesheet" href="/css/base.css">
 <link rel="stylesheet" href="/css/gestion.css">
+<link rel="stylesheet" href="/theme.css?t={{theme}}" id="feuille-theme">
 </head>
 <body class="gestion">
 <a class="saut" href="#principal">{{saut}}</a>

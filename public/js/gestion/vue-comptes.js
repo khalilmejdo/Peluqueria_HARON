@@ -52,7 +52,8 @@ export async function vueComptes(conteneur, { etat }) {
         el('span', { texte: compte.actif ? t('comptes.etat.actif') : t('comptes.etat.inactif') }),
         verrouille ? el('span', { texte: '· ' + t('comptes.etat.bloque') }) : null,
         compte.doitChangerMotDePasse ? el('span', { texte: '· ' + t('comptes.etat.motDePasseProvisoire') }) : null),
-      el('div.compte__actions',
+      // Le compte de l'administrateur de la plateforme : visible, intouchable.
+      compte.protege ? el('p.texte-doux.compte__protege', { texte: t('comptes.protege') }) : el('div.compte__actions',
         // Le nom complet est ce qui s'affiche en haut de l'ecran toute la
         // journee. L'API l'acceptait deja ; il manquait juste de quoi le dire.
         el('button.bouton.bouton--discret.bouton--petit', {
@@ -75,7 +76,7 @@ export async function vueComptes(conteneur, { etat }) {
             compte.actif ? t('comptes.succes.desactive') : t('comptes.succes.reactive'),
           ),
         }),
-        el('button.bouton.bouton--discret.bouton--petit', {
+        compte.role === 'SUPERADMIN' ? null : el('button.bouton.bouton--discret.bouton--petit', {
           type: 'button',
           texte: compte.role === 'GERANT' ? t('comptes.action.passerCoiffeur') : t('comptes.action.passerGerant'),
           surClick: () => agir(

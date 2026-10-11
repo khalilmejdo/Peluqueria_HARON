@@ -1,32 +1,53 @@
 /*
- * Peluquería HARON — l'écran du salon.
+ * L'ESPACE DE GESTION : l'outil du salon.
  *
- * Même identité que les pages du client, mais pensée pour une main occupée :
- * un client actuel énorme, un bouton « CLIENT SERVI » qu'on trouve sans
- * regarder, et tout le reste en dessous. Aucun menu à ouvrir pour travailler.
+ * Meme marque que les pages du client (les jetons de base.css et de
+ * /theme.css), mais pensee pour une main occupee : un client actuel enorme, un
+ * bouton « CLIENT SERVI » qu'on trouve sans regarder, et tout le reste dessous.
  *
- * Testé du téléphone tenu d'une main à la tablette posée sur le comptoir.
+ * L'outil parle la voix de l'OUTIL : ses titres et ses compteurs sont dans la
+ * police d'interface (--police-outil). La police de la maison (--police-titre)
+ * ne revient que pour ce qui est un NOM — le salon, un client, un
+ * professionnel : ce sont des personnes, pas des compteurs.
  */
 
-.theme-gestion {
-  /*
-   * L espace de travail parle la voix de l OUTIL : toute la Cormorant de la
-   * vitrine rebascule en Manrope d une seule variable. Un tableau de bord en
-   * serif de menu se lit mal, et le coiffeur le lit cent fois par jour.
-   * Les PRENOMS des clients, eux, restent en serif (plus bas) : ce sont des
-   * personnes, pas des compteurs — et c est la touche de la maison dans
-   * l outil.
-   */
-  --police-titre: var(--police-ui);
-  --fond: #0a0b0e;
-  --fond-carte: #101218;
-  --fond-carte-2: #161923;
-  --texte: #f7f2e8;
-  --texte-doux: #a9a294;
-  --bordure: #2b303a;
-  --accent: #c8a24a;
-  --accent-texte: #14161a;
+html.page-gestion {
+  --police-outil: var(--police-ui);
+  /* Les noms d'avant les jetons de marque, gardes comme alias. */
+  --fond-carte: var(--surface);
+  --fond-carte-2: var(--surface-2);
+  --police: var(--police-ui);
+  --laiton: var(--accent);
+  --accent-texte: var(--sur-accent);
+  --vert: var(--ok);
+  --ambre: var(--attention);
+  --rouge: var(--refus);
+  --transition: var(--vif);
+  --pas: var(--marge);
 }
+
+.enveloppe {
+  width: 100%;
+  max-width: var(--largeur);
+  margin-inline: auto;
+  padding-inline: var(--marge);
+}
+.page-etroite {
+  max-width: var(--largeur-etroite);
+  padding-block: clamp(1.5rem, 5vw, 2.75rem);
+  flex: 1;
+}
+
+/* Dans l'outil, les boutons se lisent vite : moins d'espacement, casse normale. */
+.page-gestion .bouton {
+  font-size: 0.86rem;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  padding: 0.7em 1.2em;
+  min-height: 2.75rem;
+}
+.page-gestion .bouton--petit { font-size: 0.8rem; min-height: 2.3rem; padding: 0.45em 0.9em; }
+.page-gestion .titre-page { font-family: var(--police-outil); font-size: clamp(1.5rem, 3.4vw, 2rem); letter-spacing: 0; text-transform: none; font-weight: 700; }
 
 .gestion { background: var(--fond); }
 
@@ -35,7 +56,7 @@
 .chargement {
   margin: auto;
   color: var(--texte-doux);
-  font-family: var(--police-titre);
+  font-family: var(--police-outil);
 }
 
 /* ------------------------------------------------------------------ */
@@ -45,7 +66,7 @@
 .connexion { display: grid; gap: 0.5rem; }
 /* Sur la porte d'entree, l'enseigne parle avec sa voix de maison. */
 .connexion .titre-page {
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: var(--police-titre);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -74,8 +95,8 @@
 }
 
 .gestion__marque { display: flex; flex-direction: column; line-height: 1; flex: none; }
-.gestion__marque .marque__peluqueria { font-size: 0.48rem; }
-.gestion__marque .marque__haron { font-size: 1.1rem; }
+.gestion__marque .marque__petit { font-size: 0.48rem; }
+.gestion__marque .marque__grand { font-size: 1.1rem; }
 
 .onglets {
   display: flex;
@@ -95,7 +116,7 @@
   border-radius: 999px;
   background: transparent;
   color: var(--texte-doux);
-  font-family: var(--police-titre);
+  font-family: var(--police-outil);
   font-weight: 700;
   font-size: 0.9rem;
   cursor: pointer;
@@ -179,7 +200,7 @@
   flex-wrap: wrap;
 }
 .actuel__fauteuil-nom {
-  font-family: var(--police-titre);
+  font-family: var(--police-outil);
   font-weight: 700;
   font-size: 0.8rem;
   letter-spacing: 0.14em;
@@ -204,7 +225,7 @@
 }
 
 .actuel__numero {
-  font-family: var(--police-titre);
+  font-family: var(--police-outil);
   font-weight: 700;
   font-size: 1.1rem;
   letter-spacing: 0.1em;
@@ -215,7 +236,7 @@
 /* Le nom, énorme : lisible depuis l'autre bout du salon — et en serif :
    c'est une personne, pas un compteur. */
 .actuel__nom {
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: var(--police-titre);
   font-weight: 600;
   font-size: clamp(2rem, 9vw, 3.4rem);
   line-height: 1.05;
@@ -227,7 +248,7 @@
 .actuel__retard { color: var(--ambre); font-size: 0.85rem; font-weight: 600; }
 
 .actuel__aucun {
-  font-family: var(--police-titre);
+  font-family: var(--police-outil);
   font-weight: 700;
   font-size: clamp(1.25rem, 5vw, 1.75rem);
   margin-block: 0.5rem;
@@ -241,7 +262,7 @@
   text-transform: uppercase;
   color: var(--texte-doux);
 }
-.actuel__prochain { font-family: var(--police-titre); font-weight: 700; font-size: 1.45rem; }
+.actuel__prochain { font-family: var(--police-outil); font-weight: 700; font-size: 1.45rem; }
 .actuel__prochain-numero { color: var(--accent); font-weight: 700; margin-bottom: 0.9rem; }
 
 /* LE bouton. Pleine largeur, très haut, contraste maximal. */
@@ -253,7 +274,7 @@
   border-radius: var(--r-grand);
   background: var(--vert);
   color: #06120c;
-  font-family: var(--police-titre);
+  font-family: var(--police-outil);
   font-size: clamp(1.15rem, 4.5vw, 1.5rem);
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -281,7 +302,7 @@
   border: 1px solid color-mix(in srgb, var(--ambre) 55%, transparent);
   background: color-mix(in srgb, var(--ambre) 12%, transparent);
   color: var(--ambre);
-  font-family: var(--police-titre);
+  font-family: var(--police-outil);
   font-weight: 700;
   cursor: pointer;
   transition: background-color var(--transition);
@@ -319,7 +340,7 @@
 }
 
 .prise__texte { display: grid; gap: 0.15rem; }
-.prise__etat { font-family: var(--police-titre); font-weight: 700; }
+.prise__etat { font-family: var(--police-outil); font-weight: 700; }
 .prise__detail { font-size: 0.85rem; color: var(--texte-doux); }
 .prise--fermee .prise__etat { color: var(--ambre); }
 .prise--conges .prise__etat { color: var(--rouge); }
@@ -340,7 +361,7 @@
 .fauteuil--ferme { opacity: 0.6; }
 
 .fauteuil__tete { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
-.fauteuil__nom { font-family: var(--police-titre); font-weight: 700; font-size: 1.1rem; }
+.fauteuil__nom { font-family: var(--police-outil); font-weight: 700; font-size: 1.1rem; }
 .fauteuil__coiffeur {
   font-size: 0.75rem;
   letter-spacing: 0.06em;
@@ -438,7 +459,7 @@
 .tarifa-admin__texte { display: grid; gap: 0.15rem; min-width: 0; }
 
 .tarifa-admin__nombre {
-  font-family: var(--police-titre);
+  font-family: var(--police-outil);
   font-weight: 700;
   font-size: 1.02rem;
 }
@@ -453,7 +474,7 @@
 }
 
 .tarifa-admin__precio {
-  font-family: var(--police-titre);
+  font-family: var(--police-outil);
   font-weight: 800;
   font-size: 1.1rem;
   color: var(--accent);
@@ -494,7 +515,7 @@
 }
 .fermeture--active { border: 1px solid color-mix(in srgb, var(--rouge) 45%, transparent); }
 
-.fermeture__dates { font-family: var(--police-titre); font-weight: 700; font-size: 1.05rem; }
+.fermeture__dates { font-family: var(--police-outil); font-weight: 700; font-size: 1.05rem; }
 .fermeture__meta { display: flex; gap: 0.4rem; flex-wrap: wrap; font-size: 0.82rem; color: var(--texte-doux); }
 .fermeture__badge {
   color: var(--rouge);
@@ -540,7 +561,7 @@
   background: var(--fond-carte);
 }
 .chiffre__valeur {
-  font-family: var(--police-titre);
+  font-family: var(--police-outil);
   font-weight: 800;
   font-size: 1.65rem;
   line-height: 1;
@@ -601,7 +622,7 @@
   gap: 0.75rem;
   flex-wrap: wrap;
   margin: 0;
-  font-family: var(--police-titre);
+  font-family: var(--police-outil);
   font-weight: 700;
   font-size: 1.05rem;
 }
@@ -627,14 +648,14 @@
 .carte-file__tete { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
 
 .carte-file__position {
-  font-family: var(--police-titre);
+  font-family: var(--police-outil);
   font-weight: 800;
   font-size: 1rem;
   color: var(--texte-doux);
   font-variant-numeric: tabular-nums;
 }
 .carte-file__numero {
-  font-family: var(--police-titre);
+  font-family: var(--police-outil);
   font-weight: 700;
   color: var(--accent);
   letter-spacing: 0.06em;
@@ -653,7 +674,7 @@
 /* Le nom du client en serif : c'est une personne, pas un compteur. Seul
    endroit de l'outil où la voix de la maison se fait entendre. */
 .carte-file__nom {
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: var(--police-titre);
   font-weight: 600;
   font-size: 1.5rem;
   letter-spacing: 0.01em;
@@ -707,7 +728,7 @@
 .historique summary,
 .creation summary {
   cursor: pointer;
-  font-family: var(--police-titre);
+  font-family: var(--police-outil);
   font-weight: 700;
   color: var(--texte-doux);
   list-style-position: outside;
@@ -739,7 +760,7 @@
   padding-block: 0.25rem;
   border-bottom: 1px dotted var(--bordure);
 }
-.historique__numero { font-family: var(--police-titre); font-weight: 700; color: var(--accent); }
+.historique__numero { font-family: var(--police-outil); font-weight: 700; color: var(--accent); }
 .historique__statut,
 .historique__heure { color: var(--texte-doux); font-size: 0.8rem; }
 
@@ -795,7 +816,7 @@
 
 .carreaux { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.85rem; }
 .carreau { display: grid; gap: 0.15rem; padding: 0.9rem 1rem; border-radius: var(--r); background: var(--fond-carte-2); }
-.carreau__valeur { font-family: var(--police-titre); font-weight: 800; font-size: 1.7rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.carreau__valeur { font-family: var(--police-outil); font-weight: 800; font-size: 1.7rem; line-height: 1; font-variant-numeric: tabular-nums; }
 .carreau__libelle { font-size: 0.82rem; color: var(--texte-doux); }
 .carreau__precision { font-size: 0.72rem; color: color-mix(in srgb, var(--texte-doux) 80%, transparent); }
 
@@ -812,7 +833,7 @@
 .compte { display: grid; gap: 0.3rem; padding: 0.9rem 1rem; border-radius: var(--r); background: var(--fond-carte-2); }
 .compte--inactif { opacity: 0.6; }
 .compte__tete { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
-.compte__nom { font-family: var(--police-titre); font-weight: 700; font-size: 1.1rem; }
+.compte__nom { font-family: var(--police-outil); font-weight: 700; font-size: 1.1rem; }
 .compte__role {
   font-size: 0.7rem;
   letter-spacing: 0.08em;
@@ -837,7 +858,7 @@
   border-radius: var(--r);
   padding: 0.75rem;
 }
-.qr__legende { font-family: var(--police-titre); font-weight: 700; }
+.qr__legende { font-family: var(--police-outil); font-weight: 700; }
 .qr__adresse { font-size: 0.85rem; color: var(--texte-doux); word-break: break-all; }
 .qr__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; margin-top: 0.5rem; }
 
@@ -1445,3 +1466,225 @@
   .horaires-grille__ligne { grid-template-columns: repeat(4, minmax(0, 1fr)); padding-block: 0.4rem; border-bottom: 1px solid var(--bordure); }
   .horaires-grille__jour { grid-column: 1 / -1; }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Le mot de passe et son oeil                                        */
+/* ------------------------------------------------------------------ */
+
+.champ__avec-oeil { position: relative; display: block; }
+
+.champ__avec-oeil input { width: 100%; padding-inline-end: 3.1rem; }
+
+.champ__oeil {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 2.75rem;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--texte-doux);
+  cursor: pointer;
+  border-radius: var(--r);
+}
+.champ__oeil:hover { color: var(--texte); }
+
+/*
+ * L'œil est dessiné en CSS, pas en SVG ni en caractère : le bouton est créé
+ * par `createElement` et ne reçoit jamais de HTML, ce qui garde la règle « rien
+ * n'est assemblé en chaîne » sans exception à retenir.
+ */
+.champ__oeil::before {
+  content: '';
+  width: 1.2rem;
+  height: 1.2rem;
+  border: 1.6px solid currentColor;
+  border-radius: 100% 0;
+  transform: rotate(45deg);
+}
+
+/* Barré quand le mot de passe est visible : l'état se lit sans le tester. */
+.champ__oeil::after {
+  content: '';
+  position: absolute;
+  width: 1.5rem;
+  height: 1.6px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: rotate(-45deg);
+  opacity: 0;
+}
+.champ__oeil[aria-pressed='true'] { color: var(--laiton); }
+.champ__oeil[aria-pressed='true']::after { opacity: 1; }
+
+/* ================================================================== */
+/*  Les ecrans ajoutes avec la marque et les rendez-vous               */
+/* ================================================================== */
+
+.vue__tete { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 1rem; margin: 1.6rem 0 1.4rem; }
+.vue__tete .texte-doux { margin-top: 0.3rem; max-width: 60ch; }
+.connexion__nom { font-family: var(--police-titre) !important; font-weight: var(--titre-poids) !important; font-size: calc(2.4rem * var(--titre-echelle)) !important; text-transform: var(--titre-casse) !important; letter-spacing: var(--titre-espacement) !important; }
+.compte__protege { font-size: 0.86rem; font-style: italic; }
+.gestion__marque .marque__petit { font-size: 0.56rem; }
+.gestion__marque .marque__grand { font-size: calc(1.3rem * var(--titre-echelle)); }
+.case { display: inline-flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.92rem; }
+.case input { width: 1.15rem; height: 1.15rem; }
+.puce {
+  min-width: 4.2rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--texte);
+  font: inherit;
+  font-variant-numeric: tabular-nums lining-nums;
+  cursor: pointer;
+}
+.puce:hover { border-color: var(--accent); }
+.puce[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: var(--sur-accent); font-weight: 700; }
+
+/* ------------------------------ la marque -------------------------- */
+
+.marque__grille { display: grid; gap: 1.5rem; align-items: start; }
+@media (min-width: 62rem) {
+  .marque__grille { grid-template-columns: minmax(0, 1fr) 20rem; }
+  .marque__apercu { position: sticky; top: 5.5rem; }
+}
+.marque__formulaire { display: grid; gap: 1.25rem; min-width: 0; }
+.marque__formulaire .carte { display: grid; gap: 1.2rem; margin: 0; }
+.marque__duo,
+.marque__couleurs { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); }
+.marque__pied { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+
+.choix-marque { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.2rem, 1fr)); gap: 0.6rem; }
+.choix-marque__carte {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  color: var(--texte);
+  font: inherit;
+  font-size: 0.78rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--vif), transform var(--vif);
+}
+.choix-marque__carte:hover { transform: translateY(-2px); }
+.choix-marque__carte[aria-checked='true'] { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.nuancier { display: flex; align-items: center; justify-content: center; gap: 0.3rem; height: 3.4rem; border-radius: calc(var(--r) / 1.5); border: 1px solid rgb(128 128 128 / 25%); }
+.nuancier--perso { background: repeating-linear-gradient(45deg, var(--surface), var(--surface) 6px, var(--surface-2) 6px, var(--surface-2) 12px); }
+.nuancier__pastille { width: 1.1rem; height: 1.1rem; border-radius: 50%; border: 1px solid rgb(128 128 128 / 35%); }
+.echantillon { display: grid; place-items: center; height: 3.4rem; font-size: 1.9rem; line-height: 1; color: var(--accent-lisible); }
+.forme { display: block; height: 2.2rem; margin: 0.6rem 1rem; border: 1.5px solid var(--accent); }
+
+.logo-marque { display: grid; gap: 0.7rem; justify-items: start; }
+.logo-marque__image { max-height: 5rem; max-width: 14rem; object-fit: contain; padding: 0.6rem; border: 1px dashed var(--bordure); border-radius: var(--r); }
+.logo-marque__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.9rem; }
+
+/* L'apercu : une vitrine en reduction, peinte par ses propres variables. */
+.apercu {
+  overflow: hidden;
+  border: 1px solid var(--bordure);
+  border-radius: var(--r-grand);
+  background: var(--a-fond);
+  color: var(--a-texte);
+  font-family: var(--a-ui);
+  box-shadow: var(--ombre-douce);
+}
+.apercu__barre { display: flex; align-items: center; justify-content: space-between; padding: 0.7rem 0.9rem; border-bottom: 1px solid color-mix(in srgb, var(--a-texte) 12%, transparent); }
+.apercu__monogramme { display: grid; place-items: center; width: 2rem; height: 2rem; border: 1px solid var(--a-accent); border-radius: 50%; color: var(--a-accent); font-family: var(--a-titre); font-size: 0.8rem; }
+.apercu__nav { font-size: 0.6rem; letter-spacing: 0.3em; opacity: 0.5; }
+.apercu__une { display: grid; justify-items: center; gap: 0.35rem; padding: 1.6rem 1rem 1.4rem; text-align: center; }
+.apercu__metier { font-size: 0.5rem; font-weight: 600; letter-spacing: 0.3em; text-transform: uppercase; color: var(--a-accent); }
+.apercu__petit { font-size: 0.55rem; letter-spacing: 0.4em; text-transform: uppercase; opacity: 0.8; min-height: 0.7rem; }
+.apercu__grand { font-family: var(--a-titre); font-size: 2.2rem; line-height: 1; font-weight: var(--a-poids); text-transform: var(--a-casse); letter-spacing: var(--a-espacement); word-break: break-word; }
+.apercu__filet { width: 3rem; height: 1px; margin: 0.6rem 0; background: var(--a-accent); }
+.apercu__bouton { padding: 0.55rem 1.1rem; border: 1px solid var(--a-accent); border-radius: var(--a-r-bouton); background: var(--a-accent); color: #111; font-size: 0.55rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; }
+.apercu__bouton--contour { background: transparent; color: var(--a-texte); }
+.apercu__carte { margin: 0 0.9rem 0.9rem; padding: 0.8rem; border: 1px solid color-mix(in srgb, var(--a-texte) 14%, transparent); border-radius: var(--a-r-carte); background: var(--a-surface); }
+.apercu__ligne { display: flex; justify-content: space-between; font-family: var(--a-titre); font-size: 0.95rem; }
+.apercu__prix { color: var(--a-accent); }
+
+/* ------------------------------ l'agenda --------------------------- */
+
+.agenda__barre { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin: 1rem 0 1.4rem; }
+.agenda__jour { flex: 1; min-width: 10rem; }
+.agenda__jour-nom { font-size: 1.25rem; font-weight: 700; }
+.agenda__jour-nom::first-letter { text-transform: uppercase; }
+.agenda__date { width: auto; min-height: 2.5rem; }
+.agenda__colonnes { display: grid; gap: 1rem; align-items: start; }
+@media (min-width: 52rem) {
+  .agenda__colonnes--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .agenda__colonnes--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .agenda__colonnes--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.agenda__colonne { padding: 1rem; border: 1px solid var(--bordure); border-radius: var(--r-grand); background: var(--surface); }
+.agenda__pro { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.9rem; padding-bottom: 0.7rem; border-bottom: 1px solid var(--filet); }
+.agenda__pro-nom { font-family: var(--police-titre); font-size: calc(1.5rem * var(--titre-echelle)); font-weight: var(--titre-poids); }
+.agenda__pro-compte { font-size: 0.78rem; color: var(--texte-doux); }
+.agenda__liste { display: grid; gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
+.agenda__vide { color: var(--texte-doux); font-style: italic; }
+.agenda__vide--jour { padding: 2rem; text-align: center; border: 1px dashed var(--bordure); border-radius: var(--r-grand); }
+
+.rdv { display: grid; grid-template-columns: 3.6rem minmax(0, 1fr); gap: 0.8rem; padding: 0.8rem; border: 1px solid var(--bordure); border-left: 3px solid var(--accent); border-radius: var(--r); background: var(--surface-2); }
+.rdv--arrive { border-left-color: var(--ok); }
+.rdv--installe { border-left-color: var(--ok); opacity: 0.7; }
+.rdv--annule,
+.rdv--absent { border-left-color: var(--bordure); opacity: 0.55; }
+.rdv--annule .rdv__nom { text-decoration: line-through; }
+.rdv__heure { display: grid; align-content: start; font-variant-numeric: tabular-nums lining-nums; }
+.rdv__debut { font-size: 1.15rem; font-weight: 700; }
+.rdv__fin { font-size: 0.78rem; color: var(--texte-doux); }
+.rdv__nom { font-family: var(--police-titre); font-size: 1.25rem; line-height: 1.2; }
+.rdv__prestations { font-size: 0.86rem; color: var(--texte-doux); }
+.rdv__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.4rem; }
+.rdv__source { font-size: 0.72rem; color: var(--texte-doux); }
+.rdv__note { margin-top: 0.3rem; font-size: 0.86rem; font-style: italic; }
+.rdv__actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.7rem; }
+.agenda__panneau { grid-column: 1 / -1; display: grid; gap: 0.6rem; padding-top: 0.8rem; border-top: 1px dashed var(--bordure); }
+.agenda__heures { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.agenda__nouveau { display: grid; gap: 1.1rem; margin-bottom: 1.4rem; }
+.agenda__duo { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+.agenda__prestas { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.agenda__presta { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.8rem; border: 1px solid var(--bordure); border-radius: 999px; font-size: 0.86rem; cursor: pointer; }
+.agenda__presta:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.agenda__pied { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+
+/* Les rendez-vous du jour, au-dessus des fauteuils. */
+.rdv-jour { margin-bottom: 1rem; padding: 0.9rem 1rem; border: 1px solid var(--filet); border-radius: var(--r-grand); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.rdv-jour__tete { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 0.6rem; }
+.rdv-jour__titre { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-lisible); }
+.rdv-jour__lien { font-size: 0.82rem; }
+.rdv-jour__liste { display: grid; gap: 0.35rem; margin: 0; padding: 0; list-style: none; }
+.rdv-jour__ligne { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr) auto auto; align-items: center; gap: 0.7rem; }
+.rdv-jour__heure { font-weight: 700; font-variant-numeric: tabular-nums lining-nums; }
+.rdv-jour__nom { font-family: var(--police-titre); font-size: 1.15rem; }
+.rdv-jour__pro { font-size: 0.8rem; color: var(--texte-doux); }
+.rdv-jour__ligne--arrive .rdv-jour__heure { color: var(--ok); }
+
+/* ------------------------------ la carte --------------------------- */
+
+.tarifa-admin__chapitre { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-lisible); }
+.prestation__edition { flex-basis: 100%; grid-column: 1 / -1; display: grid; gap: 1rem; margin-top: 0.8rem; padding-top: 1rem; border-top: 1px dashed var(--bordure); }
+.prestation__grille { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); }
+.prestation__grille .champ--large { grid-column: 1 / -1; }
+.prestation__options { display: flex; flex-wrap: wrap; gap: 0.6rem 1.6rem; }
+.prestation__pied { display: flex; align-items: center; gap: 1rem; }
+.tarifas-admin__ajout { display: grid; gap: 1rem; }
+.icones { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.icones__case { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; padding: 0; border: 1px solid var(--bordure); border-radius: var(--r); background: var(--surface-2); color: var(--texte-doux); cursor: pointer; }
+.icones__case svg { width: 1.3rem; height: 1.3rem; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.icones__case[aria-checked='true'] { border-color: var(--accent); color: var(--accent-lisible); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.carte-type { display: grid; gap: 0.7rem; justify-items: start; }
+
+/* Dix onglets : la barre prend toute la largeur utile, et se resserre. */
+.gestion__entete-contenu { max-width: 96rem; }
+@media (min-width: 60rem) {
+  .onglets { gap: 0.1rem; }
+  .onglets .onglet { padding-inline: 0.75rem; font-size: 0.88rem; white-space: nowrap; }
+}
+input.agenda__date { width: auto; flex: 0 0 auto; }
+.vue__tete:not(.agenda__tete) { display: block; }

@@ -14,6 +14,7 @@
  * elle se clot toute seule au passage de minuit, quand « aujourd'hui » change.
  */
 import { log } from './logger.js';
+import { solderLesRendezVousPasses } from '../domain/rendezvous.js';
 import { purgeExpiredSessions } from './session.js';
 import { transaction } from '../db/index.js';
 import { jourLocal } from './temps.js';
@@ -28,7 +29,10 @@ const TACHES = [
     intervalleMs: 10 * 60000,
     executer: async () => {
       const jour = jourLocal();
-      return transaction((tx) => cloturerJourneesAnterieures(tx, jour, { par: t('journee.clotureAuto') }));
+      const n = await transaction((tx) => cloturerJourneesAnterieures(tx, jour, { par: t('journee.clotureAuto') }));
+      // Les rendez-vous d'hier jamais honores ne trainent pas dans l'agenda.
+      await solderLesRendezVousPasses(jour);
+      return n;
     },
   },
   {

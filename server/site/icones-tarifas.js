@@ -44,6 +44,24 @@ const D = {
   mechas: '<path d="M5 4v16M9.7 4v16M14.3 4v16M19 4v16"/>',
   peine: '<path d="M4 8h16"/><path d="M6 8v8M10 8v11M14 8v11M18 8v8"/>',
   cejas: '<path d="M4 14c3-6 13-6 16 0"/><path d="M7 9.5h.01M12 8h.01M17 9.5h.01"/>',
+
+  /* --- le coiffage --- */
+  secador: '<path d="M4 7a5 5 0 0 1 5-5h4v10H9a5 5 0 0 1-5-5Z"/><path d="M13 4h5l2 2v2l-2 2h-5"/>'
+    + '<path d="M8 12l1 9h3l-1-9"/>',
+  cepillo: '<rect x="8" y="3" width="8" height="10" rx="4"/><path d="M6 6h2M6 10h2M16 6h2M16 10h2"/>'
+    + '<path d="M12 13v8"/>',
+  ondas: '<path d="M4 7c3-3 5 3 8 0s5 3 8 0"/><path d="M4 12c3-3 5 3 8 0s5 3 8 0"/>'
+    + '<path d="M4 17c3-3 5 3 8 0s5 3 8 0"/>',
+  plancha: '<path d="M6 3h4l-1 13H7Z"/><path d="M14 3h4l-1 13h-2Z"/><path d="M8 16v5M16 16v5"/>',
+  recogido: '<circle cx="12" cy="6" r="3"/><path d="M6 21v-5a6 6 0 0 1 12 0v5"/><path d="M9 11c1 1 5 1 6 0"/>',
+
+  /* --- la beaute --- */
+  esmalte: '<rect x="7" y="10" width="10" height="11" rx="2"/><path d="M10 10V6h4v4"/><path d="M11 6V3h2v3"/>',
+  labial: '<path d="M9 21V12h6v9Z"/><path d="M10 12V7l4-3v8"/><path d="M8 21h8"/>',
+  pestanas: '<path d="M3 13c4-5 14-5 18 0"/><path d="M6 10.5 4.5 7.5M9.5 9 9 5.5M14.5 9l.5-3.5M18 10.5l1.5-3"/>',
+  hoja: '<path d="M5 19C5 10 10 5 20 4c-1 10-6 15-15 15Z"/><path d="M5 19 13 11"/>',
+  destello: '<path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><path d="m7 7 2 2M15 15l2 2M17 7l-2 2M9 15l-2 2"/>',
+  diadema: '<path d="M4 17 6 8l4 4 2-6 2 6 4-4 2 9Z"/><path d="M4 20h16"/>',
 };
 
 export const ICONES = Object.keys(D);

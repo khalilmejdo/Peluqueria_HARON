@@ -1,18 +1,19 @@
-# Peluquería HARON
+# L'application du salon — file d'attente, rendez-vous, vitrine
 
-**Un salon. Une file. Un ticket. Un lien WhatsApp. Zéro complication.**
+**Une application, autant de salons qu'on veut : barbier, salon de coiffure,
+institut de beauté. Le nom, le logo, les couleurs, les lettres et la carte se
+règlent à l'écran.**
 
-> **Le site est en espagnol** — pages du client comme espace de gestion : le
-> salon est en Espagne. Le code, lui, reste commenté en français, et les
-> messages de démarrage du serveur aussi : ils ne s'affichent que dans les
-> journaux du conteneur.
+Née pour la Peluquería HARON, elle se vend maintenant à d'autres maisons : rien
+dans le code ne porte plus le nom ni les couleurs d'un salon.
 
-Le client prend son tour depuis son téléphone — en ligne ou en scannant le QR
-Code de la vitrine — et suit sa position en direct. Le coiffeur voit le client
-actuel en très gros et appuie sur un seul bouton.
+Le client **réserve un créneau** (prestation, professionnel, jour, heure) ou
+**prend son tour** depuis son téléphone et suit sa position en direct. Le salon
+tient sa file, son agenda et sa carte. Pas de compte client, pas de mot de
+passe, pas d'application à installer.
 
-Pas de compte client, pas de mot de passe, pas d'application à installer,
-pas de créneau à choisir.
+> Deux langues (espagnol, français), deux monnaies (euro, dirham). Le code reste
+> commenté en français.
 
 ---
 
@@ -168,6 +169,69 @@ réglages les affiche sous l'identité, avec le nom de leur variable, et signale
 en ambre ce qui ne concorde pas avec la monnaie choisie — un salon qui encaisse
 en dirhams avec le fuseau de Madrid changerait de jour à la mauvaise heure, en
 silence.
+
+---
+
+## La marque blanche
+
+Trois niveaux de compte, chacun faisant tout ce que fait celui d'en dessous :
+
+| Rôle | Ce qu'il règle |
+|---|---|
+| Professionnel (`COIFFEUR`) | la file et l'agenda du jour |
+| Gérant (`GERANT`) | horaires, carte, galerie, congés, rendez-vous, comptes |
+| Administrateur de la plateforme (`SUPERADMIN`) | **la marque** : nom, activité, langue, monnaie, logo, palette, typographie, formes |
+
+L'administrateur de la plateforme est **vous**, l'éditeur. Son compte se crée
+depuis le serveur, jamais depuis le réseau :
+
+```bash
+docker compose -f docker-compose.oci.yml exec app \
+  node scripts/coiffeur.js --identifiant=khalil --nom="Khalil" --role=SUPERADMIN
+```
+
+Tant qu'aucun compte de ce rôle n'existe, le gérant garde la main sur la marque
+(un salon déjà en service n'est pas bloqué). Dès qu'il existe, l'onglet
+**Marque** n'appartient qu'à lui, et le gérant ne peut ni le modifier, ni le
+réinitialiser, ni se donner ce rôle.
+
+**Ce que la marque change** : sept palettes (dont « Mes couleurs », deux
+couleurs au choix — le contraste des textes est recalculé pour rester
+lisible), trois typographies, trois formes, le monogramme ou un logo, et
+l'activité, qui règle le vocabulaire (« votre barbier », « votre
+esthéticienne ») et propose une carte type. Tout est servi par `/theme.css`,
+généré depuis les réglages : la politique de sécurité du contenu reste stricte,
+aucun style en ligne. L'icône de l'application, le manifeste et l'aperçu de
+partage suivent la marque.
+
+Installation neuve (lues une seule fois, sur une base vierge) :
+
+```bash
+APP_LANGUE=fr
+APP_MONNAIE=MAD
+APP_ACTIVITE=PELUQUERIA    # BARBERIA | PELUQUERIA | UNISEX | ESTETICA
+```
+
+## Les rendez-vous
+
+Activés dans **Réglages › Rendez-vous et file en ligne** (ils demandent les
+horaires d'ouverture). Le salon peut proposer les rendez-vous, la file en
+ligne, ou les deux ; la file du comptoir reste toujours ouverte au personnel.
+
+- Le client choisit prestations, professionnel (ou « sans préférence »), jour
+  et heure sur `/rendez-vous`. La page fonctionne sans JavaScript.
+- Il reçoit un lien `/rdv/<jeton>` : consulter, ajouter à son agenda (.ics),
+  annuler jusqu'à N heures avant.
+- Le salon voit l'onglet **Agenda** : arrivé, installer, absent, annuler,
+  déplacer, écrire par WhatsApp, et noter un rendez-vous pris au téléphone.
+- « Installer » fait du client un tour de la file, déjà au fauteuil : la suite
+  (servi, historique, chiffres) est celle de tous les clients. Le bouton
+  « suivant » d'un fauteuil prend d'abord son client de rendez-vous arrivé.
+
+Deux rendez-vous ne peuvent pas se chevaucher sur un même fauteuil : c'est une
+**contrainte d'exclusion de la base**, pas une vérification du code. Les
+messages WhatsApp automatiques ne couvrent pas (encore) les rendez-vous : le
+salon écrit au client depuis l'agenda.
 
 ---
 

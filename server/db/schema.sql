@@ -51,10 +51,24 @@ CREATE TABLE IF NOT EXISTS utilisateurs (
   updated_at                timestamptz NOT NULL DEFAULT now()
 );
 
+-- Trois roles. SUPERADMIN est le compte de l'EDITEUR de l'application (celui
+-- qui l'installe et la vend a plusieurs salons) : il fait tout ce que fait le
+-- gerant, et il est seul a pouvoir changer la MARQUE (nom, couleurs, logo,
+-- activite, langue, monnaie).
+--
+-- La contrainte est refaite si elle ne connait pas encore SUPERADMIN : une base
+-- d'avant ce role porte l'ancienne liste, et « ajouter si absente » ne la
+-- mettrait jamais a jour.
 DO $$ BEGIN
-  ALTER TABLE utilisateurs ADD CONSTRAINT utilisateurs_role_admis
-    CHECK (role IN ('COIFFEUR', 'GERANT'));
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'utilisateurs_role_admis'
+             AND pg_get_constraintdef(oid) NOT LIKE '%SUPERADMIN%') THEN
+    ALTER TABLE utilisateurs DROP CONSTRAINT utilisateurs_role_admis;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'utilisateurs_role_admis') THEN
+    ALTER TABLE utilisateurs ADD CONSTRAINT utilisateurs_role_admis
+      CHECK (role IN ('COIFFEUR', 'GERANT', 'SUPERADMIN'));
+  END IF;
+END $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS utilisateurs_identifiant_unique ON utilisateurs (identifiant_lower);
 
@@ -141,6 +155,10 @@ CREATE TABLE IF NOT EXISTS postes (
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
+
+-- Ce fauteuil prend-il des rendez-vous ? Un salon garde souvent un fauteuil
+-- pour les clients de passage : celui-la n'apparait pas dans les creneaux.
+ALTER TABLE postes ADD COLUMN IF NOT EXISTS rdv boolean NOT NULL DEFAULT TRUE;
 
 -- Deux fauteuils du meme nom rendraient la file incomprehensible a l'ecran.
 CREATE UNIQUE INDEX IF NOT EXISTS postes_nom_unique ON postes (nom_lower);
@@ -251,6 +269,19 @@ DO $$ BEGIN
     CHECK (btrim(nombre) <> '');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- LA CARTE D'UNE MAISON, PAS UNE LISTE.
+--
+--   categoria     le chapitre de la carte (« Coupes », « Couleur », « Soins »).
+--                 Libre : un institut de beaute n'a pas les chapitres d'un
+--                 barbier. Vide = sans chapitre.
+--   precio_desde  « a partir de » : une couleur depend de la longueur des
+--                 cheveux, et un prix ferme serait un mensonge.
+--   reservable    proposee a la prise de rendez-vous en ligne. Une mariee ou
+--                 un lissage se reservent apres un echange, pas d'un clic.
+ALTER TABLE tarifas ADD COLUMN IF NOT EXISTS categoria text;
+ALTER TABLE tarifas ADD COLUMN IF NOT EXISTS precio_desde boolean NOT NULL DEFAULT FALSE;
+ALTER TABLE tarifas ADD COLUMN IF NOT EXISTS reservable boolean NOT NULL DEFAULT TRUE;
+
 -- Deux lignes du meme nom dans une fiche de prix affichee au mur : le client
 -- ne saurait pas laquelle s'applique, et le coiffeur non plus.
 CREATE UNIQUE INDEX IF NOT EXISTS tarifas_nom_unique ON tarifas (nombre_lower);
@@ -328,10 +359,19 @@ DO $$ BEGIN
     CHECK (statut IN ('WAITING', 'LATE', 'CALLED', 'IN_SERVICE', 'COMPLETED', 'CANCELLED'));
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- RDV : le client d'un rendez-vous, installe au fauteuil a son arrivee. Meme
+-- reprise que pour les roles : une base d'avant les rendez-vous porte
+-- l'ancienne liste.
 DO $$ BEGIN
-  ALTER TABLE tickets ADD CONSTRAINT tickets_source_admise
-    CHECK (source IN ('ONLINE', 'QR', 'COMPTOIR'));
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'tickets_source_admise'
+             AND pg_get_constraintdef(oid) NOT LIKE '%RDV%') THEN
+    ALTER TABLE tickets DROP CONSTRAINT tickets_source_admise;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'tickets_source_admise') THEN
+    ALTER TABLE tickets ADD CONSTRAINT tickets_source_admise
+      CHECK (source IN ('ONLINE', 'QR', 'COMPTOIR', 'RDV'));
+  END IF;
+END $$;
 
 DO $$ BEGIN
   ALTER TABLE tickets ADD CONSTRAINT tickets_compteurs_positifs
@@ -592,6 +632,116 @@ END $$;
 CREATE UNIQUE INDEX IF NOT EXISTS photos_une_couverture ON photos (couverture) WHERE couverture;
 CREATE INDEX IF NOT EXISTS photos_ordre ON photos (ordre, created_at);
 
+-- `usage` : une photo de la galerie, ou LE LOGO de la marque. Le logo passe
+-- par le meme tuyau (type lu dans les octets, nom aleatoire, route publique)
+-- mais ne se melange jamais a la galerie. Un seul logo, garanti par l'index.
+ALTER TABLE photos ADD COLUMN IF NOT EXISTS usage text NOT NULL DEFAULT 'GALERIE';
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'photos_usage_admis') THEN
+    ALTER TABLE photos ADD CONSTRAINT photos_usage_admis CHECK (usage IN ('GALERIE', 'LOGO'));
+  END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS photos_un_logo ON photos (usage) WHERE usage = 'LOGO';
+
+-- ---------------------------------------------------------------------
+--  Rendez-vous
+--
+--  Un creneau reserve sur UN fauteuil. Le client qui a choisi « sans
+--  preference » recoit quand meme un fauteuil precis a la reservation :
+--  c'est ce qui permet a la base de garantir, seule, qu'aucun fauteuil ne
+--  porte deux rendez-vous qui se chevauchent.
+--
+--  INVARIANT : la contrainte d'EXCLUSION. Deux clients qui valident le meme
+--  creneau a la meme seconde : le second recoit une erreur 23P01, traduite
+--  en « ce creneau vient d'etre pris ». Aucun verrou applicatif ne pourrait
+--  le garantir aussi bien. btree_gist est une extension de confiance
+--  (PostgreSQL 13+) : le proprietaire de la base peut la creer.
+--
+--  statut : CONFIRME  reserve
+--           ARRIVE    le client est dans le salon
+--           INSTALLE  il est au fauteuil (ticket_id porte la suite)
+--           ANNULE    par le client ou par le salon (annule_par)
+--           ABSENT    jamais venu
+--
+--  Le telephone est chiffre comme celui d'un ticket ; `telephone_idx` est
+--  l'index aveugle qui permet de limiter les reservations par numero sans
+--  jamais le stocker en clair. Le jeton du lien client n'est garde qu'en
+--  empreinte (jeton_hash) et, chiffre, pour que le salon puisse le renvoyer.
+-- ---------------------------------------------------------------------
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+CREATE TABLE IF NOT EXISTS rendez_vous (
+  id             uuid PRIMARY KEY,
+  jour           date NOT NULL,
+  debut          timestamptz NOT NULL,
+  fin            timestamptz NOT NULL,
+  poste_id       uuid NOT NULL REFERENCES postes(id) ON DELETE RESTRICT,
+  poste_choisi   boolean NOT NULL DEFAULT FALSE,
+  prenom         text NOT NULL,
+  nom            text NOT NULL,
+  telephone_enc  text NOT NULL,
+  telephone_idx  text NOT NULL,
+  telephone_fin  text NOT NULL,
+  duree_min      integer NOT NULL,
+  statut         text NOT NULL DEFAULT 'CONFIRME',
+  source         text NOT NULL DEFAULT 'ONLINE',
+  jeton_hash     text NOT NULL,
+  jeton_enc      text,
+  note           text,
+  ticket_id      uuid REFERENCES tickets(id) ON DELETE SET NULL,
+  annule_par     text,
+  motif          text,
+  statut_at      timestamptz NOT NULL DEFAULT now(),
+  version        integer NOT NULL DEFAULT 1,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'rendez_vous_statut_admis') THEN
+    ALTER TABLE rendez_vous ADD CONSTRAINT rendez_vous_statut_admis
+      CHECK (statut IN ('CONFIRME', 'ARRIVE', 'INSTALLE', 'ANNULE', 'ABSENT'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'rendez_vous_source_admise') THEN
+    ALTER TABLE rendez_vous ADD CONSTRAINT rendez_vous_source_admise
+      CHECK (source IN ('ONLINE', 'SALON'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'rendez_vous_bornes') THEN
+    ALTER TABLE rendez_vous ADD CONSTRAINT rendez_vous_bornes
+      CHECK (fin > debut AND duree_min >= 5 AND duree_min <= 480);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'rendez_vous_annule_par') THEN
+    ALTER TABLE rendez_vous ADD CONSTRAINT rendez_vous_annule_par
+      CHECK (annule_par IS NULL OR annule_par IN ('CLIENT', 'SALON'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'rendez_vous_sans_chevauchement') THEN
+    ALTER TABLE rendez_vous ADD CONSTRAINT rendez_vous_sans_chevauchement
+      EXCLUDE USING gist (poste_id WITH =, tstzrange(debut, fin, '[)') WITH &&)
+      WHERE (statut IN ('CONFIRME', 'ARRIVE', 'INSTALLE'));
+  END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS rendez_vous_jeton ON rendez_vous (jeton_hash);
+CREATE INDEX IF NOT EXISTS rendez_vous_jour ON rendez_vous (jour, debut);
+CREATE INDEX IF NOT EXISTS rendez_vous_telephone ON rendez_vous (telephone_idx, jour);
+
+-- Les prestations reservees, FIGEES a la reservation comme celles d'un ticket :
+-- un prix change apres coup ne change pas ce qui a ete annonce au client.
+CREATE TABLE IF NOT EXISTS rendez_vous_tarifas (
+  id            uuid PRIMARY KEY,
+  rendez_vous_id uuid NOT NULL REFERENCES rendez_vous(id) ON DELETE CASCADE,
+  tarifa_id     uuid REFERENCES tarifas(id) ON DELETE SET NULL,
+  nombre        text NOT NULL,
+  duracion_min  integer NOT NULL,
+  precio_cts    integer NOT NULL,
+  precio_desde  boolean NOT NULL DEFAULT FALSE,
+  ordre         integer NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS rendez_vous_tarifas_rdv ON rendez_vous_tarifas (rendez_vous_id, ordre);
+
 -- ---------------------------------------------------------------------
 --  Horodatage automatique
 -- ---------------------------------------------------------------------
@@ -616,4 +766,8 @@ CREATE TRIGGER tarifas_touch BEFORE UPDATE ON tarifas
 
 DROP TRIGGER IF EXISTS photos_touch ON photos;
 CREATE TRIGGER photos_touch BEFORE UPDATE ON photos
+  FOR EACH ROW EXECUTE FUNCTION haron_touch_updated_at();
+
+DROP TRIGGER IF EXISTS rendez_vous_touch ON rendez_vous;
+CREATE TRIGGER rendez_vous_touch BEFORE UPDATE ON rendez_vous
   FOR EACH ROW EXECUTE FUNCTION haron_touch_updated_at();

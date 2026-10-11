@@ -108,12 +108,19 @@ export function attenteLisible(secondes) {
  * @param {{ telephoneSalon?: string|null }} [o]
  * @returns {{ allowed: boolean, retryAfterSeconds: number, message: string|null, portee: 'IP'|'NUMERO'|null }}
  */
-export function consommerPriseDeTour({ ip, telephone = null }, { telephoneSalon = null } = {}) {
-  const parIp = consume('tour:ip:' + ip, PROFILES.priseDeTourIp);
+/**
+ * Le meme debit pour une RESERVATION de rendez-vous, sur ses propres
+ * compteurs : prendre un tour ce matin ne doit pas empecher de reserver pour
+ * samedi, et l'inverse.
+ */
+export const consommerReservation = (qui, o = {}) => consommerPriseDeTour(qui, { ...o, prefixe: 'rdv', cleMessage: 'debit.tropDeRdv' });
+
+export function consommerPriseDeTour({ ip, telephone = null }, { telephoneSalon = null, prefixe = 'tour', cleMessage = 'debit.tropDeTours' } = {}) {
+  const parIp = consume(prefixe + ':ip:' + ip, PROFILES.priseDeTourIp);
   const numero = String(telephone || '').replace(/[^0-9]/g, '');
   // Une adresse deja refusee ne cree plus de compteur par numero : sinon chaque
   // essai d'un robot, numero different a chaque fois, ajoutait une entree.
-  const parNumero = numero && parIp.allowed ? consume('tour:tel:' + numero, PROFILES.priseDeTourNumero) : { allowed: true, retryAfterSeconds: 0 };
+  const parNumero = numero && parIp.allowed ? consume(prefixe + ':tel:' + numero, PROFILES.priseDeTourNumero) : { allowed: true, retryAfterSeconds: 0 };
 
   const bloquant = !parNumero.allowed ? { r: parNumero, portee: 'NUMERO' } : (!parIp.allowed ? { r: parIp, portee: 'IP' } : null);
   if (!bloquant) return { allowed: true, retryAfterSeconds: 0, message: null, portee: null };
@@ -122,7 +129,7 @@ export function consommerPriseDeTour({ ip, telephone = null }, { telephoneSalon 
   const ouAppeler = telephoneSalon
     ? t('debit.appelerAussi', { telephone: telephoneSalon })
     : t('debit.venirAuSalon');
-  const message = t(bloquant.portee === 'NUMERO' ? 'debit.tropDeTours' : 'debit.tropDepuisCetteConnexion',
+  const message = t(bloquant.portee === 'NUMERO' ? cleMessage : 'debit.tropDepuisCetteConnexion',
     { delai }) + ouAppeler;
   return { allowed: false, retryAfterSeconds: bloquant.r.retryAfterSeconds, message, portee: bloquant.portee };
 }

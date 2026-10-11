@@ -103,7 +103,11 @@ function brancherGlisser(liste, dire, recharger) {
 }
 
 export async function vueTarifas(conteneur, { etat }) {
-  const donnees = await api.get('/api/tarifas');
+  const [donnees, dessins] = await Promise.all([
+    api.get('/api/tarifas'),
+    api.get('/api/tarifas/icones').catch(() => ({ icones: {} })),
+  ]);
+  const chapitres = [...new Set(donnees.items.map((x) => x.categoria).filter(Boolean))];
 
   const alerte = el('p.alerte.alerte--refus', { role: 'alert', hidden: true });
   const succes = el('p.alerte.alerte--succes', { role: 'status', hidden: true });
@@ -148,11 +152,13 @@ export async function vueTarifas(conteneur, { etat }) {
     }),
     el('div.tarifa-admin__texte',
       el('span.tarifa-admin__nombre', { texte: tarifa.nombre }),
+      tarifa.categoria ? el('span.tarifa-admin__chapitre', { texte: tarifa.categoria }) : null,
       tarifa.nota ? el('span.tarifa-admin__nota', { texte: tarifa.nota }) : null,
+      tarifa.reservable ? null : el('span.tarifa-admin__badge', { texte: t('tarifs.badgeSurDemande') }),
       tarifa.visible ? null : el('span.tarifa-admin__badge', { texte: t('tarifs.badgeMasquee') })),
 
     el('div.tarifa-admin__chiffres',
-      el('span.tarifa-admin__precio', { texte: tarifa.precio }),
+      el('span.tarifa-admin__precio', { texte: (tarifa.precioDesde ? t('tarifs.desdeCourt') + ' ' : '') + tarifa.precio }),
       el('span.tarifa-admin__duree', { texte: dureeCourte(tarifa.duracionMin ?? 15) })),
 
     el('div.tarifa-admin__actions',
@@ -203,26 +209,81 @@ export async function vueTarifas(conteneur, { etat }) {
         },
       }))));
 
+  /** Le dessin d'une icone (SVG rendu par le serveur), en vrai noeud. */
+  const dessin = (nom) => {
+    const svg = dessins.icones[nom];
+    if (!svg) return null;
+    const noeud = new DOMParser().parseFromString(svg, 'image/svg+xml').documentElement;
+    return noeud.nodeName === 'svg' ? document.importNode(noeud, true) : null;
+  };
+
   /**
-   * Modifier une ligne : une invite du navigateur, volontairement.
+   * LES CHAMPS D'UNE PRESTATION, pour l'ajout comme pour la modification.
    *
-   * Un formulaire complet ferait un plus bel ecran, mais le gerant corrige un
-   * prix trois fois par an, debout, entre deux clients. Deux invites qu'il peut
-   * valider au clavier le tirent d'affaire plus vite qu'un panneau a ouvrir.
+   * Tout ce qui fait une ligne de la carte : son nom, son prix (ferme ou « a
+   * partir de »), sa duree — c'est elle qui reserve le creneau —, son
+   * chapitre, sa note, son dessin, et si elle se reserve en ligne.
    */
+  const champsPrestation = (prefixe, v = {}) => {
+    const id = (nom) => prefixe + '-' + nom;
+    const nombre = el('input', { id: id('nombre'), type: 'text', maxlength: '60', required: true, value: v.nombre ?? '', placeholder: t('tarifs.exempleService') });
+    const precio = el('input', { id: id('precio'), type: 'text', maxlength: '12', required: true, inputmode: 'decimal', value: v.precioCts !== undefined ? montantNu(v.precioCts) : '', placeholder: '14,90' });
+    const duracion = el('input', { id: id('duracion'), type: 'number', min: '1', max: '240', inputmode: 'numeric', value: String(v.duracionMin ?? 15) });
+    const nota = el('input', { id: id('nota'), type: 'text', maxlength: '80', value: v.nota ?? '', placeholder: t('tarifs.exempleNote') });
+    const categoria = el('input', { id: id('categoria'), type: 'text', maxlength: '40', value: v.categoria ?? '', list: id('chapitres'), placeholder: t('tarifs.exempleChapitre') });
+    const desde = el('input', { id: id('desde'), type: 'checkbox', checked: Boolean(v.precioDesde) });
+    const reservable = el('input', { id: id('reservable'), type: 'checkbox', checked: v.reservable === undefined ? true : Boolean(v.reservable) });
+    let icono = v.icono || '';
+    const choixIcone = el('div.icones', { role: 'radiogroup', 'aria-label': t('tarifs.champIcone') });
+    const peindreIcones = () => remplacer(choixIcone,
+      el('button.icones__case', { type: 'button', role: 'radio', 'aria-checked': icono ? 'false' : 'true', texte: '—', title: t('tarifs.sansIcone'), surClick: () => { icono = ''; peindreIcones(); } }),
+      Object.keys(dessins.icones).map((nom) => el('button.icones__case', {
+        type: 'button', role: 'radio', 'aria-checked': icono === nom ? 'true' : 'false', 'aria-label': nom,
+        surClick: () => { icono = nom; peindreIcones(); },
+      }, dessin(nom))));
+    peindreIcones();
+    return {
+      nombre,
+      valeurs: () => ({
+        nombre: nombre.value.trim(), precio: precio.value.trim(), duracion: duracion.value.trim(), nota: nota.value.trim(),
+        categoria: categoria.value.trim(), precioDesde: desde.checked, reservable: reservable.checked, icono,
+      }),
+      noeuds: [
+        el('div.prestation__grille',
+          el('div.champ.champ--large', el('label', { for: id('nombre'), texte: t('tarifs.champService') }), nombre),
+          el('div.champ', el('label', { for: id('precio'), texte: t('tarifs.champPrix') }), precio,
+            el('p.champ__aide', { texte: t('tarifs.aidePrix', { symbole: symboleMonnaie() }) })),
+          el('div.champ', el('label', { for: id('duracion'), texte: t('tarifs.champDuree') }), duracion,
+            el('p.champ__aide', { texte: t('tarifs.aideDuree') })),
+          el('div.champ', el('label', { for: id('categoria'), texte: t('tarifs.champChapitre') }), categoria,
+            el('datalist', { id: id('chapitres') }, chapitres.map((c) => el('option', { value: c }))),
+            el('p.champ__aide', { texte: t('tarifs.aideChapitre') })),
+          el('div.champ', el('label', { for: id('nota'), texte: t('tarifs.champNote') }), nota)),
+        el('div.prestation__options',
+          el('label.case', { for: id('desde') }, desde, el('span', { texte: t('tarifs.caseDesde') })),
+          el('label.case', { for: id('reservable') }, reservable, el('span', { texte: t('tarifs.caseReservable') }))),
+        el('div.champ', el('p.etiquette', { texte: t('tarifs.champIcone') }), choixIcone),
+      ],
+    };
+  };
+
+  /** Modifier une ligne : le panneau s'ouvre SOUS elle, avec tous ses champs. */
   const editer = (tarifa) => {
-    const nombre = window.prompt(t('tarifs.inviteNom'), tarifa.nombre);
-    if (nombre === null) return;
-    const precio = window.prompt(t('tarifs.invitePrix'), montantNu(tarifa.precioCts));
-    if (precio === null) return;
-    const duracion = window.prompt(t('tarifs.inviteDuree'), String(tarifa.duracionMin ?? 15));
-    if (duracion === null) return;
-    const nota = window.prompt(t('tarifs.inviteNote'), tarifa.nota);
-    if (nota === null) return;
-    agir(
-      () => api.patch('/api/tarifas/' + tarifa.id, { nombre, precio, duracion, nota }),
-      t('tarifs.enregistre'),
-    );
+    const ligne = conteneur.querySelector('[data-id="' + tarifa.id + '"]');
+    if (!ligne || ligne.querySelector('.prestation__edition')) return;
+    const champs = champsPrestation('ed-' + tarifa.id, tarifa);
+    const panneau = el('form.prestation__edition', {
+      surSubmit: (evenement) => {
+        evenement.preventDefault();
+        agir(() => api.patch('/api/tarifas/' + tarifa.id, champs.valeurs()), t('tarifs.enregistre'));
+      },
+    },
+    champs.noeuds,
+    el('div.prestation__pied',
+      el('button.bouton.bouton--principal.bouton--petit', { type: 'submit', texte: t('commun.guardar') }),
+      el('button.bouton.bouton--lien', { type: 'button', texte: t('commun.annuler'), surClick: () => panneau.remove() })));
+    ligne.append(panneau);
+    champs.nombre.focus();
   };
 
   const liste = donnees.items.length
@@ -233,39 +294,45 @@ export async function vueTarifas(conteneur, { etat }) {
 
   /* ---- ajouter ---- */
 
-  const champNombre = el('input', { id: 'tf-nombre', type: 'text', maxlength: '60', required: true, placeholder: t('tarifs.exempleService') });
-  const champPrecio = el('input', { id: 'tf-precio', type: 'text', maxlength: '12', required: true, inputmode: 'decimal', placeholder: '14,90' });
-  const champDuracion = el('input', { id: 'tf-duracion', type: 'number', min: '1', max: '240', inputmode: 'numeric', value: '15' });
-  const champNota = el('input', { id: 'tf-nota', type: 'text', maxlength: '80', placeholder: t('tarifs.exempleNote') });
+  const neuve = champsPrestation('tf');
   const bouton = el('button.bouton.bouton--principal', { type: 'submit', texte: t('tarifs.ajouter') });
 
   const formulaire = el('form.formulaire.tarifas-admin__ajout', {
     surSubmit: async (evenement) => {
       evenement.preventDefault();
       bouton.disabled = true;
+      const v = neuve.valeurs();
       try {
-        await api.post('/api/tarifas', {
-          nombre: champNombre.value.trim(),
-          precio: champPrecio.value.trim(),
-          duracion: champDuracion.value.trim(),
-          nota: champNota.value.trim(),
-        });
-        annoncer(t('tarifs.estAjoutee', { nom: champNombre.value.trim() }));
+        await api.post('/api/tarifas', v);
+        annoncer(t('tarifs.estAjoutee', { nom: v.nombre }));
         await recharger();
       } catch (err) {
         bouton.disabled = false;
         dire(err instanceof ErreurApi ? err.message : t('tarifs.ajoutEchoue'));
-        champNombre.focus();
+        neuve.nombre.focus();
       }
     },
   },
-  el('div.champ', el('label', { for: 'tf-nombre', texte: t('tarifs.champService') }), champNombre),
-  el('div.champ', el('label', { for: 'tf-precio', texte: t('tarifs.champPrix') }), champPrecio,
-    el('p.champ__aide', { texte: t('tarifs.aidePrix', { symbole: symboleMonnaie() }) })),
-  el('div.champ', el('label', { for: 'tf-duracion', texte: t('tarifs.champDuree') }), champDuracion,
-    el('p.champ__aide', { texte: t('tarifs.aideDuree') })),
-  el('div.champ', el('label', { for: 'tf-nota', texte: t('tarifs.champNote') }), champNota),
+  neuve.noeuds,
   bouton);
+
+  /** La carte type de l'activite : seules les lignes absentes sont ajoutees. */
+  const carteType = el('section.carte.carte-type',
+    el('h2.reglages__titre', { texte: t('tarifs.carteType.titre') }),
+    el('p.texte-doux', { texte: t('tarifs.carteType.texte') }),
+    el('button.bouton.bouton--discret', {
+      type: 'button',
+      texte: t('tarifs.carteType.bouton'),
+      surClick: async () => {
+        try {
+          const r = await api.post('/api/tarifas/catalogue', {});
+          annoncer(t('tarifs.carteType.fait', { n: r.ajoutees }));
+          await recharger();
+        } catch (err) {
+          dire(err instanceof ErreurApi ? err.message : t('tarifs.enregistrementEchoue'));
+        }
+      },
+    }));
 
   remplacer(conteneur, el('div.enveloppe.page-gestion',
     el('h1.titre-page', { texte: t('tarifs.titre') }),
@@ -276,5 +343,6 @@ export async function vueTarifas(conteneur, { etat }) {
     el('section.carte', liste),
     el('section.carte',
       el('h2.reglages__titre', { texte: t('tarifs.titreAjout') }),
-      formulaire)));
+      formulaire),
+    carteType));
 }

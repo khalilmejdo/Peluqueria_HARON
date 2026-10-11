@@ -76,12 +76,35 @@ export function t(cle, params = null) {
     const branches = texte.split('|');
     texte = branches[Math.min(indice(langue, params?.n), branches.length - 1)];
   }
-  if (params && texte.includes('{')) {
-    texte = texte.replace(/\{(\w+)\}/g, (entier, nom) => (
-      Object.hasOwn(params, nom) ? String(params[nom]) : entier
-    ));
+  if (texte.includes('{')) {
+    texte = texte.replace(/\{(\w+)\}/g, (entier, nom) => {
+      if (params && Object.hasOwn(params, nom)) return String(params[nom]);
+      const mot = terme(langue, nom);
+      return mot === undefined ? entier : mot;
+    });
   }
   return texte;
+}
+
+/**
+ * LE VOCABULAIRE DU METIER, comme cote serveur (server/core/langue.js) : le
+ * serveur pose l'activite de la marque sur <html data-activite>, et « {pro} »
+ * devient « barbero », « styliste » ou « esthéticienne ». Les deux tables
+ * doivent rester identiques ; un test les compare.
+ */
+export const TERMES = {
+  BARBERIA: { es: { pro: 'barbero', metier: 'Barbería' }, fr: { pro: 'barbier', metier: 'Barbier' } },
+  PELUQUERIA: { es: { pro: 'estilista', metier: 'Peluquería' }, fr: { pro: 'coiffeuse', metier: 'Salon de coiffure' } },
+  UNISEX: { es: { pro: 'estilista', metier: 'Peluquería' }, fr: { pro: 'styliste', metier: 'Coiffure' } },
+  ESTETICA: { es: { pro: 'esteticista', metier: 'Estética y belleza' }, fr: { pro: 'esthéticienne', metier: 'Institut de beauté' } },
+};
+
+function terme(langue, cle) {
+  const activite = (typeof document !== 'undefined' && document.documentElement?.dataset?.activite) || 'BARBERIA';
+  const mots = (TERMES[activite] || TERMES.BARBERIA)[langue] || TERMES.BARBERIA[DEFAUT];
+  if (cle === 'pro' || cle === 'metier') return mots[cle];
+  if (cle === 'Pro') return mots.pro.charAt(0).toUpperCase() + mots.pro.slice(1);
+  return undefined;
 }
 
 /* ------------------------------------------------------------------ */

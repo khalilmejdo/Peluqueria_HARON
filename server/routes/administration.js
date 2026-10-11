@@ -15,11 +15,13 @@ import { badRequest, conflict, notFound, forbidden } from '../core/errors.js';
 import { newId, hashPassword } from '../core/crypto.js';
 import { PROFILES } from '../core/ratelimit.js';
 import {
-  catalogueTraduit, lireTous, enregistrer, horairesLisibles, adressePublique, coherenceIdentite, invaliderCache,
+  catalogueTraduit, lireTous, enregistrer, horairesLisibles, adressePublique, coherenceIdentite, invaliderCache, CATALOGUE, ACTIVITES,
 } from '../core/reglages.js';
 import { relibellerDefauts } from '../domain/relibeller.js';
+import { appliquerCatalogue } from '../domain/catalogues.js';
+import { ICONES, iconeTarifa } from '../site/icones-tarifas.js';
 import { t } from '../core/langue.js';
-import { role as roleParCode, roles, CODES_ROLES } from '../core/roles.js';
+import { role as roleParCode, roles, CODES_ROLES, rolesAttribuables, estSuperAdmin } from '../core/roles.js';
 import { revokeAllUserSessions } from '../core/session.js';
 import { pingSante, etatBase } from '../db/index.js';
 import { nombreAbonnes } from '../core/flux.js';
@@ -84,7 +86,7 @@ export const reglagesRoutes = new Router();
 async function bilanVitrine(v) {
   const [tarifs, photos] = await Promise.all([
     one('SELECT COUNT(*)::int AS n FROM tarifas WHERE visible'),
-    one('SELECT COUNT(*) FILTER (WHERE visible)::int AS visibles, COUNT(*) FILTER (WHERE couverture)::int AS couverture FROM photos'),
+    one('SELECT COUNT(*) FILTER (WHERE visible)::int AS visibles, COUNT(*) FILTER (WHERE couverture)::int AS couverture FROM photos WHERE usage = \'GALERIE\''),
   ]);
   const section = (cle, active, remplie, manque) => ({
     cle,
@@ -95,15 +97,32 @@ async function bilanVitrine(v) {
     section('couverture', true, photos.couverture > 0, 'aucuneCouverture'),
     section('horaires', true, Boolean(v['horaires.actifs']), 'horairesInactifs'),
     section('tarifs', v['tarifas.visible'], tarifs.n > 0, 'aucunTarif'),
+    section('rendezvous', v['rdv.actifs'], Boolean(v['horaires.actifs']), 'horairesInactifs'),
     section('galerie', v['vitrine.galerie'], photos.visibles > 0, 'aucunePhoto'),
     section('localisation', v['vitrine.localisation'], Boolean(v['salon.adresse'] || v['salon.coordenadas']), 'adresseManquante'),
     section('contact', v['vitrine.contact'], Boolean(v['salon.telephone'] || v['salon.whatsapp'] || v['horaires.actifs']), 'contactManquant'),
   ];
 }
 
+/**
+ * LA MARQUE EST-ELLE VERROUILLEE POUR CET UTILISATEUR ?
+ *
+ * Les reglages `reserve: 'SUPERADMIN'` (nom, langue, monnaie, couleurs...)
+ * n'appartiennent qu'a l'administrateur de la plateforme — DES QU'IL EN EXISTE
+ * UN. Une installation qui n'a pas encore de compte SUPERADMIN (un salon deja
+ * en service avant ce role, une installation de test) laisse son gerant les
+ * regler : sans cela, personne ne pourrait plus renommer le salon.
+ */
+async function marqueVerrouillee(user) {
+  if (estSuperAdmin(user)) return false;
+  const n = await one("SELECT COUNT(*)::int AS n FROM utilisateurs WHERE role = 'SUPERADMIN' AND actif");
+  return (n?.n ?? 0) > 0;
+}
+
 reglagesRoutes.get('/', async (ctx) => {
   const valeurs = await lireTous({ frais: true });
   ctx.ok({
+    marqueVerrouillee: await marqueVerrouillee(ctx.user),
     vitrine: await bilanVitrine(valeurs),
     valeurs,
     // Le catalogue arrive DEJA traduit : libelles, aides et intitules d'options.
@@ -149,6 +168,11 @@ reglagesRoutes.put('/', async (ctx) => {
     }
   }
 
+  const reservees = Object.keys(valeurs).filter((cle) => CATALOGUE[cle]?.reserve === 'SUPERADMIN');
+  if (reservees.length && await marqueVerrouillee(ctx.user)) {
+    throw forbidden(t('acces.reserveSuperAdmin'));
+  }
+
   const avant = await lireTous();
   const n = await enregistrer(valeurs, { parUtilisateurId: ctx.user.id });
   log.info('Reglages enregistres', { nombre: n, par: ctx.user.identifiant });
@@ -189,6 +213,11 @@ reglagesRoutes.put('/', async (ctx) => {
 
 export const comptesRoutes = new Router();
 
+/** Un compte SUPERADMIN ne se touche que par un SUPERADMIN. */
+function exigerTouchable(ctx, ligne) {
+  if (ligne.role === 'SUPERADMIN' && !estSuperAdmin(ctx.user)) throw forbidden(t('acces.reserveSuperAdmin'));
+}
+
 const versClient = (u) => ({
   id: u.id,
   identifiant: u.identifiant,
@@ -208,7 +237,13 @@ comptesRoutes.get('/', async (ctx) => {
             verrouille_jusqu_a, derniere_connexion_at, created_at
        FROM utilisateurs ORDER BY role, identifiant_lower`,
   );
-  ctx.ok({ items: lignes.map(versClient), roles: roles() });
+  // Les comptes SUPERADMIN restent VISIBLES du gerant (le salon sait qui peut
+  // entrer chez lui) mais marques proteges : il ne peut rien y faire.
+  const attribuables = rolesAttribuables(ctx.user);
+  ctx.ok({
+    items: lignes.map((u) => ({ ...versClient(u), protege: u.role === 'SUPERADMIN' && !estSuperAdmin(ctx.user) })),
+    roles: roles().filter((r) => attribuables.includes(r.code)),
+  });
 }, { role: 'GERANT' });
 
 comptesRoutes.post('/', async (ctx) => {
@@ -227,6 +262,7 @@ comptesRoutes.post('/', async (ctx) => {
       { fields: { motDePasse: t('compte.minCaracteres', { min: config.security.passwordMinLength }) } });
   }
 
+  if (!rolesAttribuables(ctx.user).includes(data.role)) throw forbidden(t('acces.reserveSuperAdmin'));
   const existe = await one('SELECT id FROM utilisateurs WHERE identifiant_lower = $1', [data.identifiant]);
   if (existe) throw conflict(t('compte.identifiantPris'));
 
@@ -251,16 +287,19 @@ comptesRoutes.patch('/:id', async (ctx) => {
   if (!Object.keys(data).length) throw badRequest(t('commun.aucuneModification'));
 
   const ligne = exigerTrouve(await one('SELECT * FROM utilisateurs WHERE id = $1', [id]), t('compte.introuvable'));
+  exigerTouchable(ctx, ligne);
+  if (data.role && !rolesAttribuables(ctx.user).includes(data.role)) throw forbidden(t('acces.reserveSuperAdmin'));
 
   // Un gerant ne peut ni se retirer son propre role ni se desactiver : le salon
   // se retrouverait sans personne pour changer les reglages.
-  if (ligne.id === ctx.user.id && (data.actif === false || (data.role && data.role !== 'GERANT'))) {
+  if (ligne.id === ctx.user.id && (data.actif === false || (data.role && data.role !== ligne.role))) {
     throw forbidden(t('compte.pasSoiMeme'));
   }
-  if (ligne.role === 'GERANT' && ((data.role && data.role !== 'GERANT') || data.actif === false)) {
+  const resteGerant = (r) => r === 'GERANT' || r === 'SUPERADMIN';
+  if (resteGerant(ligne.role) && ((data.role && !resteGerant(data.role)) || data.actif === false)) {
     const autres = await one(
-      'SELECT COUNT(*)::int AS n FROM utilisateurs WHERE role = $1 AND actif AND id <> $2',
-      ['GERANT', ligne.id],
+      'SELECT COUNT(*)::int AS n FROM utilisateurs WHERE role = ANY($1) AND actif AND id <> $2',
+      [['GERANT', 'SUPERADMIN'], ligne.id],
     );
     if (!autres || autres.n === 0) throw conflict(t('compte.dernierGerant'));
   }
@@ -288,7 +327,8 @@ comptesRoutes.post('/:id/mot-de-passe', async (ctx) => {
     throw badRequest(t('compte.motDePasseCourt', { min: config.security.passwordMinLength }),
       { fields: { motDePasse: t('compte.minCaracteres', { min: config.security.passwordMinLength }) } });
   }
-  const ligne = exigerTrouve(await one('SELECT identifiant FROM utilisateurs WHERE id = $1', [id]), t('compte.introuvable'));
+  const ligne = exigerTrouve(await one('SELECT identifiant, role FROM utilisateurs WHERE id = $1', [id]), t('compte.introuvable'));
+  exigerTouchable(ctx, ligne);
   await execute(
     `UPDATE utilisateurs SET mot_de_passe_hash = $2, doit_changer_mot_de_passe = TRUE,
             tentatives_echouees = 0, verrouille_jusqu_a = NULL WHERE id = $1`,
@@ -302,7 +342,7 @@ comptesRoutes.post('/:id/mot-de-passe', async (ctx) => {
 /** Deblocage apres plusieurs essais infructueux. */
 comptesRoutes.post('/:id/debloquer', async (ctx) => {
   const id = idDe(ctx);
-  exigerTrouve(await one('SELECT id FROM utilisateurs WHERE id = $1', [id]), t('compte.introuvable'));
+  exigerTouchable(ctx, exigerTrouve(await one('SELECT id, role FROM utilisateurs WHERE id = $1', [id]), t('compte.introuvable')));
   await execute('UPDATE utilisateurs SET tentatives_echouees = 0, verrouille_jusqu_a = NULL WHERE id = $1', [id]);
   ctx.ok({ ok: true });
 }, { role: 'GERANT', rateLimit: PROFILES.administration });
@@ -359,6 +399,7 @@ postesRoutes.patch('/:id', async (ctx) => {
     coiffeur: { type: 'string', max: 60 },
     ordre: { type: 'int', min: 0, max: 999 },
     actif: { type: 'bool' },
+    rdv: { type: 'bool' },
   });
   // Un coiffeur efface se transmet comme une chaine vide : validate() la rend
   // en null, ce que modifier() comprend comme « retirer le nom ».
@@ -397,6 +438,9 @@ const tarifaVersClient = (t) => ({
   precioCts: t.precio_cts,
   precio: prixLegible(t.precio_cts),
   duracionMin: t.duracion_min,
+  categoria: t.categoria || '',
+  precioDesde: Boolean(t.precio_desde),
+  reservable: Boolean(t.reservable),
   ordre: t.ordre,
   visible: t.visible,
 });
@@ -424,6 +468,9 @@ tarifasRoutes.post('/', async (ctx) => {
     // La duree reste une chaine ici aussi : le domaine la valide, et il est le
     // seul a savoir ce qu'est une duree plausible pour un fauteuil.
     duracion: { type: 'string', max: 4 },
+    categoria: { type: 'string', max: 40 },
+    precioDesde: { type: 'bool' },
+    reservable: { type: 'bool' },
   });
   const cree = await crearTarifa(data);
   log.info('Tarif cree', { nombre: cree.nombre, par: ctx.user.identifiant });
@@ -438,7 +485,12 @@ tarifasRoutes.patch('/:id', async (ctx) => {
     icono: { type: 'string', max: 20 },
     duracion: { type: 'string', max: 4 },
     visible: { type: 'bool' },
+    categoria: { type: 'string', max: 40 },
+    precioDesde: { type: 'bool' },
+    reservable: { type: 'bool' },
   });
+  // Un chapitre efface, comme une note : « retirer », pas « ne rien changer ».
+  if (Object.hasOwn(ctx.body ?? {}, 'categoria') && !data.categoria) data.categoria = '';
   // Une note effacee arrive en chaine vide, que validate() rend en null : le
   // domaine doit comprendre « retirer la note », pas « ne rien changer ».
   if (Object.hasOwn(ctx.body ?? {}, 'nota') && !data.nota) data.nota = '';
@@ -446,6 +498,27 @@ tarifasRoutes.patch('/:id', async (ctx) => {
   log.info('Tarif modifie', { nombre: maj.nombre, champs: Object.keys(data), par: ctx.user.identifiant });
   ctx.ok(tarifaVersClient(maj));
 }, { role: 'GERANT', rateLimit: PROFILES.administration });
+
+/**
+ * LA CARTE DE L'ACTIVITE, AJOUTEE A LA CARTE DU SALON.
+ *
+ * Non destructif : seules les lignes absentes (par leur nom) sont ajoutees, a
+ * la fin. Un salon qui change d'activite, ou qui a tout efface pour
+ * recommencer, repart d'une carte credible sans rien perdre de la sienne.
+ */
+tarifasRoutes.post('/catalogue', async (ctx) => {
+  const r = await lireTous();
+  const data = validate(ctx.body ?? {}, { activite: { type: 'enum', values: ACTIVITES, upper: true } });
+  const activite = data.activite || r['marque.activite'];
+  const ajoutees = await appliquerCatalogue(activite);
+  log.info('Carte de depart appliquee', { activite, ajoutees, par: ctx.user.identifiant });
+  ctx.ok({ ajoutees, items: (await listerTarifas()).map(tarifaVersClient) });
+}, { role: 'GERANT', rateLimit: PROFILES.administration });
+
+/** Les dessins disponibles pour une ligne de la carte (le selecteur d'icones). */
+tarifasRoutes.get('/icones', async (ctx) => {
+  ctx.ok({ icones: Object.fromEntries(ICONES.map((nom) => [nom, iconeTarifa(nom)])) });
+});
 
 /** Monter ou descendre une ligne d'un cran. */
 tarifasRoutes.post('/:id/mover', async (ctx) => {

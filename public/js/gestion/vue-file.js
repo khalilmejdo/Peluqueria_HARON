@@ -195,7 +195,48 @@ function blocFauteuils(file) {
   }
   const seul = postes.length === 1;
   const cartes = postes.map((p) => carteFauteuil(p, file, seul));
-  return seul ? cartes[0] : el('div.fauteuils', cartes);
+  return [bandeRendezVous(postes), seul ? cartes[0] : el('div.fauteuils', cartes)];
+}
+
+/**
+ * LES RENDEZ-VOUS DU JOUR, au-dessus des fauteuils.
+ *
+ * Le coiffeur doit les voir AVANT d'appeler le suivant : on ne lance pas une
+ * coupe de quarante minutes dix minutes avant un client qui a reserve. Un
+ * client arrive s'installe d'ici, en un appui (le bouton « suivant » de son
+ * fauteuil le prend aussi de lui-meme).
+ */
+function bandeRendezVous(postes) {
+  const lignes = postes.flatMap((p) => (p.prochainsRdv || []).map((r) => ({ ...r, professionnel: p.coiffeur || p.nom })))
+    .sort((a, b) => a.heure.localeCompare(b.heure));
+  if (!lignes.length) return null;
+  return el('section.rdv-jour',
+    el('div.rdv-jour__tete',
+      el('p.rdv-jour__titre', { texte: t('file.rdvDuJour', { n: lignes.length }) }),
+      el('a.rdv-jour__lien', { href: '#agenda', texte: t('nav.agenda') })),
+    el('ul.rdv-jour__liste', lignes.slice(0, 6).map((r) => el('li.rdv-jour__ligne' + (r.statut === 'ARRIVE' ? '.rdv-jour__ligne--arrive' : ''),
+      el('span.rdv-jour__heure', { texte: r.heure }),
+      el('span.rdv-jour__nom', { texte: r.prenom }),
+      el('span.rdv-jour__pro', { texte: r.professionnel }),
+      r.statut === 'ARRIVE'
+        ? el('button.bouton.bouton--principal.bouton--petit', {
+          type: 'button',
+          texte: t('agenda.geste.installer'),
+          surClick: (evenement) => {
+            evenement.currentTarget.disabled = true;
+            api.post('/api/agenda/' + r.id + '/installer').then(() => annoncer(t('agenda.dit.installe'))).catch((err) => {
+              annoncer(err instanceof ErreurApi ? err.message : t('agenda.echec'));
+            });
+          },
+        })
+        : el('button.bouton.bouton--discret.bouton--petit', {
+          type: 'button',
+          texte: t('agenda.geste.arrive'),
+          surClick: (evenement) => {
+            evenement.currentTarget.disabled = true;
+            api.post('/api/agenda/' + r.id + '/statut', { statut: 'ARRIVE' }).catch(() => {});
+          },
+        })))));
 }
 
 /* ------------------------------------------------------------------ */
@@ -572,7 +613,7 @@ export async function vueFile(conteneur, { etat }) {
   // `zone` a chaque battement du temps reel, et la carte y perdrait son etat
   // (et son enregistrement) plusieurs fois par minute.
   remplacer(conteneur, alerte, zone, el('div.enveloppe.avisos__enveloppe', carteAvisos()),
-    etat.utilisateur?.role === 'GERANT'
+    ['GERANT', 'SUPERADMIN'].includes(etat.utilisateur?.role)
       ? el('div.enveloppe.file__cloture',
         el('button.bouton.bouton--discret.bouton--petit', {
           type: 'button',

@@ -20,15 +20,20 @@ import { config } from './config.js';
 import { ValidationError } from './errors.js';
 import {
   t, texte as texteEnLangue, existe, poserLangueActive, langueActive,
-  LANGUE_DEFAUT, optionsLangues, LANGUES,
+  LANGUE_DEFAUT, optionsLangues, LANGUES, poserActivite,
 } from './langue.js';
+import { themeDe, cssDuTheme, empreinte, monogrammeDe } from './theme.js';
 import { poserDeviseActive, DEVISE_DEFAUT, optionsDevises, DEVISES } from './devise.js';
+import { sansBarresFinales } from './text.js';
+
+/** Une couleur se saisit en « #rrggbb » : ce que rend un <input type=color>. */
+export const COULEUR_RE = /^#[0-9a-f]{6}$/i;
 
 /**
- * @typedef {{ type: 'texte'|'entier'|'booleen'|'heure'|'url'|'telephone'|'choix'|'coordenadas',
+ * @typedef {{ type: 'texte'|'entier'|'booleen'|'heure'|'url'|'telephone'|'choix'|'coordenadas'|'couleur',
  *             defaut: any, defautCle?: string, libelleCle?: string, jour?: number,
  *             options?: Array<{valeur:string}>, groupe?: string,
- *             min?: number, max?: number, maxLongueur?: number }} Reglage
+ *             min?: number, max?: number, maxLongueur?: number, reserve?: 'SUPERADMIN' }} Reglage
  */
 
 /**
@@ -51,21 +56,66 @@ import { poserDeviseActive, DEVISE_DEFAUT, optionsDevises, DEVISES } from './dev
 /** Longueur sous laquelle une cle d'ecran est remplacee (noms complets). */
 const CLE_PANTALLA_MIN = 20;
 
+/**
+ * LA MARQUE.
+ *
+ * Ce qui fait qu'une meme application devient LE salon d'un client : son nom,
+ * son activite, sa palette, ses lettres, son logo. Ces reglages portent
+ * `reserve: 'SUPERADMIN'` : seul l'editeur qui livre l'application les change
+ * (voir peutEcrire()). Le gerant regle sa journee, pas son identite.
+ */
+export const ACTIVITES = ['BARBERIA', 'PELUQUERIA', 'UNISEX', 'ESTETICA'];
+export const PALETTES = ['ONYX', 'IVOIRE', 'POUDRE', 'EMERAUDE', 'BORDEAUX', 'MINUIT', 'PERSO'];
+export const TYPOGRAPHIES = ['CLASSIQUE', 'PRESTIGE', 'MODERNE'];
+export const ANGLES = ['NETS', 'DOUX', 'ARRONDIS'];
+const choix = (valeurs) => valeurs.map((valeur) => ({ valeur }));
+
 export const CATALOGUE = {
+  'salon.nom': {
+    // Une installation neuve s'appelle « Mi salon » jusqu'a ce que la marque
+    // soit posee : l'application se vend a plusieurs salons, elle ne porte le
+    // nom d'aucun. Un salon en service a son nom en base, ce defaut ne le touche pas.
+    type: 'texte', defaut: 'Mi salón', defautCle: 'reglage.salon.nom.defaut', maxLongueur: 60, reserve: 'SUPERADMIN',
+  },
+  'marque.activite': {
+    type: 'choix', defaut: 'BARBERIA', options: choix(ACTIVITES), reserve: 'SUPERADMIN',
+  },
   'salon.idioma': {
-    type: 'choix', defaut: LANGUE_DEFAUT, options: optionsLangues(),
+    type: 'choix', defaut: LANGUE_DEFAUT, options: optionsLangues(), reserve: 'SUPERADMIN',
   },
   'salon.moneda': {
-    type: 'choix', defaut: DEVISE_DEFAUT, options: optionsDevises(),
+    type: 'choix', defaut: DEVISE_DEFAUT, options: optionsDevises(), reserve: 'SUPERADMIN',
   },
-  'salon.nom': {
-    type: 'texte', defaut: 'Peluquería HARON', maxLongueur: 60,
+  'marque.palette': {
+    type: 'choix', defaut: 'ONYX', options: choix(PALETTES), reserve: 'SUPERADMIN',
+  },
+  // Lues seulement quand la palette est PERSO.
+  'marque.couleurFond': {
+    type: 'couleur', defaut: '#0b0b0d', maxLongueur: 7, reserve: 'SUPERADMIN',
+  },
+  'marque.couleurAccent': {
+    type: 'couleur', defaut: '#c9a45c', maxLongueur: 7, reserve: 'SUPERADMIN',
+  },
+  'marque.typographie': {
+    type: 'choix', defaut: 'CLASSIQUE', options: choix(TYPOGRAPHIES), reserve: 'SUPERADMIN',
+  },
+  'marque.angles': {
+    type: 'choix', defaut: 'NETS', options: choix(ANGLES), reserve: 'SUPERADMIN',
+  },
+  // Les lettres du monogramme, quand il n'y a pas de logo. Vide : les
+  // initiales du nom.
+  'marque.monogramme': {
+    type: 'texte', defaut: '', maxLongueur: 3, reserve: 'SUPERADMIN',
   },
   'salon.accroche': {
     // Le defaut suit la langue : un salon installe en francais ne doit pas
     // afficher une accroche espagnole tant que le gerant n'a rien saisi.
     type: 'texte', defaut: 'Pide tu turno sin esperar de pie.',
     defautCle: 'reglage.salon.accroche.defaut', maxLongueur: 120,
+  },
+  // Quelques lignes sur la maison, en tete de la vitrine. Vide : pas de section.
+  'salon.presentation': {
+    type: 'texte', defaut: '', maxLongueur: 600,
   },
   'salon.adresse': {
     type: 'texte', defaut: '', maxLongueur: 160,
@@ -108,10 +158,58 @@ export const CATALOGUE = {
     type: 'booleen', defaut: false,
   },
 
+  // DEUX FACONS DE VENIR, CHACUNE SE COUPE.
+  //
+  // La file d'attente en ligne (le client prend son tour depuis son
+  // telephone) et les rendez-vous (il choisit un creneau). Un barbier de
+  // quartier vit de la file ; un salon de luxe ne travaille que sur
+  // rendez-vous ; beaucoup font les deux. La file du COMPTOIR, elle, reste
+  // toujours ouverte au personnel.
+  'accueil.file': {
+    type: 'booleen', defaut: true,
+  },
+  'rdv.actifs': {
+    type: 'booleen', defaut: false,
+  },
+  // L'intervalle entre deux heures proposees : 9:00, 9:15, 9:30...
+  'rdv.pasMinutes': {
+    type: 'entier', defaut: 15, min: 5, max: 60,
+  },
+  // Pas de rendez-vous pris dans l'heure : le salon doit pouvoir s'organiser.
+  'rdv.delaiMinutes': {
+    type: 'entier', defaut: 60, min: 0, max: 2880,
+  },
+  'rdv.horizonJours': {
+    type: 'entier', defaut: 21, min: 1, max: 90,
+  },
+  // Jusqu'a combien d'heures avant le client annule-t-il lui-meme ?
+  'rdv.annulationHeures': {
+    type: 'entier', defaut: 2, min: 0, max: 72,
+  },
+  // Temps laisse entre deux rendez-vous du meme fauteuil (nettoyage, retard).
+  'rdv.tamponMinutes': {
+    type: 'entier', defaut: 0, min: 0, max: 30,
+  },
+  'rdv.choixProfessionnel': {
+    type: 'booleen', defaut: true,
+  },
+  // Rendez-vous a venir qu'un meme numero peut tenir a la fois.
+  'rdv.maxParNumero': {
+    type: 'entier', defaut: 2, min: 1, max: 5,
+  },
+  // Une phrase sur la confirmation : « Merci d'arriver cinq minutes avant ».
+  'rdv.message': {
+    type: 'texte', defaut: '', maxLongueur: 240,
+  },
+
   // LES SECTIONS DE LA VITRINE, une par une. Allumees par defaut : une section
   // dont les donnees manquent disparait d'elle-meme (pas d'adresse, pas de
   // carte), et ces interrupteurs servent a retirer celles qu'on NE VEUT PAS
   // montrer, pas a faire apparaitre celles qu'on a remplies.
+  // L'equipe : les professionnels (le nom porte par chaque fauteuil).
+  'vitrine.equipe': {
+    type: 'booleen', defaut: true,
+  },
   'vitrine.galerie': {
     type: 'booleen', defaut: true,
   },
@@ -204,6 +302,7 @@ export function catalogueTraduit(langue = null) {
     if (regle.min !== undefined) sortie.min = regle.min;
     if (regle.max !== undefined) sortie.max = regle.max;
     if (regle.maxLongueur !== undefined) sortie.maxLongueur = regle.maxLongueur;
+    if (regle.reserve) sortie.reserve = regle.reserve;
     if (regle.options) {
       // Une option qui porte deja son nom le garde : « Español » ne se traduit
       // pas en francais, et « Dirham (DH) » ne se traduit pas en espagnol. Ce
@@ -304,6 +403,8 @@ function depuisTexte(cle, brut) {
       return regle.options.some((o) => o.valeur === brut) ? brut : regle.defaut;
     case 'coordenadas':
       return normaliserCoordonnees(brut) || '';
+    case 'couleur':
+      return COULEUR_RE.test(brut) ? brut.toLowerCase() : regle.defaut;
     default:
       return String(brut);
   }
@@ -355,9 +456,17 @@ export function versTexte(cle, valeur) {
       }
       return texte;
     }
+    case 'couleur': {
+      const texte = String(valeur ?? '').trim().toLowerCase();
+      if (!COULEUR_RE.test(texte)) throw new ValidationError({ [cle]: t('valid.couleur') });
+      return texte;
+    }
     case 'url': {
       if (vide) return '';
-      const texte = String(valeur).trim().replace(/\/+$/, '');
+      const brutUrl = String(valeur).trim();
+      if (brutUrl.length > (regle.maxLongueur ?? 300) + 50) throw new ValidationError({ [cle]: t('valid.urlTropLongue') });
+      // Pas d'expression « barres finales » : quadratique (voir sansBarresFinales).
+      const texte = sansBarresFinales(brutUrl);
       try {
         const u = new URL(texte);
         if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('protocole');
@@ -404,9 +513,34 @@ const DUREE_CACHE_MS = 5000;
  * l'ecrire en dur — il etait ecrit « Peluquería HARON » dans le code, si bien
  * qu'un salon de Casablanca aurait porte l'enseigne de Fuente Alamo.
  */
-const NOM_PAR_DEFAUT = 'Peluquería HARON';
+const NOM_PAR_DEFAUT = 'Mi salón';
 let nomActif = NOM_PAR_DEFAUT;
 export const nomDuSalon = () => nomActif;
+
+/**
+ * LE THEME COURANT, calcule une fois par lecture des reglages et garde ici :
+ * chaque page en a besoin (adresse versionnee de /theme.css, couleur de la
+ * barre du navigateur), et le recalculer a chaque requete serait absurde.
+ */
+let themeActif = null;
+function poserTheme(r, logo = null) {
+  const theme = themeDe(r);
+  const css = cssDuTheme(theme);
+  themeActif = {
+    ...theme,
+    css,
+    empreinte: empreinte(css),
+    monogramme: monogrammeDe(r),
+    activite: r['marque.activite'],
+    logo: logo ? { src: '/photos/' + logo.fichier, largeur: logo.largeur, hauteur: logo.hauteur } : null,
+  };
+}
+export function themeCourant() {
+  // Avant toute lecture (tests de rendu, toute premiere requete) : le theme
+  // des valeurs par defaut, plutot qu'une page sans couleurs.
+  if (!themeActif) poserTheme(Object.fromEntries(Object.keys(CATALOGUE).map((cle) => [cle, CATALOGUE[cle].defaut])));
+  return themeActif;
+}
 let cache = null;
 let cacheAt = 0;
 
@@ -431,7 +565,12 @@ export function invaliderCache() {
  */
 export async function lireTous({ frais = false } = {}) {
   if (!frais && cache && Date.now() - cacheAt < DUREE_CACHE_MS) return cache;
-  const rows = await all('SELECT cle, valeur FROM reglages WHERE cle = ANY($1)', [CLES]);
+  // Le LOGO voyage avec les reglages : chaque page en a besoin pour son en-tete,
+  // et le relire a chaque rendu serait absurde. Meme cache, meme duree.
+  const [rows, logos] = await Promise.all([
+    all('SELECT cle, valeur FROM reglages WHERE cle = ANY($1)', [CLES]),
+    all("SELECT fichier, largeur, hauteur FROM photos WHERE usage = 'LOGO'").catch(() => []),
+  ]);
   const stockes = new Map(rows.map((r) => [r.cle, r.valeur]));
 
   const langue = poserLangueActive(depuisTexte('salon.idioma', stockes.get('salon.idioma')));
@@ -443,7 +582,9 @@ export async function lireTous({ frais = false } = {}) {
   }
   sortie['salon.idioma'] = langue;
   sortie['salon.moneda'] = devise;
-  nomActif = sortie['salon.nom'] || NOM_PAR_DEFAUT;
+  nomActif = sortie['salon.nom'] || defautDe('salon.nom') || NOM_PAR_DEFAUT;
+  poserActivite(sortie['marque.activite']);
+  poserTheme(sortie, logos[0] || null);
 
   cache = sortie;
   cacheAt = Date.now();

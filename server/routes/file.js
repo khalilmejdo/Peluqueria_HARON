@@ -10,6 +10,7 @@
  * ete coupe par un tunnel ou un ascenseur.
  */
 import { Router } from '../http/router.js';
+import { rdvAAccueillir, installer as installerRdv } from '../domain/rendezvous.js';
 import { validate, rules } from '../core/validate.js';
 import { idDe } from '../http/aides.js';
 import { PROFILES } from '../core/ratelimit.js';
@@ -88,8 +89,24 @@ fileRoutes.get('/flux', async (ctx) => {
  */
 const posteDemande = (ctx) => validate(ctx.body, { posteId: { type: 'uuid' } }).posteId ?? null;
 
+/**
+ * LE SUIVANT, rendez-vous d'abord.
+ *
+ * Sur un fauteuil donne, un client de rendez-vous ARRIVE dont l'heure est
+ * venue passe avant la file : il a reserve. Le coiffeur n'a pas a s'en
+ * souvenir — le meme gros bouton fait la bonne chose.
+ */
 fileRoutes.post('/suivant', async (ctx) => {
-  const ticket = await appelerSuivant({ user: ctx.user, posteId: posteDemande(ctx) });
+  const posteId = posteDemande(ctx);
+  if (posteId) {
+    const rdv = await rdvAAccueillir(posteId);
+    if (rdv) {
+      const ticket = await installerRdv(rdv.id, { user: ctx.user });
+      await repondreAvecLaFile(ctx, { appele: ticket.numero_affiche, fauteuil: null, rendezVous: true });
+      return;
+    }
+  }
+  const ticket = await appelerSuivant({ user: ctx.user, posteId });
   await repondreAvecLaFile(ctx, { appele: ticket.numero_affiche, fauteuil: ticket.poste?.nom ?? null });
 }, { rateLimit: PROFILES.file });
 

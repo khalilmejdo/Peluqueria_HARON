@@ -1,38 +1,36 @@
 /**
- * LA VITRINE — la page d'accueil, reconstruite comme le site d'un salon.
+ * LA VITRINE — le site de la maison.
  *
- * L'ancienne page etait une colonne centree sans navigation, sans image, avec
- * la reservation sur une autre page, et des sections (contact, carte) qui
- * restaient invisibles tant qu'elles n'etaient pas remplies. Elle ressemblait a
- * un ecran d'application pose sur un fond sombre. Celle-ci suit l'ordre dans
- * lequel un client decide :
+ * Elle suit l'ordre dans lequel un client decide, et chaque section n'existe
+ * que si elle a quelque chose a dire :
  *
- *   1. OU SUIS-JE, ET EST-CE OUVERT ?   l'en-tete : le nom, l'etat du moment
- *   2. EST-CE QUE CA ME PLAIT ?         l'ouverture : l'image, l'accroche
- *   3. COMBIEN, ET COMBIEN DE TEMPS ?   les tarifs, l'attente en direct
- *   4. JE RESERVE                        le formulaire, DANS la page
- *   5. JE VIENS                          la carte, l'adresse, les horaires
+ *   l'ouverture   le nom, l'accroche, l'image ; reserver ou prendre son tour
+ *   les reperes   aujourd'hui, l'adresse, le telephone, en une ligne
+ *   la maison     quelques lignes sur le salon (si le gerant les a ecrites)
+ *   la carte      les prestations par chapitre, prix et durees
+ *   reserver      les rendez-vous (prochaines heures libres) et/ou la file
+ *   l'equipe      les professionnels
+ *   la galerie    les photos
+ *   l'acces       la carte, l'adresse, les horaires, appeler
  *
- * Chaque section n'existe que si elle a quelque chose a dire, et le gerant peut
- * en retirer depuis les reglages. Rien ici ne calcule : tout arrive pret de la
- * route, et ce fichier ne fait que composer.
+ * Rien ici ne calcule ni ne lit la base : tout arrive pret de la route, et ce
+ * fichier ne fait que composer.
  */
-import { escapeHtml } from '../core/text.js';
+import { escapeHtml, normalize } from '../core/text.js';
 import { decouperNom } from './mise-en-page.js';
-import { archeIllustree, planStylise, iconeLieu, iconeTelephone, iconeConversation, iconeEtape } from './illustrations.js';
+import { monogramme, filet, icone, planStylise } from './ornements.js';
+import { iconeTarifa } from './icones-tarifas.js';
 
 const e = escapeHtml;
 
 /* ------------------------------------------------------------------ */
-/*  L'etat du salon, dit en une ligne                                  */
+/*  L'etat du salon, en une ligne                                      */
 /* ------------------------------------------------------------------ */
 
 /**
  * « Ouvert · jusqu'a 20:30 », « Ferme · ouvre a 17:00 », « Ferme aujourd'hui ».
- *
- * Rien n'est dit quand on ne SAIT pas : sans horaires declares, annoncer
- * « ouvert » serait un mensonge le dimanche. La pastille disparait alors, et
- * c'est mieux que de deviner.
+ * Rien quand on ne SAIT pas : sans horaires declares, « ouvert » serait un
+ * mensonge le dimanche.
  */
 export function etatDuMoment({ tr, horaires, prise }) {
   if (prise && !prise.ouverte && prise.code === 'SALON_EN_CONGES') {
@@ -48,119 +46,244 @@ export function etatDuMoment({ tr, horaires, prise }) {
   return { classe: 'ferme', texte: tr('vt.etat.fermeAujourdhui') };
 }
 
+/** « 10:00 – 14:00 · 17:00 – 20:30 », ou « Ferme ». Null sans horaires declares. */
+export function horairesDuJour({ tr, plages, actifs }) {
+  if (!actifs) return null;
+  if (!plages.length) return tr('commun.ferme');
+  return plages.map((p) => p.ouverture + ' – ' + p.fermeture).join(' · ');
+}
+
+/** L'en-tete d'une section : surtitre, titre, filet, et un chapeau facultatif. */
+export function teteDeSection({ surtitre, titre, id, chapo = null, classe = '' }) {
+  return '<header class="section__tete ' + classe + '">'
+    + '<p class="surtitre">' + e(surtitre) + '</p>'
+    + '<h2 class="section__titre" id="' + e(id) + '">' + e(titre) + '</h2>'
+    + filet()
+    + (chapo ? '<p class="section__chapo">' + e(chapo) + '</p>' : '')
+    + '</header>';
+}
+
 /* ------------------------------------------------------------------ */
 /*  L'ouverture                                                        */
 /* ------------------------------------------------------------------ */
 
 /**
- * Le haut de la vitrine : le nom en grand, l'accroche, l'attente en direct et
- * deux actions ; a droite, l'arche qui porte la photo de couverture — ou le
- * miroir dessine tant qu'il n'y en a pas.
+ * LE HAUT DE LA PAGE.
  *
- * `affluence` arrive en HTML deja compose (les marques de la file, les
- * compteurs) : c'est le meme bloc que le script tient a jour, avec les memes
- * attributs `data-*`.
+ * Avec une photo de couverture : elle occupe tout l'ecran, sous un voile qui
+ * garde le texte lisible. Sans photo : le monogramme de la marque, en grand,
+ * dans ses cercles fins — une page qui n'a pas encore de photo reste une page
+ * de maison, pas un gabarit vide.
+ *
+ * @param {object} o
+ * @param {Array<{href:string, texte:string, principal?:boolean}>} o.actions
+ * @param {string} o.reperes  le HTML des pastilles (etat, file en direct)
  */
-export function ouverture({ tr, nom, accroche, affluence, appel, couverture, atouts = true }) {
+export function ouverture({ tr, nom, accroche, metier, actions, reperes = '', couverture = null, lettres = '' }) {
   const { petit, grand } = decouperNom(nom);
-  const image = couverture
-    ? '<img class="vt-arche__photo" src="' + e(couverture.src) + '" alt="' + e(couverture.legende || nom) + '"'
+  const fond = couverture
+    ? '<div class="une__fond"><img class="une__image" src="' + e(couverture.src) + '" alt=""'
       + (couverture.largeur ? ' width="' + couverture.largeur + '" height="' + couverture.hauteur + '"' : '')
-      + ' fetchpriority="high" decoding="async">'
-    : archeIllustree();
+      + ' fetchpriority="high" decoding="async"></div><div class="une__voile" aria-hidden="true"></div>'
+    : '<div class="une__decor" aria-hidden="true">' + monogramme(lettres, { classe: 'une__monogramme' })
+      + '<span class="une__anneau une__anneau--1"></span><span class="une__anneau une__anneau--2"></span></div>';
 
-  return '<section class="vt-une" aria-labelledby="vt-titre">'
-    + '<div class="vt-une__lumiere" aria-hidden="true"></div>'
-    + '<div class="vt-une__dedans">'
-    + '<div class="vt-une__texte">'
-    // Le surtitre ne sert que si le nom tient en un mot : sinon sa premiere
-    // partie (« Peluquería ») le dit deja, juste en dessous.
-    + (petit ? '' : '<p class="vt-surtitre">' + e(tr('vt.une.surtitre')) + '</p>')
-    + '<h1 class="vt-une__titre" id="vt-titre">'
-    + (petit ? '<span class="vt-une__titre-petit">' + e(petit) + '</span>' : '')
-    + '<span class="vt-une__titre-grand">' + e(grand) + '</span>'
+  return '<section class="une' + (couverture ? ' une--photo' : ' une--monogramme') + '" aria-labelledby="titre-une">'
+    + fond
+    + '<div class="une__dedans">'
+    // Le metier n'est pas redit quand le nom le porte deja (« Barbería Atlas »).
+    + (memeMot(petit, metier) ? '' : '<p class="surtitre une__surtitre">' + e(metier) + '</p>')
+    + '<h1 class="une__titre" id="titre-une">'
+    + (petit ? '<span class="une__titre-petit">' + e(petit) + '</span>' : '')
+    + '<span class="une__titre-grand">' + e(grand) + '</span>'
     + '</h1>'
-    + '<p class="vt-une__accroche">' + e(accroche) + '</p>'
-    + affluence
-    + appel
-    + (atouts
-      ? '<ul class="vt-atouts">'
-        + ['vt.atout.compte', 'vt.atout.direct', 'vt.atout.duree'].map((c) => '<li>' + e(tr(c)) + '</li>').join('')
-        + '</ul>'
+    + filet({ classe: 'une__filet' })
+    + (accroche ? '<p class="une__accroche">' + e(accroche) + '</p>' : '')
+    + (actions.length
+      ? '<div class="une__actions">' + actions.map((a) => '<a class="bouton ' + (a.principal ? 'bouton--principal' : 'bouton--contour')
+        + ' bouton--grand" href="' + e(a.href) + '"' + (a.principal ? ' data-appel-principal' : '') + '>' + e(a.texte) + '</a>').join('') + '</div>'
       : '')
+    + (reperes ? '<ul class="une__reperes">' + reperes + '</ul>' : '')
     + '</div>'
-    + '<figure class="vt-arche' + (couverture ? ' vt-arche--photo' : '') + '">'
-    + '<div class="vt-arche__cadre">' + image + '</div>'
-    + (couverture && couverture.legende ? '<figcaption class="vt-arche__legende">' + e(couverture.legende) + '</figcaption>' : '')
-    + '</figure>'
-    + '</div>'
+    + '<a class="une__defiler" href="#apres-une" aria-label="' + e(tr('mx.une.defiler')) + '"><span></span></a>'
     + '</section>';
 }
 
+const sansAccent = (v) => normalize(String(v || ''));
+const memeMot = (a, b) => Boolean(a) && Boolean(b) && (sansAccent(a).includes(sansAccent(b)) || sansAccent(b).includes(sansAccent(a)));
+
+/** Une pastille d'etat : un point de couleur, un texte. */
+export function pastilleEtat({ classe, texte, attributs = '' }) {
+  return '<li class="pastille-etat pastille-etat--' + e(classe) + '"' + attributs + '>'
+    + '<span class="pastille-etat__point" aria-hidden="true"></span><span data-texte>' + e(texte) + '</span></li>';
+}
+
 /* ------------------------------------------------------------------ */
-/*  Le bandeau pratique                                                */
+/*  Les reperes                                                        */
 /* ------------------------------------------------------------------ */
 
-/**
- * Trois informations, a hauteur d'yeux, juste sous l'ouverture : quand, ou,
- * comment joindre. C'est ce qu'on cherche en arrivant sur le site d'un
- * commerce, et c'etait enfoui en bas de page.
- */
-export function infosPratiques({ tr, aujourdhui, adresse, telephone }) {
+/** Aujourd'hui, l'adresse, le telephone : ce qu'on cherche en arrivant. */
+export function reperes({ tr, aujourdhui, adresse, telephone }) {
   const cases = [];
   if (aujourdhui) {
-    cases.push('<div class="vt-info"><p class="vt-info__quoi">' + e(tr('vt.infos.aujourdhui')) + '</p>'
-      + '<p class="vt-info__valeur">' + e(aujourdhui) + '</p></div>');
+    cases.push('<div class="repere">' + icone('horloge', { classe: 'repere__icone' })
+      + '<div><p class="repere__quoi">' + e(tr('vt.infos.aujourdhui')) + '</p><p class="repere__valeur">' + e(aujourdhui) + '</p></div></div>');
   }
   if (adresse) {
-    cases.push('<a class="vt-info vt-info--lien" href="/#contact"><p class="vt-info__quoi">' + e(tr('vt.infos.adresse')) + '</p>'
-      + '<p class="vt-info__valeur">' + e(adresse) + '</p></a>');
+    cases.push('<a class="repere repere--lien" href="/#acces">' + icone('lieu', { classe: 'repere__icone' })
+      + '<div><p class="repere__quoi">' + e(tr('vt.infos.adresse')) + '</p><p class="repere__valeur">' + e(adresse) + '</p></div></a>');
   }
   if (telephone) {
-    cases.push('<a class="vt-info vt-info--lien" href="tel:' + e(telephone.replace(/[^+0-9]/g, '')) + '">'
-      + '<p class="vt-info__quoi">' + e(tr('vt.infos.telephone')) + '</p>'
-      + '<p class="vt-info__valeur vt-info__valeur--chiffres">' + e(telephone) + '</p></a>');
+    cases.push('<a class="repere repere--lien" href="tel:' + e(telephone.replace(/[^+0-9]/g, '')) + '">' + icone('telephone', { classe: 'repere__icone' })
+      + '<div><p class="repere__quoi">' + e(tr('vt.infos.telephone')) + '</p><p class="repere__valeur repere__valeur--chiffres">' + e(telephone) + '</p></div></a>');
   }
-  if (!cases.length) return '';
-  return '<section class="vt-infos" aria-label="' + e(tr('vt.infos.aria')) + '">'
-    + '<div class="vt-infos__dedans vt-infos__dedans--' + cases.length + '">' + cases.join('') + '</div>'
+  if (!cases.length) return '<div id="apres-une"></div>';
+  return '<section class="reperes" id="apres-une" aria-label="' + e(tr('vt.infos.aria')) + '">'
+    + '<div class="reperes__dedans reperes__dedans--' + cases.length + '">' + cases.join('') + '</div>'
     + '</section>';
 }
 
 /* ------------------------------------------------------------------ */
-/*  La reservation                                                     */
+/*  La maison                                                          */
+/* ------------------------------------------------------------------ */
+
+export function sectionMaison({ tr, presentation, lettres }) {
+  const texte = String(presentation || '').trim();
+  if (!texte) return '';
+  const paragraphes = texte.split(/\n{2,}|\r\n\r\n/).map((p) => '<p>' + e(p.trim()) + '</p>').join('');
+  return '<section class="section section--maison" id="maison" aria-labelledby="titre-maison">'
+    + '<div class="section__dedans maison">'
+    + '<div class="maison__embleme" aria-hidden="true">' + monogramme(lettres, { classe: 'maison__monogramme' }) + '</div>'
+    + '<div class="maison__texte">'
+    + teteDeSection({ surtitre: tr('mx.maison.surtitre'), titre: tr('mx.maison.titre'), id: 'titre-maison', classe: 'section__tete--gauche' })
+    + '<div class="maison__corps">' + paragraphes + '</div>'
+    + '</div>'
+    + '</div>'
+    + '</section>';
+}
+
+/* ------------------------------------------------------------------ */
+/*  La carte                                                           */
 /* ------------------------------------------------------------------ */
 
 /**
- * LA RESERVATION, DANS LA PAGE.
+ * LA CARTE, PAR CHAPITRES.
  *
- * Elle vivait sur une autre adresse : le client devait comprendre qu'il fallait
- * cliquer, attendre, puis remplir. Ici le formulaire est la, au milieu de la
- * vitrine, a cote de ce qui le rassure (les trois etapes). Il poste toujours
- * vers /join : sans JavaScript, il marche exactement pareil, et le code QR de
- * l'affiche, qui mene a /join, ne change pas.
+ * Une ligne = le nom, un filet de points, le prix ; dessous, la duree et la
+ * note. C'est la forme d'une carte de grande maison : le regard suit le filet
+ * jusqu'au chiffre, sans hesiter sur la colonne. Les chapitres viennent de la
+ * carte du salon ; une carte sans chapitre en a un seul, sans titre.
  */
-export function sectionReservation({ tr, contenu, etapes = true }) {
-  const liste = etapes
-    ? '<ol class="vt-etapes">'
-      + [1, 2, 3].map((n) => '<li class="vt-etape">'
-        + '<span class="vt-etape__icone" aria-hidden="true">' + iconeEtape(n - 1) + '</span>'
-        + '<div><p class="vt-etape__titre"><span class="vt-etape__num">' + n + '.</span> ' + e(tr('etapes.' + n + '.titre')) + '</p>'
-        + '<p class="vt-etape__texte">' + e(tr('etapes.' + n + '.texte')) + '</p></div>'
-        + '</li>').join('')
-      + '</ol>'
-    : '';
+export function sectionCarte({ tr, prestations, nota, avecPrix = true }) {
+  if (!prestations.length) return '';
+  const chapitres = [];
+  for (const p of prestations) {
+    const titre = p.categoria || '';
+    let c = chapitres.find((x) => x.titre === titre);
+    if (!c) {
+      c = { titre, lignes: [] };
+      chapitres.push(c);
+    }
+    c.lignes.push(p);
+  }
+  const unSeul = chapitres.length === 1;
+  const html = chapitres.map((c) => '<div class="menu__chapitre">'
+    + (c.titre ? '<h3 class="menu__titre">' + e(c.titre) + '</h3>' : (unSeul ? '' : '<h3 class="menu__titre">' + e(tr('mx.carte.autres')) + '</h3>'))
+    + '<ul class="menu__liste">'
+    + c.lignes.map((p) => {
+      const ico = iconeTarifa(p.icono);
+      return '<li class="menu__ligne">'
+        + '<span class="menu__icone" aria-hidden="true">' + ico + '</span>'
+        + '<span class="menu__nom">' + e(p.nombre) + '</span>'
+        + (avecPrix ? '<span class="menu__points" aria-hidden="true"></span><span class="menu__prix">' + e(p.precioTexte || p.precio) + '</span>' : '')
+        + '<span class="menu__detail">' + e(tr('mx.carte.duree', { n: p.duracionMin })) + (p.nota ? ' · ' + e(p.nota) : '') + '</span>'
+        + '</li>';
+    }).join('')
+    + '</ul></div>').join('');
 
-  return '<section class="vt-section vt-resa" id="reserver" aria-labelledby="vt-resa-titre">'
-    + '<div class="vt-section__dedans vt-resa__grille">'
-    + '<div class="vt-resa__intro">'
-    + '<p class="vt-surtitre">' + e(tr('vt.resa.surtitre')) + '</p>'
-    + '<h2 class="vt-titre" id="vt-resa-titre">' + e(tr('vt.resa.titre')) + '</h2>'
-    + '<p class="vt-chapo">' + e(tr('vt.resa.chapo')) + '</p>'
-    + liste
-    + '<p class="vt-resa__qr">' + e(tr('accueil.dejaAuSalonTexte')) + '</p>'
+  return '<section class="section section--carte" id="carte" aria-labelledby="titre-carte">'
+    + '<div class="section__dedans">'
+    + teteDeSection({ surtitre: tr('mx.carte.surtitre'), titre: tr('mx.carte.titre'), id: 'titre-carte' })
+    + '<div class="menu' + (unSeul ? ' menu--simple' : '') + '">' + html + '</div>'
+    + (nota ? '<p class="menu__nota">' + e(nota) + '</p>' : '')
     + '</div>'
-    + '<div class="vt-resa__carte">' + contenu + '</div>'
+    + '</section>';
+}
+
+/* ------------------------------------------------------------------ */
+/*  Reserver                                                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * LES DEUX FACONS DE VENIR, COTE A COTE.
+ *
+ * Le rendez-vous montre les prochaines heures libres, chacune un lien direct
+ * vers la reservation a cette heure. La file montre l'attente en direct et le
+ * bouton pour prendre son tour — ou le formulaire lui-meme, quand la file est
+ * la seule facon de venir (un barbier sans rendez-vous n'a pas a faire changer
+ * de page a son client).
+ *
+ * @param {object} o
+ * @param {{ prochains: Array<{href:string, jour:string, heure:string}>, fermeture?:string }|null} o.rdv
+ * @param {{ statut:string, formulaire?:string, ouverte:boolean, message?:string }|null} o.file
+ */
+export function sectionReserver({ tr, rdv, file }) {
+  if (!rdv && !file) return '';
+  const cartes = [];
+  if (rdv) {
+    cartes.push('<article class="offre offre--rdv">'
+      + '<span class="offre__icone" aria-hidden="true">' + icone('calendrier') + '</span>'
+      + '<h3 class="offre__titre">' + e(tr('mx.rdv.titre')) + '</h3>'
+      + '<p class="offre__texte">' + e(tr('mx.rdv.texte')) + '</p>'
+      + (rdv.prochains.length
+        ? '<p class="offre__sous-titre">' + e(tr('mx.rdv.prochains')) + '</p>'
+          + '<ul class="apercu-creneaux">' + rdv.prochains.map((c) => '<li><a class="puce-heure" href="' + e(c.href) + '">'
+            + '<span class="puce-heure__jour">' + e(c.jour) + '</span><span class="puce-heure__heure">' + e(c.heure) + '</span></a></li>').join('') + '</ul>'
+        : '<p class="offre__note">' + e(rdv.fermeture || tr('mx.rdv.aucun')) + '</p>')
+      + '<a class="bouton bouton--principal bouton--large" href="/rendez-vous">' + e(tr('mx.rdv.choisir')) + '</a>'
+      + '</article>');
+  }
+  if (file) {
+    cartes.push('<article class="offre offre--file' + (file.formulaire ? ' offre--formulaire' : '') + '">'
+      + '<span class="offre__icone" aria-hidden="true">' + icone('file') + '</span>'
+      + '<h3 class="offre__titre">' + e(tr('mx.file.titre')) + '</h3>'
+      + '<p class="offre__texte">' + e(tr('mx.file.texte')) + '</p>'
+      + file.statut
+      + (file.ouverte
+        ? (file.formulaire || '<a class="bouton bouton--contour bouton--large" href="/join">' + e(tr('mx.file.bouton')) + '</a>')
+        : '<p class="offre__note offre__note--ferme">' + e(file.message || '') + '</p>')
+      + '</article>');
+  }
+  return '<section class="section section--reserver" id="reserver" aria-labelledby="titre-reserver">'
+    + '<div class="section__dedans">'
+    + teteDeSection({ surtitre: tr('mx.venir.surtitre'), titre: tr('mx.venir.titre'), id: 'titre-reserver', chapo: tr('mx.venir.chapo') })
+    + '<div class="offres offres--' + cartes.length + '">' + cartes.join('') + '</div>'
+    + '</div>'
+    + '</section>';
+}
+
+/* ------------------------------------------------------------------ */
+/*  L'equipe                                                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Les professionnels de la maison. Un nom n'est montre que s'il a ete DONNE
+ * (le coiffeur d'un fauteuil) : « Sillón 2 » n'est pas une personne.
+ */
+export function sectionEquipe({ tr, membres, rdvActifs }) {
+  if (!membres.length) return '';
+  const initiales = (nom) => String(nom).split(/\s+/).filter(Boolean).slice(0, 2).map((m) => m.charAt(0).toUpperCase()).join('');
+  return '<section class="section section--equipe" id="equipe" aria-labelledby="titre-equipe">'
+    + '<div class="section__dedans">'
+    + teteDeSection({ surtitre: tr('mx.equipe.surtitre'), titre: tr('mx.equipe.titre'), id: 'titre-equipe' })
+    + '<ul class="equipe equipe--' + Math.min(membres.length, 4) + '">'
+    + membres.map((m) => '<li class="membre">'
+      + '<span class="membre__portrait" aria-hidden="true">' + monogramme(initiales(m.nom), { classe: 'membre__monogramme' }) + '</span>'
+      + '<p class="membre__nom">' + e(m.nom) + '</p>'
+      + '<p class="membre__role">' + e(tr('mx.equipe.role')) + '</p>'
+      + (rdvActifs ? '<a class="lien-fin membre__lien" href="/rendez-vous?pro=' + e(m.id) + '">' + e(tr('mx.equipe.reserver', { nom: m.nom })) + '</a>' : '')
+      + '</li>').join('')
+    + '</ul>'
     + '</div>'
     + '</section>';
 }
@@ -170,83 +293,61 @@ export function sectionReservation({ tr, contenu, etapes = true }) {
 /* ------------------------------------------------------------------ */
 
 /**
- * Les photos, en mosaique ; un appui en ouvre une en grand (voir accueil.js).
- *
- * Sans JavaScript, chaque vignette est un LIEN vers la photo : on la voit quand
- * meme en grand, simplement dans une nouvelle page.
- *
- * Aucune photo, aucune section. L'ancienne version montrait des dessins avec la
- * mention « les photos arrivent bientot » : une vitrine qui s'excuse d'etre
- * inachevee fait moins bonne impression qu'une vitrine qui ne dit rien.
+ * Les photos, en mosaique ; un appui en ouvre une en grand (voir maison.js).
+ * Sans JavaScript, chaque vignette est un LIEN vers la photo.
+ * Aucune photo, aucune section : une vitrine qui s'excuse d'etre inachevee
+ * fait moins bonne impression qu'une vitrine qui ne dit rien.
  */
 export function sectionGalerie({ tr, photos }) {
   if (!photos.length) return '';
-  const vignettes = photos.map((p, i) => '<li class="vt-galerie__case' + (i === 0 ? ' vt-galerie__case--grande' : '') + '">'
-    + '<a class="vt-galerie__lien" href="' + e(p.src) + '" data-agrandir data-legende="' + e(p.legende || '') + '">'
-    + '<img class="vt-galerie__image" src="' + e(p.src) + '" alt="' + e(p.legende || tr('vt.galerie.photo', { n: i + 1 })) + '"'
+  const vignettes = photos.map((p, i) => '<li class="galerie__case' + (i === 0 ? ' galerie__case--grande' : '') + '">'
+    + '<a class="galerie__lien" href="' + e(p.src) + '" data-agrandir data-legende="' + e(p.legende || '') + '">'
+    + '<img class="galerie__image" src="' + e(p.src) + '" alt="' + e(p.legende || tr('vt.galerie.photo', { n: i + 1 })) + '"'
     + (p.largeur ? ' width="' + p.largeur + '" height="' + p.hauteur + '"' : '')
     + (i > 1 ? ' loading="lazy"' : '') + ' decoding="async">'
-    + (p.legende ? '<span class="vt-galerie__legende">' + e(p.legende) + '</span>' : '')
+    + (p.legende ? '<span class="galerie__legende">' + e(p.legende) + '</span>' : '')
     + '</a></li>').join('');
 
-  return '<section class="vt-section vt-galerie" id="galerie" aria-labelledby="vt-galerie-titre">'
-    + '<div class="vt-section__dedans">'
-    + '<div class="vt-tete">'
-    + '<p class="vt-surtitre">' + e(tr('vt.galerie.surtitre')) + '</p>'
-    + '<h2 class="vt-titre" id="vt-galerie-titre">' + e(tr('galerie.titre')) + '</h2>'
+  return '<section class="section section--galerie" id="galerie" aria-labelledby="titre-galerie">'
+    + '<div class="section__dedans">'
+    + teteDeSection({ surtitre: tr('vt.galerie.surtitre'), titre: tr('galerie.titre'), id: 'titre-galerie' })
+    + '<ul class="galerie galerie--' + Math.min(photos.length, 6) + '">' + vignettes + '</ul>'
     + '</div>'
-    + '<ul class="vt-galerie__grille vt-galerie__grille--' + Math.min(photos.length, 6) + '">' + vignettes + '</ul>'
-    + '</div>'
-    // La visionneuse : vide et cachee, remplie par le script au premier appui.
-    + '<div class="vt-visionneuse" data-visionneuse hidden role="dialog" aria-modal="true" aria-label="' + e(tr('vt.galerie.visionneuse')) + '">'
-    + '<button class="vt-visionneuse__fermer" type="button" data-fermer aria-label="' + e(tr('vt.galerie.fermer')) + '">×</button>'
-    + '<button class="vt-visionneuse__fleche vt-visionneuse__fleche--avant" type="button" data-precedente aria-label="' + e(tr('vt.galerie.precedente')) + '">‹</button>'
-    + '<figure class="vt-visionneuse__cadre"><img class="vt-visionneuse__image" alt="" data-image>'
-    + '<figcaption class="vt-visionneuse__legende" data-legende-grande></figcaption></figure>'
-    + '<button class="vt-visionneuse__fleche vt-visionneuse__fleche--apres" type="button" data-suivante aria-label="' + e(tr('vt.galerie.suivante')) + '">›</button>'
+    + '<div class="visionneuse" data-visionneuse hidden role="dialog" aria-modal="true" aria-label="' + e(tr('vt.galerie.visionneuse')) + '">'
+    + '<button class="visionneuse__fermer" type="button" data-fermer aria-label="' + e(tr('vt.galerie.fermer')) + '">' + icone('croix') + '</button>'
+    + '<button class="visionneuse__fleche visionneuse__fleche--avant" type="button" data-precedente aria-label="' + e(tr('vt.galerie.precedente')) + '">' + icone('retour') + '</button>'
+    + '<figure class="visionneuse__cadre"><img class="visionneuse__image" alt="" data-image>'
+    + '<figcaption class="visionneuse__legende" data-legende-grande></figcaption></figure>'
+    + '<button class="visionneuse__fleche visionneuse__fleche--apres" type="button" data-suivante aria-label="' + e(tr('vt.galerie.suivante')) + '">' + icone('fleche') + '</button>'
     + '</div>'
     + '</section>';
 }
 
 /* ------------------------------------------------------------------ */
-/*  Nous trouver                                                       */
+/*  L'acces                                                            */
 /* ------------------------------------------------------------------ */
 
 /**
- * LA CARTE SE CHARGE AU CLIC, PAS AVANT.
- *
- * Une carte OpenStreetMap integree ferait partir l'adresse IP de chaque
- * visiteur vers un tiers des l'ouverture de la page, avant qu'il ait rien
- * demande. On montre donc le plan dessine du salon avec un bouton « Afficher la
- * carte » : un appui, et la vraie carte prend sa place, centree sur la porte.
- * Sans coordonnees, pas de vraie carte possible (il faudrait geocoder
- * l'adresse chez un tiers) : le bouton « Itineraire » fait alors le travail.
+ * LA CARTE SE CHARGE AU CLIC, PAS AVANT : une carte integree enverrait
+ * l'adresse IP de chaque visiteur a un tiers des l'ouverture de la page.
  */
 function blocCarte({ tr, coordonnees, adresse }) {
   const [lat, lon] = coordonnees ? coordonnees.split(',').map(Number) : [null, null];
-  const dansLaCarte = coordonnees
-    ? '<button class="vt-carte__bouton" type="button" data-afficher-carte>'
-      + '<span class="vt-carte__epingle" aria-hidden="true">' + iconeLieu() + '</span>'
-      + e(tr('vt.lieu.afficherCarte')) + '</button>'
-      + '<p class="vt-carte__note">' + e(tr('vt.lieu.noteCarte')) + '</p>'
-    : '<p class="vt-carte__adresse"><span class="vt-carte__epingle" aria-hidden="true">' + iconeLieu() + '</span>'
-      + e(adresse || '') + '</p>';
-  return '<div class="vt-carte"' + (coordonnees ? ' data-carte data-lat="' + lat + '" data-lon="' + lon + '"'
+  const devant = coordonnees
+    ? '<button class="plan-carte__bouton" type="button" data-afficher-carte>' + icone('lieu') + e(tr('vt.lieu.afficherCarte')) + '</button>'
+      + '<p class="plan-carte__note">' + e(tr('vt.lieu.noteCarte')) + '</p>'
+    : '<p class="plan-carte__adresse">' + icone('lieu') + e(adresse || '') + '</p>';
+  return '<div class="plan-carte"' + (coordonnees ? ' data-carte data-lat="' + lat + '" data-lon="' + lon + '"'
     + ' data-titre="' + e(tr('vt.lieu.titreCarte')) + '"' : '') + '>'
-    + '<div class="vt-carte__plan" aria-hidden="true">' + planStylise() + '</div>'
-    + '<div class="vt-carte__devant">' + dansLaCarte + '</div>'
+    + '<div class="plan-carte__fond" aria-hidden="true">' + planStylise() + '</div>'
+    + '<div class="plan-carte__devant">' + devant + '</div>'
     + '</div>';
 }
 
-/**
- * Les horaires de la semaine, le jour courant mis en avant.
- * Une journee coupee s'ecrit en deux tranches — jamais en amplitude, qui ferait
- * venir un client a quinze heures devant un rideau baisse.
- */
 function tableHoraires({ tr, horaires, jourCourant }) {
   if (!horaires || !horaires.length) return '';
-  return '<div class="vt-horaires"><h3 class="vt-coord__titre">' + e(tr('contact.horaires')) + '</h3><ul>'
-    + horaires.map((h) => '<li' + (h.jour === jourCourant ? ' class="vt-horaires__aujourdhui" aria-current="date"' : '') + '>'
+  return '<div class="horaires"><h3 class="acces__titre">' + e(tr('contact.horaires')) + '</h3><ul class="horaires__liste">'
+    + horaires.map((h) => '<li' + (h.jour === jourCourant ? ' class="horaires__aujourdhui" aria-current="date"' : '') + '>'
       + '<span>' + e(h.nom) + '</span>'
       + '<span>' + (h.ferme ? e(tr('commun.ferme')) : e(h.plages.map((p) => p.ouverture + ' – ' + p.fermeture).join(' · '))) + '</span>'
       + '</li>').join('')
@@ -267,56 +368,40 @@ export function sectionLieu({
   const boutons = [];
   if (lieu && itineraire) {
     boutons.push('<a class="bouton bouton--principal" href="' + e(itineraire) + '" target="_blank" rel="noopener noreferrer">'
-      + e(tr('lieu.itineraire')) + '</a>');
+      + icone('itineraire') + e(tr('lieu.itineraire')) + '</a>');
   }
   if (joindre && telephone) {
-    boutons.push('<a class="bouton bouton--discret vt-bouton-icone" href="tel:' + e(numero(telephone)) + '">'
-      + '<span aria-hidden="true">' + iconeTelephone() + '</span>' + e(tr('contact.appelerAction')) + '</a>');
+    boutons.push('<a class="bouton bouton--contour" href="tel:' + e(numero(telephone)) + '">' + icone('telephone') + e(tr('contact.appelerAction')) + '</a>');
   }
   if (joindre && whatsapp) {
-    boutons.push('<a class="bouton bouton--discret vt-bouton-icone" href="https://wa.me/' + e(numero(whatsapp).replace(/^\+/, '')) + '"'
-      + ' target="_blank" rel="noopener noreferrer"><span aria-hidden="true">' + iconeConversation() + '</span>WhatsApp</a>');
+    boutons.push('<a class="bouton bouton--contour" href="https://wa.me/' + e(numero(whatsapp).replace(/^\+/, '')) + '"'
+      + ' target="_blank" rel="noopener noreferrer">' + icone('bulle') + 'WhatsApp</a>');
   }
 
-  const coord = '<div class="vt-coord">'
+  const coord = '<div class="acces__infos">'
     + (lieu && adresse
-      ? '<div class="vt-coord__bloc"><h3 class="vt-coord__titre">' + e(tr('vt.infos.adresse')) + '</h3>'
-        + '<p class="vt-coord__adresse">' + e(adresse) + '</p>'
-        + (commentVenir ? '<p class="vt-coord__texte">' + e(commentVenir) + '</p>' : '')
+      ? '<div class="acces__bloc"><h3 class="acces__titre">' + e(tr('vt.infos.adresse')) + '</h3>'
+        + '<p class="acces__adresse">' + e(adresse) + '</p>'
+        + (commentVenir ? '<p class="acces__texte">' + e(commentVenir) + '</p>' : '')
         + '</div>'
       : '')
     + (joindre && (telephone || whatsapp)
-      ? '<div class="vt-coord__bloc"><h3 class="vt-coord__titre">' + e(tr('contact.titre')) + '</h3>'
-        + (telephone ? '<p class="vt-coord__ligne"><a href="tel:' + e(numero(telephone)) + '">' + e(telephone) + '</a></p>' : '')
-        + (whatsapp && whatsapp !== telephone ? '<p class="vt-coord__ligne">WhatsApp · ' + e(whatsapp) + '</p>' : '')
+      ? '<div class="acces__bloc"><h3 class="acces__titre">' + e(tr('contact.titre')) + '</h3>'
+        + (telephone ? '<p class="acces__ligne"><a href="tel:' + e(numero(telephone)) + '">' + e(telephone) + '</a></p>' : '')
+        + (whatsapp && whatsapp !== telephone ? '<p class="acces__ligne">WhatsApp · ' + e(whatsapp) + '</p>' : '')
         + '</div>'
       : '')
-    + (boutons.length ? '<div class="vt-coord__boutons">' + boutons.join('') + '</div>' : '')
+    + (boutons.length ? '<div class="acces__boutons">' + boutons.join('') + '</div>' : '')
     + (joindre ? tableHoraires({ tr, horaires, jourCourant }) : '')
     + '</div>';
 
-  return '<section class="vt-section vt-lieu" id="contact" aria-labelledby="vt-lieu-titre">'
-    + '<div class="vt-section__dedans">'
-    + '<div class="vt-tete">'
-    + '<p class="vt-surtitre">' + e(tr('vt.lieu.surtitre')) + '</p>'
-    + '<h2 class="vt-titre" id="vt-lieu-titre">' + e(tr('vt.lieu.titre')) + '</h2>'
-    + '</div>'
-    + '<div class="vt-lieu__grille' + (lieu ? '' : ' vt-lieu__grille--seule') + '">'
+  return '<section class="section section--acces" id="acces" aria-labelledby="titre-acces">'
+    + '<div class="section__dedans">'
+    + teteDeSection({ surtitre: tr('vt.lieu.surtitre'), titre: tr('vt.lieu.titre'), id: 'titre-acces' })
+    + '<div class="acces' + (lieu ? '' : ' acces--seul') + '">'
     + (lieu ? blocCarte({ tr, coordonnees, adresse }) : '')
     + coord
     + '</div>'
     + '</div>'
     + '</section>';
 }
-
-/* ------------------------------------------------------------------ */
-/*  Horaires du jour                                                   */
-/* ------------------------------------------------------------------ */
-
-/** « 10:00 – 14:00 · 17:00 – 20:30 », ou « Ferme ». Null sans horaires declares. */
-export function horairesDuJour({ tr, plages, actifs }) {
-  if (!actifs) return null;
-  if (!plages.length) return tr('commun.ferme');
-  return plages.map((p) => p.ouverture + ' – ' + p.fermeture).join(' · ');
-}
-

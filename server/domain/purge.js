@@ -31,6 +31,7 @@ import { log } from '../core/logger.js';
 import { conflict } from '../core/errors.js';
 import { STATUTS_ACTIFS } from './journee.js';
 import { t } from '../core/langue.js';
+import { jourLocal } from '../core/temps.js';
 
 /**
  * Les tables videes, dans l'ordre. L'ordre compte : les enfants avant les
@@ -42,7 +43,17 @@ import { t } from '../core/langue.js';
  * parties de chaque table. Un chiffre qu'on peut lire vaut mieux qu'une
  * cascade silencieuse.
  */
-const TABLES = ['ticket_evenements', 'ticket_tarifas', 'envois_whatsapp', 'tickets', 'journees', 'fermetures'];
+const TABLES = ['ticket_evenements', 'ticket_tarifas', 'envois_whatsapp', 'rendez_vous_tarifas', 'rendez_vous', 'tickets', 'journees', 'fermetures'];
+
+/**
+ * LES RENDEZ-VOUS A VENIR NE SONT PAS DE L'HISTORIQUE. Un client qui a reserve
+ * pour jeudi doit trouver son creneau jeudi, purge ou pas : seuls les
+ * rendez-vous des jours passes partent.
+ */
+const CONDITIONS = {
+  rendez_vous_tarifas: 'WHERE rendez_vous_id IN (SELECT id FROM rendez_vous WHERE jour < $1)',
+  rendez_vous: 'WHERE jour < $1',
+};
 
 /** Ce que la purge ne touche pas. Sert a l'ecran de confirmation. */
 export const PRESERVE = ['utilisateurs', 'reglages', 'postes', 'tarifas', 'abonnements_push', 'photos'];
@@ -66,8 +77,11 @@ export async function purgerHistorique({ user = null } = {}) {
     }
 
     const bilan = {};
+    const aujourdhui = jourLocal();
     for (const table of TABLES) {
-      bilan[table] = await tx.execute('DELETE FROM ' + table);
+      bilan[table] = CONDITIONS[table]
+        ? await tx.execute('DELETE FROM ' + table + ' ' + CONDITIONS[table], [aujourdhui])
+        : await tx.execute('DELETE FROM ' + table);
     }
 
     log.warn('Historique du salon efface', { par: user?.identifiant ?? 'inconnu', bilan });

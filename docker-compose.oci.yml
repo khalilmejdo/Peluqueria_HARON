@@ -87,6 +87,7 @@ services:
       # deux lignes, un salon marocain s'installait en espagnol et en euros.
       APP_LANGUE: ${APP_LANGUE:-}
       APP_MONNAIE: ${APP_MONNAIE:-}
+      APP_ACTIVITE: ${APP_ACTIVITE:-}
 
       DATABASE_URL: postgresql://haron:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}@base:5432/haron
       DATABASE_SSL: "off"

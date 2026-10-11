@@ -18,7 +18,7 @@ import { conflict, notFound, badRequest, AppError } from '../core/errors.js';
 import { t } from '../core/langue.js';
 import { normalize } from '../core/text.js';
 
-const COLONNES = 'id, nom, coiffeur, ordre, actif, created_at, updated_at';
+const COLONNES = 'id, nom, coiffeur, ordre, actif, rdv, created_at, updated_at';
 
 /** Tous les fauteuils, actifs d'abord, dans l'ordre d'affichage. */
 export async function lister({ actifsSeulement = false } = {}) {
@@ -117,6 +117,8 @@ export async function modifier(id, champs) {
   poser('coiffeur', champs.coiffeur === '' ? null : champs.coiffeur);
   poser('ordre', champs.ordre);
   poser('actif', champs.actif);
+  // Ce fauteuil prend-il des rendez-vous ? Les rendez-vous deja poses restent.
+  poser('rdv', champs.rdv);
   if (!colonnes.length) throw badRequest(t('commun.aucuneModification'));
 
   await execute('UPDATE postes SET ' + colonnes.join(', ') + ' WHERE id = $1', params);
@@ -204,4 +206,5 @@ export const versClient = (p) => ({
   coiffeur: p.coiffeur,
   ordre: p.ordre,
   actif: p.actif,
+  rdv: p.rdv !== false,
 });

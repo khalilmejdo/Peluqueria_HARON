@@ -161,6 +161,27 @@ export function dateLongue(dateIso, langue = null) {
   });
 }
 
+/** « jeu. 9 oct. », « jue 9 oct » : la date d'une puce ou d'une bande de jours. */
+export function dateCourte(dateIso, langue = null) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateIso ?? ''));
+  if (!m) return '';
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  return dire(langue, 'date.courte', {
+    jour: dire(langue, 'jour.court.' + d.getUTCDay()),
+    n: Number(m[3]),
+    mois: dire(langue, 'mois.court.' + Number(m[2])),
+  });
+}
+
+/** « Aujourd'hui », « Demain », ou la date courte. */
+export function jourRelatif(dateIso, aujourdhui, langue = null) {
+  if (dateIso === aujourdhui) return dire(langue, 'date.aujourdhui');
+  const [a, mo, j] = String(aujourdhui).split('-').map(Number);
+  const demain = new Date(Date.UTC(a, mo - 1, j + 1)).toISOString().slice(0, 10);
+  if (dateIso === demain) return dire(langue, 'date.demain');
+  return dateCourte(dateIso, langue);
+}
+
 /**
  * Une duree en minutes, NUE : « 25 minutos », « 1 h 35 ».
  *

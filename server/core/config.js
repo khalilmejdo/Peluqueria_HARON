@@ -176,6 +176,9 @@ export const config = {
   installation: {
     langue: str('APP_LANGUE', '').trim().toLowerCase(),
     monnaie: str('APP_MONNAIE', '').trim().toUpperCase(),
+    // BARBERIA, PELUQUERIA, UNISEX ou ESTETICA : la carte de depart et le
+    // style propose d'une installation neuve.
+    activite: str('APP_ACTIVITE', '').trim().toUpperCase(),
   },
 
   storage: {
@@ -277,6 +280,9 @@ export function validateConfig({ requireDb = true } = {}) {
   // avant de voir la vitrine.
   if (config.installation.langue && !['es', 'fr'].includes(config.installation.langue)) {
     errors.push('APP_LANGUE doit valoir « es » ou « fr » (lu : ' + config.installation.langue + ').');
+  }
+  if (config.installation.activite && !['BARBERIA', 'PELUQUERIA', 'UNISEX', 'ESTETICA'].includes(config.installation.activite)) {
+    errors.push('APP_ACTIVITE doit valoir BARBERIA, PELUQUERIA, UNISEX ou ESTETICA (lu : ' + config.installation.activite + ').');
   }
   if (config.installation.monnaie && !['EUR', 'MAD'].includes(config.installation.monnaie)) {
     errors.push('APP_MONNAIE doit valoir « EUR » ou « MAD » (lu : ' + config.installation.monnaie + ').');

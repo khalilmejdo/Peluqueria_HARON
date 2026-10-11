@@ -111,11 +111,47 @@ export const _manquantes = manquantes;
  * sait jamais si elle l'a fait, et c'est ainsi qu'on finit avec des « &amp;amp; »
  * dans une page.
  */
-function interpoler(texte, params) {
-  if (!params || !texte.includes('{')) return texte;
-  return texte.replace(/\{(\w+)\}/g, (entier, cle) => (
-    Object.hasOwn(params, cle) ? String(params[cle]) : entier
-  ));
+/**
+ * LE VOCABULAIRE DU METIER.
+ *
+ * La meme application sert un barbier, un salon de coiffure pour femmes et un
+ * institut de beaute. « Votre barbier » n'a rien a faire sur la page d'une
+ * estheticienne. Les phrases qui nomment le professionnel portent donc
+ * `{pro}` (ou `{Pro}`, avec une capitale) et `{metier}`, remplis ici depuis
+ * l'activite de la marque — sauf si l'appelant les fournit lui-meme.
+ *
+ * Les mots choisis ne prennent pas d'article variable : on ecrit « Votre
+ * {pro} », jamais « Ce {pro} » — « ce styliste » et « cette estheticienne »
+ * ne se construisent pas pareil, et une phrase a trous ne sait pas accorder.
+ */
+export const TERMES = {
+  BARBERIA: { es: { pro: 'barbero', metier: 'Barbería' }, fr: { pro: 'barbier', metier: 'Barbier' } },
+  PELUQUERIA: { es: { pro: 'estilista', metier: 'Peluquería' }, fr: { pro: 'coiffeuse', metier: 'Salon de coiffure' } },
+  UNISEX: { es: { pro: 'estilista', metier: 'Peluquería' }, fr: { pro: 'styliste', metier: 'Coiffure' } },
+  ESTETICA: { es: { pro: 'esteticista', metier: 'Estética y belleza' }, fr: { pro: 'esthéticienne', metier: 'Institut de beauté' } },
+};
+
+let activite = 'BARBERIA';
+export function poserActivite(code) {
+  activite = TERMES[code] ? code : 'BARBERIA';
+  return activite;
+}
+export const activiteActive = () => activite;
+
+function terme(langue, cle) {
+  const mots = TERMES[activite][langue] || TERMES[activite][LANGUE_DEFAUT];
+  if (cle === 'pro' || cle === 'metier') return mots[cle];
+  if (cle === 'Pro') return mots.pro.charAt(0).toUpperCase() + mots.pro.slice(1);
+  return undefined;
+}
+
+function interpoler(texte, params, langue = LANGUE_DEFAUT) {
+  if (!texte.includes('{')) return texte;
+  return texte.replace(/\{(\w+)\}/g, (entier, cle) => {
+    if (params && Object.hasOwn(params, cle)) return String(params[cle]);
+    const mot = terme(langue, cle);
+    return mot === undefined ? entier : mot;
+  });
 }
 
 function brancher(texte, langue, params) {
@@ -149,7 +185,7 @@ export function texte(langue, cle, params = null) {
     signaler('traduction ' + code + ' absente : ' + cle);
     brut = entree[LANGUE_DEFAUT] ?? cle;
   }
-  return interpoler(brancher(String(brut), code, params), params);
+  return interpoler(brancher(String(brut), code, params), params, code);
 }
 
 /**

@@ -41,6 +41,8 @@ import { newId } from '../core/crypto.js';
 import { log } from '../core/logger.js';
 import { lireCles, envoyer } from '../core/webpush.js';
 import { t, langueActive } from '../core/langue.js';
+import { nomDuSalon } from '../core/reglages.js';
+import { minutesDepuisMinuit, dateLongue } from '../core/temps.js';
 
 const CLES = lireCles();
 
@@ -261,6 +263,32 @@ export async function prevenirLePersonnel(evenement, ticket, { sauf = null } = {
 }
 
 /**
+ * UN RENDEZ-VOUS PRIS (ou annule) EN LIGNE : le salon le sait tout de suite.
+ * Meme contrat que pour la file : un confort, jamais une erreur qui remonte.
+ *
+ * @param {'PRIS'|'ANNULE'} evenement
+ */
+export async function prevenirDuRendezVous(evenement, rdv, { sauf = null } = {}) {
+  if (!notificationsActives()) return { envoyes: 0, effaces: 0 };
+  try {
+    const abonnements = await abonnementsDuPersonnel({ sauf });
+    if (!abonnements.length) return { envoyes: 0, effaces: 0 };
+    const m = minutesDepuisMinuit(new Date(rdv.debut));
+    const quand = dateLongue(rdv.jour) + ', ' + String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    return await diffuser(abonnements, {
+      titre: t(evenement === 'ANNULE' ? 'push.rdvAnnule' : 'push.rdvPris', { prenom: rdv.prenom }),
+      corps: quand,
+      tag: 'rdv-' + rdv.id,
+      renotifier: true,
+      url: '/gestion#agenda',
+    });
+  } catch (err) {
+    log.warn('Notification de rendez-vous abandonnee', { erreur: err.message });
+    return { envoyes: 0, effaces: 0 };
+  }
+}
+
+/**
  * L'essai, depuis l'espace de gestion. Il part au seul appareil qui le demande :
  * un essai qui fait sonner tout le salon n'est pas un essai.
  */
@@ -271,7 +299,7 @@ export async function envoyerUnEssai(utilisateurId, endpoint) {
     [utilisateurId, endpoint],
   );
   return diffuser(abonnements, {
-    titre: 'Peluquería HARON',
+    titre: nomDuSalon(),
     corps: t('push.essai'),
     tag: 'prueba',
     renotifier: true,

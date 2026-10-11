@@ -49,6 +49,18 @@ import {
  *                attend dans sa file, meme si le voisin est libre. Plus lent
  *                pour le salon, mais c'est parfois ce que veut la clientele.
  */
+/**
+ * L'ORDRE DE LA FILE : ceux qui sont AU FAUTEUIL d'abord, puis le rang.
+ *
+ * Le rang suffisait tant qu'on n'appelait que la tete de file. Mais un client
+ * de rendez-vous installe a son arrivee, ou un retardataire rappele, sont au
+ * fauteuil avec un rang NEUF, superieur a ceux qui attendent : tries par rang,
+ * ils passaient APRES eux, et la file oubliait qu'un fauteuil etait pris —
+ * « personne devant vous » pendant qu'on coupe les cheveux d'un autre.
+ */
+const enCoursDabord = (t) => (STATUTS_EN_COURS.includes(t.statut) ? 0 : 1);
+export const ordreDeFile = (a, b) => enCoursDabord(a) - enCoursDabord(b) || a.rang - b.rang;
+
 export const MODE_UNIQUE = 'UNIQUE';
 export const MODE_PAR_FAUTEUIL = 'PAR_FAUTEUIL';
 
@@ -123,7 +135,7 @@ function resteAFaire(ticket, dureeMoyenneMinutes, instant) {
 export function attentePourUnNouveau(tickets, {
   dureeMoyenneMinutes, postesActifs = 1, mode = MODE_UNIQUE, instant = Date.now(),
 }) {
-  const actifs = tickets.filter((t) => STATUTS_ACTIFS.includes(t.statut)).sort((a, b) => a.rang - b.rang);
+  const actifs = tickets.filter((t) => STATUTS_ACTIFS.includes(t.statut)).sort(ordreDeFile);
   const nombre = Array.isArray(postesActifs) ? postesActifs.length : Math.trunc(postesActifs) || 1;
 
   const simuler = (liste, serveurs) => {
@@ -165,7 +177,7 @@ export function calculerPositions(tickets, {
   const couloirDe = (t) => (parFauteuil ? String(t.poste_choisi_id ?? 'sans-coiffeur') : '');
   const serveurs = parFauteuil ? 1 : fauteuils;
 
-  const actifs = tickets.filter((t) => STATUTS_ACTIFS.includes(t.statut)).sort((a, b) => a.rang - b.rang);
+  const actifs = tickets.filter((t) => STATUTS_ACTIFS.includes(t.statut)).sort(ordreDeFile);
   const sortie = new Map();
   const rangsDuCouloir = new Map();
 
@@ -318,6 +330,20 @@ export async function etatPriseDeTour({ instant = new Date() } = {}) {
 
   const aVenir = await prochaineFermeture(jour);
 
+  // UN SALON QUI NE TRAVAILLE QUE SUR RENDEZ-VOUS : la file en ligne n'existe
+  // pas pour le public. Le comptoir, lui, n'est jamais concerne (prendreTour
+  // ne consulte cet etat que pour les tours pris de l'exterieur).
+  if (reglages['accueil.file'] === false) {
+    return {
+      ouverte: false,
+      code: 'FILE_HORS_LIGNE',
+      message: t(reglages['rdv.actifs'] ? 'file.horsLigneRdv' : 'file.horsLigne'),
+      fermeture: null,
+      prochaineFermeture: aVenir,
+      ouvertureA: null,
+    };
+  }
+
   if (!reglages['file.priseDeTourOuverte']) {
     return {
       ouverte: false,
@@ -365,7 +391,7 @@ export async function etatPriseDeTour({ instant = new Date() } = {}) {
  */
 export async function chargerEtat(jour) {
   const reglages = await lireTous();
-  const [journee, tickets, prise, postes] = await Promise.all([
+  const [journee, tickets, prise, postes, rdvs] = await Promise.all([
     one('SELECT * FROM journees WHERE jour = $1', [jour]),
     all('SELECT ' + COLONNES + ' FROM tickets WHERE jour = $1 ORDER BY rang', [jour]),
     // L'etat de la prise de tour voyage avec la file : la tablette du coiffeur
@@ -373,6 +399,14 @@ export async function chargerEtat(jour) {
     // donc toujours si l'entree est ouverte.
     etatPriseDeTour(),
     listerPostes(),
+    // Les rendez-vous du jour a venir : chaque carte de fauteuil annonce le
+    // prochain, pour qu'on ne lance pas une coupe de quarante minutes dix
+    // minutes avant un client qui a reserve.
+    all(
+      `SELECT id, poste_id, debut, prenom, statut FROM rendez_vous
+        WHERE jour = $1 AND statut IN ('CONFIRME', 'ARRIVE') ORDER BY debut`,
+      [jour],
+    ),
   ]);
 
   /*
@@ -415,7 +449,7 @@ export async function chargerEtat(jour) {
     mode,
   });
 
-  const actifs = tickets.filter((t) => STATUTS_ACTIFS.includes(t.statut)).sort((a, b) => a.rang - b.rang);
+  const actifs = tickets.filter((t) => STATUTS_ACTIFS.includes(t.statut)).sort(ordreDeFile);
   const auxFauteuils = actifs.filter((t) => STATUTS_EN_COURS.includes(t.statut));
   const attente = actifs.filter((t) => STATUTS_EN_ATTENTE.includes(t.statut));
 
@@ -435,6 +469,7 @@ export async function chargerEtat(jour) {
     postes,
     postesActifs,
     tickets,
+    rdvs,
     positions,
     prochainId: attente.length ? attente[0].id : null,
     compteurs: {
@@ -494,7 +529,7 @@ export function pourSalon(etat) {
     };
   };
 
-  const actifs = etat.tickets.filter((t) => STATUTS_ACTIFS.includes(t.statut)).sort((a, b) => a.rang - b.rang);
+  const actifs = etat.tickets.filter((t) => STATUTS_ACTIFS.includes(t.statut)).sort(ordreDeFile);
   const attente = actifs.filter((t) => STATUTS_EN_ATTENTE.includes(t.statut));
   const termines = etat.tickets
     .filter((t) => !STATUTS_ACTIFS.includes(t.statut))
@@ -518,6 +553,16 @@ export function pourSalon(etat) {
         client: assis ? ticket(assis) : null,
         attente: sienne.map(ticket),
         prochain: sienne.length ? ticket(sienne[0]) : null,
+        // Les rendez-vous du fauteuil encore a venir aujourd'hui (trois au plus).
+        prochainsRdv: (etat.rdvs || []).filter((r) => r.poste_id === p.id).slice(0, 3).map((r) => {
+          const m = minutesDepuisMinuit(new Date(r.debut));
+          return {
+            id: r.id,
+            heure: String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'),
+            prenom: r.prenom,
+            statut: r.statut,
+          };
+        }),
         attenteEstimeeMinutes: parFauteuil ? sienne.length * etat.dureeMoyenneMinutes : null,
       };
     });
@@ -589,7 +634,7 @@ export function pourPantalla(etat, { nommer = etat.pantallaNombres || 'NOMBRE', 
     poste: t.poste_id ? nomDuPoste.get(t.poste_id) ?? null : (t.poste_choisi_id ? nomDuPoste.get(t.poste_choisi_id) ?? null : null),
   });
 
-  const actifs = etat.tickets.filter((t) => STATUTS_ACTIFS.includes(t.statut)).sort((a, b) => a.rang - b.rang);
+  const actifs = etat.tickets.filter((t) => STATUTS_ACTIFS.includes(t.statut)).sort(ordreDeFile);
   const attente = actifs.filter((t) => STATUTS_EN_ATTENTE.includes(t.statut));
 
   // Ceux qu'on vient d'appeler passent devant tout le reste : c'est la seule
@@ -930,6 +975,7 @@ const libelleSource = (source) => ({
   ONLINE: t('trace.sourceEnLigne'),
   QR: t('trace.sourceQr'),
   COMPTOIR: t('trace.sourceComptoir'),
+  RDV: t('trace.sourceRdv'),
 }[source] || source);
 
 /**
@@ -1255,6 +1301,60 @@ export async function appelerSuivant({ user = null, posteId = null } = {}) {
 }
 
 /** Ajout d'un client AU COMPTOIR, par le coiffeur (client sans telephone en main). */
+/**
+ * LE TICKET D'UN CLIENT DE RENDEZ-VOUS, installe a son fauteuil.
+ *
+ * Appele DANS la transaction de domain/rendezvous.js (installer) : le
+ * rendez-vous et le ticket changent ensemble ou pas du tout. Le ticket nait
+ * APPELE sur le fauteuil du rendez-vous — il ne passe pas par la file
+ * d'attente, il a reserve. Son rang est neuf (l'index unique le veut) ; c'est
+ * ordreDeFile() qui le place avec ceux qui sont au fauteuil.
+ *
+ * @param {object} tx
+ * @param {object} rdv  la ligne du rendez-vous, verrouillee
+ * @param {{ user?:object, prestations:Array<object>, reglages:object }} o
+ */
+export async function ticketPourRendezVous(tx, rdv, { user = null, prestations = [], reglages }) {
+  const jour = jourLocal();
+  const journee = await assurerJournee(tx, jour, reglages['file.dureeMoyenneMinutes']);
+  if (!journee.ouverte) throw conflict(t('file.journeeCloseModif'));
+
+  const occupe = await tx.one(
+    'SELECT numero_affiche, prenom FROM tickets WHERE jour = $1 AND poste_id = $2 AND statut = ANY($3) LIMIT 1',
+    [jour, rdv.poste_id, STATUTS_EN_COURS],
+  );
+  const poste = await tx.one('SELECT id, nom, coiffeur FROM postes WHERE id = $1', [rdv.poste_id]);
+  if (occupe) {
+    throw new AppError(409, t('file.fauteuilOccupe', {
+      prenom: occupe.prenom, numero: occupe.numero_affiche, poste: poste?.nom ?? '',
+    }), { code: 'FAUTEUIL_OCCUPE' });
+  }
+
+  const { numero, rang } = await prochainNumeroEtRang(tx, journee);
+  const jeton = jetonSuivi();
+  const ticket = await tx.one(
+    `INSERT INTO tickets (id, jour, numero, numero_affiche, rang, prenom, nom,
+                          telephone_enc, telephone_idx, telephone_fin, source, statut, jeton_hash,
+                          jeton_enc, poste_choisi_id, poste_id, duree_min, appele_at, statut_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'RDV','CALLED',$11,$12,$13,$13,$14, now(), now())
+     RETURNING ` + COLONNES,
+    [newId(), jour, numero, numeroAffiche(numero), rang, rdv.prenom, rdv.nom,
+      rdv.telephone_enc, rdv.telephone_idx, rdv.telephone_fin, hashToken(jeton), encrypt(jeton),
+      rdv.poste_id, rdv.duree_min],
+  );
+  for (let i = 0; i < prestations.length; i += 1) {
+    const p = prestations[i];
+    await tx.execute(
+      `INSERT INTO ticket_tarifas (id, ticket_id, tarifa_id, nombre, duracion_min, precio_cts, ordre)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [newId(), ticket.id, p.tarifa_id, p.nombre, p.duracion_min, p.precio_cts, i],
+    );
+  }
+  await tracer(tx, ticket, { statut: 'CALLED', rang, user, detail: t('trace.rdvInstalle', { poste: poste?.nom ?? '' }) });
+  tx.apresValidation(() => annoncerChangement(jour));
+  return ticket;
+}
+
 export async function ajouterAuComptoir({ prenom, nom, telephone, posteId = null }, { user = null } = {}) {
   // En file par coiffeur, le client du comptoir choisit lui aussi son coiffeur :
   // sans `posteId`, prendreTour() le refuse — et le formulaire du comptoir ne

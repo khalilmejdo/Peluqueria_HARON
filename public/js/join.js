@@ -8,6 +8,7 @@
  * La validation reste ENTIEREMENT refaite par le serveur : celle-ci ne sert
  * qu'a eviter un aller-retour inutile.
  */
+import './entete.js';
 import { t, dureeCourte } from './langue.js';
 import { montant } from './devise.js';
 

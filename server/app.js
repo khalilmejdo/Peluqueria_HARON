@@ -13,6 +13,9 @@ import { authRoutes } from './routes/auth.js';
 import { fileRoutes } from './routes/file.js';
 import { avisosRoutes } from './routes/avisos.js';
 import { photosRoutes, photosPubliquesRoutes } from './routes/photos.js';
+import { marqueRoutes, marquePubliqueRoutes } from './routes/marque.js';
+import { rdvPublicRoutes, agendaRoutes } from './routes/rendezvous.js';
+import { siteRdvRoutes } from './site/rendezvous.js';
 import {
   metaRoutes, reglagesRoutes, comptesRoutes, statistiquesRoutes, serviceRoutes,
   fermeturesRoutes, postesRoutes, tarifasRoutes,
@@ -27,16 +30,24 @@ export function buildRouter() {
   // Pages du client, rendues par le serveur (accueil, prise de tour, suivi,
   // affiche et QR Code). Toutes publiques.
   router.mount('', siteRoutes);
+  // La reservation d'un rendez-vous et la page de SON rendez-vous.
+  router.mount('', siteRdvRoutes);
   // Les photos de la vitrine : publiques, mais seulement celles qui sont visibles.
   router.mount('', photosPubliquesRoutes);
+  // Theme, icones et manifestes, fabriques depuis la marque.
+  router.mount('', marquePubliqueRoutes);
 
   // API du client : prise de tour, suivi, temps reel. Aucune session, le jeton
   // de suivi tient lieu de sesame.
   router.mount('/api/public', publicRoutes);
+  // Rendez-vous : reserver, consulter, annuler. Le jeton tient lieu de sesame.
+  router.mount('/api/public/rdv', rdvPublicRoutes);
 
   // Espace du personnel.
   router.mount('/api/auth', authRoutes);
   router.mount('/api/file', fileRoutes);
+  // L'agenda des rendez-vous : tout le personnel le tient.
+  router.mount('/api/agenda', agendaRoutes);
   // Lisible par tout le personnel (l'ecran de la file en a besoin), modifiable
   // par le gerant seul : les exigences sont posees route par route.
   router.mount('/api/postes', postesRoutes);
@@ -53,6 +64,9 @@ export function buildRouter() {
   router.mount('/api/reglages', reglagesRoutes);
   router.mount('/api/comptes', comptesRoutes);
   router.mount('/api/service', serviceRoutes);
+
+  // Reserve a l'administrateur de la plateforme.
+  router.mount('/api/marque', marqueRoutes);
 
   return router;
 }

@@ -26,7 +26,9 @@ import { t } from '../core/langue.js';
 import { montantLisible, centimesDepuisTexte, deviseActive } from '../core/devise.js';
 import { ICONES } from '../site/icones-tarifas.js';
 
-const COLONNES = 'id, nombre, precio_cts, nota, icono, duracion_min, ordre, visible, created_at, updated_at';
+const COLONNES = 'id, nombre, precio_cts, nota, icono, duracion_min, categoria, precio_desde, reservable, ordre, visible, created_at, updated_at';
+
+const CATEGORIE_MAX = 40;
 
 const NOM_MAX = 60;
 const NOTA_MAX = 80;
@@ -86,7 +88,12 @@ export async function pourVitrine() {
     icono: l.icono || null,
     precioCts: l.precio_cts,
     precio: prixLegible(l.precio_cts),
+    // « Desde 45 € » : la couleur depend de la longueur, un prix ferme mentirait.
+    precioDesde: Boolean(l.precio_desde),
+    precioTexte: l.precio_desde ? t('tarifs.aPartirDe', { prix: prixLegible(l.precio_cts) }) : prixLegible(l.precio_cts),
     duracionMin: l.duracion_min,
+    categoria: l.categoria || '',
+    reservable: Boolean(l.reservable),
   }));
 }
 
@@ -113,6 +120,12 @@ function notaValide(valeur) {
  * Un nom inconnu est ECARTE en silence plutot que refuse : le gerant n'a rien
  * fait de mal, et une ligne sans icone reste parfaitement lisible.
  */
+function categorieValide(valeur) {
+  const texte = cleanSpaces(String(valeur ?? ''));
+  if (texte.length > CATEGORIE_MAX) throw badRequest(t('tarifa.categorieTropLongue', { max: CATEGORIE_MAX }));
+  return texte;
+}
+
 function iconeValide(valeur) {
   const nom = String(valeur ?? '').trim();
   return ICONES.includes(nom) ? nom : null;
@@ -177,21 +190,25 @@ export function dureeValide(valeur) {
 }
 
 /** Ajoute une prestation en fin de fiche. */
-export async function crear({ nombre, precio, nota, icono, duracion } = {}) {
+export async function crear({
+  nombre, precio, nota, icono, duracion, categoria, precioDesde, reservable,
+} = {}) {
   const nom = nomValide(nombre);
   const cts = prixValide(precio);
   const note = notaValide(nota);
   const icone = iconeValide(icono);
   const minutos = duracion === undefined || duracion === null || duracion === '' ? 15 : dureeValide(duracion);
+  const chapitre = categorieValide(categoria);
   const id = newId();
 
   // « ordre » suit le maximum existant : une nouvelle ligne arrive en bas, la
   // ou le gerant vient de la taper. Elle ne se glisse jamais au milieu.
   try {
     await execute(
-      'INSERT INTO tarifas (id, nombre, nombre_lower, precio_cts, nota, icono, duracion_min, ordre, visible) '
-      + 'VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE((SELECT MAX(ordre) + 1 FROM tarifas), 0), TRUE)',
-      [id, nom, normalize(nom), cts, note || null, icone, minutos],
+      'INSERT INTO tarifas (id, nombre, nombre_lower, precio_cts, nota, icono, duracion_min, categoria, precio_desde, reservable, ordre, visible) '
+      + 'VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE((SELECT MAX(ordre) + 1 FROM tarifas), 0), TRUE)',
+      [id, nom, normalize(nom), cts, note || null, icone, minutos, chapitre || null,
+        Boolean(precioDesde), reservable === undefined || reservable === null ? true : Boolean(reservable)],
     );
   } catch (err) {
     throw traduireErreur(err);
@@ -210,11 +227,15 @@ export async function modificar(id, champs = {}) {
   const visible = champs.visible === undefined ? actuel.visible : Boolean(champs.visible);
   const icone = champs.icono === undefined ? actuel.icono : iconeValide(champs.icono);
   const minutos = champs.duracion === undefined ? actuel.duracion_min : dureeValide(champs.duracion);
+  const chapitre = champs.categoria === undefined ? (actuel.categoria || '') : categorieValide(champs.categoria);
+  const desde = champs.precioDesde === undefined ? actuel.precio_desde : Boolean(champs.precioDesde);
+  const resa = champs.reservable === undefined ? actuel.reservable : Boolean(champs.reservable);
 
   try {
     await execute(
-      'UPDATE tarifas SET nombre = $2, nombre_lower = $3, precio_cts = $4, nota = $5, visible = $6, icono = $7, duracion_min = $8 WHERE id = $1',
-      [id, nom, normalize(nom), cts, note || null, visible, icone, minutos],
+      'UPDATE tarifas SET nombre = $2, nombre_lower = $3, precio_cts = $4, nota = $5, visible = $6, icono = $7, '
+      + 'duracion_min = $8, categoria = $9, precio_desde = $10, reservable = $11 WHERE id = $1',
+      [id, nom, normalize(nom), cts, note || null, visible, icone, minutos, chapitre || null, desde, resa],
     );
   } catch (err) {
     throw traduireErreur(err);

@@ -12,7 +12,25 @@
 
 import { t } from './langue.js';
 
-export const CODES_ROLES = ['COIFFEUR', 'GERANT'];
+/**
+ * TROIS NIVEAUX, CHACUN FAIT TOUT CE QUE FAIT CELUI D'EN DESSOUS.
+ *
+ *   COIFFEUR    tient la file et l'agenda du jour ;
+ *   GERANT      les reglages du salon, les comptes, l'historique ;
+ *   SUPERADMIN  l'EDITEUR de l'application, qui l'installe et la vend a
+ *               plusieurs salons : il est seul a changer la MARQUE (nom,
+ *               couleurs, logo, activite, langue, monnaie). Le salon regle sa
+ *               vie de tous les jours ; il ne peut pas defaire l'identite
+ *               livree.
+ *
+ * Un gerant ne cree pas de SUPERADMIN et ne touche a aucun : sinon il lui
+ * suffirait de reinitialiser son mot de passe pour s'en emparer.
+ */
+export const CODES_ROLES = ['COIFFEUR', 'GERANT', 'SUPERADMIN'];
+const RANG = { COIFFEUR: 1, GERANT: 2, SUPERADMIN: 3 };
+
+/** Les roles qu'un utilisateur peut attribuer : jamais au-dessus du sien. */
+export const rolesAttribuables = (user) => CODES_ROLES.filter((c) => RANG[c] <= (RANG[user?.role] ?? 0));
 
 /**
  * Les deux roles, dits dans la langue du salon.
@@ -32,11 +50,11 @@ export const roles = () => CODES_ROLES.map((code) => ({
 /** Un seul role, par son code. */
 export const role = (code) => roles().find((r) => r.code === code) ?? null;
 
-/** Le gerant fait tout ce que fait le coiffeur ; l'inverse est faux. */
+/** Chaque niveau fait tout ce que fait celui d'en dessous ; l'inverse est faux. */
 export function aLeRole(user, requis) {
-  if (!user || !user.role) return false;
-  if (user.role === requis) return true;
-  return user.role === 'GERANT';
+  if (!user || !user.role || !RANG[requis]) return false;
+  return (RANG[user.role] ?? 0) >= RANG[requis];
 }
 
-export const estGerant = (user) => user?.role === 'GERANT';
+export const estGerant = (user) => aLeRole(user, 'GERANT');
+export const estSuperAdmin = (user) => user?.role === 'SUPERADMIN';

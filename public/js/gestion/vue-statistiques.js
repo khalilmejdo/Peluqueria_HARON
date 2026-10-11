@@ -31,7 +31,7 @@ function carreau(valeur, libelle, precision = null) {
 
 export async function vueStatistiques(conteneur, { etat }) {
   const jour = await api.get('/api/statistiques/jour');
-  const gerant = etat.utilisateur?.role === 'GERANT';
+  const gerant = ['GERANT', 'SUPERADMIN'].includes(etat.utilisateur?.role);
 
   const grille = el('div.carreaux',
     carreau(jour.total, t('chiffres.clientsDuJour')),

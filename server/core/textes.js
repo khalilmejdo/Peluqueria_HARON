@@ -38,7 +38,7 @@ export const TEXTES = {
   /*  Pied de page                                                    */
   /* ---------------------------------------------------------------- */
 
-  'pied.devise': { es: 'Un salón. Una fila. Un turno.', fr: 'Un salon. Une file. Un tour.' },
+  'pied.devise': { es: 'Gracias por tu confianza.', fr: 'Merci de votre confiance.' },
   'pied.acces': { es: 'Acceso del personal', fr: 'Accès du personnel' },
   'marque.inicio': { es: '{nom}, inicio', fr: '{nom}, accueil' },
   'saut.contenu': { es: 'Ir al contenido', fr: 'Aller au contenu' },
@@ -183,10 +183,10 @@ export const TEXTES = {
   /*  Accueil                                                         */
   /* ---------------------------------------------------------------- */
 
-  'accueil.titre': { es: '{nom} — Pide tu turno sin esperar de pie', fr: '{nom} — Prenez votre tour sans attendre debout' },
+  'accueil.titre': { es: '{nom} — {metier}', fr: '{nom} — {metier}' },
   'accueil.description': {
-    es: 'Pide turno en {nom} desde el móvil, sigue tu posición en directo y llega en el momento justo. Sin cuenta y sin instalar nada.',
-    fr: 'Prenez votre tour chez {nom} depuis votre téléphone, suivez votre position en direct et arrivez au bon moment. Sans compte et sans rien installer.',
+es: '{nom}: servicios, tarifas y reserva en línea. Elige tu hora o pide turno desde el móvil, sin cuenta y sin instalar nada.',
+    fr: '{nom} : prestations, tarifs et réservation en ligne. Choisissez votre heure ou prenez votre tour depuis votre téléphone, sans compte et sans rien installer.',
   },
   'accueil.enDirect': { es: 'En directo', fr: 'En direct' },
   'accueil.sansAttente': { es: 'Sin espera', fr: 'Aucune attente' },
@@ -747,6 +747,10 @@ export const TEXTES = {
     es: 'Primero tienes que definir una contraseña nueva.',
     fr: 'Vous devez d’abord définir un nouveau mot de passe.',
   },
+  'acces.reserveSuperAdmin': {
+    es: 'Esta acción está reservada al administrador de la plataforma.',
+    fr: 'Cette action est réservée à l’administrateur de la plateforme.',
+  },
   'acces.reserveGerant': {
     es: 'Esta acción está reservada al gerente del salón.',
     fr: 'Cette action est réservée au gérant du salon.',
@@ -912,15 +916,20 @@ export const TEXTES = {
   /*  Les roles                                                       */
   /* ---------------------------------------------------------------- */
 
-  'role.COIFFEUR.libelle': { es: 'Peluquero', fr: 'Coiffeur' },
+  'role.COIFFEUR.libelle': { es: 'Profesional', fr: 'Professionnel' },
   'role.COIFFEUR.description': {
-    es: 'Lleva la fila del día: llamar, atender, marcar ausente, anular.',
-    fr: 'Tient la file du jour : appeler, servir, marquer absent, annuler.',
+    es: 'Lleva la fila y la agenda del día: llamar, atender, recibir las citas.',
+    fr: 'Tient la file et l’agenda du jour : appeler, servir, accueillir les rendez-vous.',
   },
   'role.GERANT.libelle': { es: 'Gerente', fr: 'Gérant' },
   'role.GERANT.description': {
-    es: 'Todo lo que hace el peluquero, más los ajustes, las cuentas y el historial.',
-    fr: 'Tout ce que fait le coiffeur, plus les réglages, les comptes et l’historique.',
+    es: 'Todo lo que hace el profesional, más los ajustes, la carta, las cuentas y el historial.',
+    fr: 'Tout ce que fait le professionnel, plus les réglages, la carte, les comptes et l’historique.',
+  },
+  'role.SUPERADMIN.libelle': { es: 'Administrador de la plataforma', fr: 'Administrateur de la plateforme' },
+  'role.SUPERADMIN.description': {
+    es: 'Todo lo que hace el gerente, más la identidad de la marca: nombre, colores, logo, actividad, idioma y moneda.',
+    fr: 'Tout ce que fait le gérant, plus l’identité de la marque : nom, couleurs, logo, activité, langue et monnaie.',
   },
 
   /* ---------------------------------------------------------------- */
@@ -1100,7 +1109,7 @@ export const TEXTES = {
     fr: 'Apparaît dans l’en-tête de toutes les pages et dans les messages WhatsApp.',
   },
   'reglage.salon.accroche.libelle': { es: 'Frase de la página de inicio', fr: 'Phrase de la page d’accueil' },
-  'reglage.salon.accroche.defaut': { es: 'Pide tu turno sin esperar de pie.', fr: 'Prenez votre tour sans attendre debout.' },
+  'reglage.salon.accroche.defaut': { es: 'Tu momento, a tu hora.', fr: 'Votre moment, à votre heure.' },
   'reglage.salon.adresse.libelle': { es: 'Dirección del salón', fr: 'Adresse du salon' },
   'reglage.salon.adresse.aide': {
     es: 'Aparece en la sección Contacto de la página de inicio, con enlace al mapa, y en la página de seguimiento.',
@@ -1301,5 +1310,358 @@ export const TEXTES = {
   'reglage.public.url.aide': {
     es: 'Es la que codifica el código QR del escaparate. Déjelo vacío para usar PUBLIC_URL.',
     fr: 'C’est celle qu’encode le code QR de la vitrine. Laissez vide pour utiliser PUBLIC_URL.',
+  },
+
+  /* ---------------------------------------------------------------- */
+  /*  La marque (administrateur de la plateforme)                     */
+  /* ---------------------------------------------------------------- */
+
+  'valid.couleur': { es: 'Un color en formato #rrggbb, por ejemplo #c9a45c.', fr: 'Une couleur au format #rrggbb, par exemple #c9a45c.' },
+  'reglage.salon.nom.defaut': { es: 'Mi salón', fr: 'Mon salon' },
+  'reglage.marque.activite.libelle': { es: 'Actividad', fr: 'Activité' },
+  'reglage.marque.activite.aide': {
+    es: 'Decide el vocabulario de la página ({pro}, {metier}) y la carta de partida que se puede aplicar.',
+    fr: 'Décide du vocabulaire de la page ({pro}, {metier}) et de la carte de départ qu’on peut appliquer.',
+  },
+  'reglage.marque.activite.BARBERIA': { es: 'Barbería (hombre)', fr: 'Barbier (homme)' },
+  'reglage.marque.activite.PELUQUERIA': { es: 'Peluquería de señoras', fr: 'Salon de coiffure (femme)' },
+  'reglage.marque.activite.UNISEX': { es: 'Peluquería mixta', fr: 'Salon mixte' },
+  'reglage.marque.activite.ESTETICA': { es: 'Estética y belleza', fr: 'Institut de beauté' },
+  'reglage.marque.palette.libelle': { es: 'Paleta', fr: 'Palette' },
+  'reglage.marque.palette.aide': {
+    es: 'Los colores de toda la aplicación: escaparate, reservas, seguimiento, pantalla del salón y gestión.',
+    fr: 'Les couleurs de toute l’application : vitrine, réservation, suivi, écran du salon et gestion.',
+  },
+  'reglage.marque.palette.ONYX': { es: 'Ónix y oro', fr: 'Onyx et or' },
+  'reglage.marque.palette.IVOIRE': { es: 'Marfil y champán', fr: 'Ivoire et champagne' },
+  'reglage.marque.palette.POUDRE': { es: 'Rosa empolvado', fr: 'Rose poudré' },
+  'reglage.marque.palette.EMERAUDE': { es: 'Esmeralda y latón', fr: 'Émeraude et laiton' },
+  'reglage.marque.palette.BORDEAUX': { es: 'Burdeos y oro rosa', fr: 'Bordeaux et or rose' },
+  'reglage.marque.palette.MINUIT': { es: 'Azul noche y platino', fr: 'Bleu nuit et platine' },
+  'reglage.marque.palette.PERSO': { es: 'Mis colores', fr: 'Mes couleurs' },
+  'reglage.marque.couleurFond.libelle': { es: 'Color de fondo', fr: 'Couleur de fond' },
+  'reglage.marque.couleurFond.aide': {
+    es: 'Solo con la paleta « Mis colores ». Oscuro o claro: el resto se deduce.',
+    fr: 'Seulement avec la palette « Mes couleurs ». Sombre ou clair : le reste s’en déduit.',
+  },
+  'reglage.marque.couleurAccent.libelle': { es: 'Color de acento', fr: 'Couleur d’accent' },
+  'reglage.marque.couleurAccent.aide': {
+    es: 'El metal de la casa: filetes, botones, precios. Si se lee mal como texto, se ajusta solo.',
+    fr: 'Le métal de la maison : filets, boutons, prix. S’il se lit mal en texte, il s’ajuste seul.',
+  },
+  'reglage.marque.typographie.libelle': { es: 'Tipografía', fr: 'Typographie' },
+  'reglage.marque.typographie.CLASSIQUE': { es: 'Clásica — Cormorant y Manrope', fr: 'Classique — Cormorant et Manrope' },
+  'reglage.marque.typographie.PRESTIGE': { es: 'Prestigio — Marcellus y Jost', fr: 'Prestige — Marcellus et Jost' },
+  'reglage.marque.typographie.MODERNE': { es: 'Moderna — Jost en versalitas', fr: 'Moderne — Jost en capitales' },
+  'reglage.marque.angles.libelle': { es: 'Formas', fr: 'Formes' },
+  'reglage.marque.angles.NETS': { es: 'Rectas', fr: 'Droites' },
+  'reglage.marque.angles.DOUX': { es: 'Suaves', fr: 'Douces' },
+  'reglage.marque.angles.ARRONDIS': { es: 'Redondeadas', fr: 'Arrondies' },
+  'reglage.marque.monogramme.libelle': { es: 'Monograma', fr: 'Monogramme' },
+  'reglage.marque.monogramme.aide': {
+    es: 'Hasta tres letras, cuando no hay logo. Vacío: las iniciales del nombre.',
+    fr: 'Jusqu’à trois lettres, quand il n’y a pas de logo. Vide : les initiales du nom.',
+  },
+  'reglage.salon.presentation.libelle': { es: 'Presentación de la casa', fr: 'Présentation de la maison' },
+  'reglage.salon.presentation.aide': {
+    es: 'Unas líneas sobre el salón, su estilo, su historia. Vacío: la sección no aparece.',
+    fr: 'Quelques lignes sur le salon, son style, son histoire. Vide : la section n’apparaît pas.',
+  },
+  'reglage.vitrine.equipe.libelle': { es: 'Mostrar el equipo', fr: 'Afficher l’équipe' },
+  'reglage.vitrine.equipe.aide': {
+    es: 'Los nombres de los profesionales, tal como figuran en cada sillón.',
+    fr: 'Les noms des professionnels, tels qu’ils figurent sur chaque fauteuil.',
+  },
+  'manifeste.gestionNom': { es: '{nom} — gestión', fr: '{nom} — gestion' },
+  'manifeste.gestionCourt': { es: 'Gestión', fr: 'Gestion' },
+  'manifeste.gestionDescription': { es: 'La fila, la agenda y los ajustes de {nom}.', fr: 'La file, l’agenda et les réglages de {nom}.' },
+  'manifeste.raccourciRdv': { es: 'Reservar cita', fr: 'Prendre rendez-vous' },
+  'manifeste.raccourciTour': { es: 'Pedir turno', fr: 'Prendre mon tour' },
+  'tarifs.aPartirDe': { es: 'desde {prix}', fr: 'dès {prix}' },
+  'tarifa.categorieTropLongue': { es: 'El capítulo no puede pasar de {max} caracteres.', fr: 'Le chapitre ne peut pas dépasser {max} caractères.' },
+
+  /* ---------------------------------------------------------------- */
+  /*  Cartes de depart, par activite                                  */
+  /* ---------------------------------------------------------------- */
+
+  'seed.cat.coupes': { es: 'Cortes', fr: 'Coupes' },
+  'seed.cat.barbe': { es: 'Barba', fr: 'Barbe' },
+  'seed.cat.soins': { es: 'Cuidados', fr: 'Soins' },
+  'seed.cat.couleur': { es: 'Color', fr: 'Couleur' },
+  'seed.cat.coiffage': { es: 'Peinados', fr: 'Coiffage' },
+  'seed.cat.evenements': { es: 'Ocasiones especiales', fr: 'Grandes occasions' },
+  'seed.cat.femme': { es: 'Mujer', fr: 'Femme' },
+  'seed.cat.homme': { es: 'Hombre', fr: 'Homme' },
+  'seed.cat.enfant': { es: 'Niños', fr: 'Enfant' },
+  'seed.cat.visage': { es: 'Rostro', fr: 'Visage' },
+  'seed.cat.regard': { es: 'Mirada', fr: 'Regard' },
+  'seed.cat.mains': { es: 'Manos y pies', fr: 'Mains et pieds' },
+  'seed.cat.epilation': { es: 'Depilación', fr: 'Épilation' },
+  'seed.cat.corps': { es: 'Cuerpo', fr: 'Corps' },
+  'seed.tarif.f.coupeBrushing': { es: 'Corte y brushing', fr: 'Coupe et brushing' },
+  'seed.tarif.f.coupe': { es: 'Corte', fr: 'Coupe femme' },
+  'seed.tarif.f.brushing': { es: 'Brushing', fr: 'Brushing' },
+  'seed.tarif.f.lisse': { es: 'Alisado con plancha', fr: 'Lissage au fer' },
+  'seed.tarif.f.boucles': { es: 'Ondas y rizos', fr: 'Ondulations' },
+  'seed.tarif.f.chignon': { es: 'Recogido', fr: 'Chignon' },
+  'seed.tarif.f.couleur': { es: 'Coloración', fr: 'Couleur' },
+  'seed.tarif.f.balayage': { es: 'Balayage', fr: 'Balayage' },
+  'seed.tarif.f.gloss': { es: 'Gloss y matiz', fr: 'Gloss et patine' },
+  'seed.tarif.f.soinProfond': { es: 'Tratamiento profundo', fr: 'Soin profond' },
+  'seed.tarif.f.mariee': { es: 'Novia — prueba y día', fr: 'Mariée — essai et jour J' },
+  'seed.tarif.h.coupe': { es: 'Corte caballero', fr: 'Coupe homme' },
+  'seed.tarif.h.barbe': { es: 'Arreglo de barba', fr: 'Taille de barbe' },
+  'seed.tarif.h.enfant': { es: 'Corte infantil', fr: 'Coupe enfant' },
+  'seed.tarif.e.soinVisage': { es: 'Tratamiento facial completo', fr: 'Soin visage signature' },
+  'seed.tarif.e.soinEclat': { es: 'Tratamiento luminosidad', fr: 'Soin éclat' },
+  'seed.tarif.e.sourcils': { es: 'Diseño de cejas', fr: 'Restructuration des sourcils' },
+  'seed.tarif.e.rehausse': { es: 'Lifting de pestañas', fr: 'Rehaussement de cils' },
+  'seed.tarif.e.manucure': { es: 'Manicura', fr: 'Manucure' },
+  'seed.tarif.e.semiPermanent': { es: 'Esmaltado semipermanente', fr: 'Vernis semi-permanent' },
+  'seed.tarif.e.pedicure': { es: 'Pedicura', fr: 'Pédicure' },
+  'seed.tarif.e.epilJambes': { es: 'Depilación piernas', fr: 'Épilation jambes' },
+  'seed.tarif.e.massage': { es: 'Masaje relajante', fr: 'Massage relaxant' },
+  'seed.tarif.e.maquillage': { es: 'Maquillaje de evento', fr: 'Maquillage événement' },
+
+  /* ---------------------------------------------------------------- */
+  /*  Rendez-vous                                                     */
+  /* ---------------------------------------------------------------- */
+
+  'rdv.choisirPrestation': { es: 'Elige al menos un servicio.', fr: 'Choisissez au moins une prestation.' },
+  'rdv.heureInvalide': { es: 'Elige un día y una hora.', fr: 'Choisissez un jour et une heure.' },
+  'rdv.creneauIndisponible': {
+    es: 'Esta hora ya no está disponible. Elige otra.',
+    fr: 'Cette heure n’est plus disponible. Choisissez-en une autre.',
+  },
+  'rdv.creneauPris': {
+    es: 'Alguien acaba de reservar esta hora, unos segundos antes que tú. Elige otra.',
+    fr: 'Quelqu’un vient de réserver cette heure, quelques secondes avant vous. Choisissez-en une autre.',
+  },
+  'rdv.tropDeRdv': {
+    es: 'Este número ya tiene {n} cita reservada. Para otra, llama al salón.|Este número ya tiene {n} citas reservadas. Para otra, llama al salón.',
+    fr: 'Ce numéro a déjà {n} rendez-vous à venir. Pour un autre, appelez le salon.|Ce numéro a déjà {n} rendez-vous à venir. Pour un autre, appelez le salon.',
+  },
+  'rdv.tropTardPourAnnuler': {
+    es: 'Ya no se puede anular en línea a menos de {n} hora de la cita: llama al salón.|Ya no se puede anular en línea a menos de {n} horas de la cita: llama al salón.',
+    fr: 'Il n’est plus possible d’annuler en ligne à moins de {n} heure du rendez-vous : appelez le salon.|Il n’est plus possible d’annuler en ligne à moins de {n} heures du rendez-vous : appelez le salon.',
+  },
+  'rdv.introuvable': {
+    es: 'Esta cita no existe, o el enlace está incompleto.',
+    fr: 'Ce rendez-vous n’existe pas, ou le lien est incomplet.',
+  },
+  'rdv.dejaInstalle': { es: 'Este cliente ya está en el sillón.', fr: 'Ce client est déjà au fauteuil.' },
+  'rdv.arriveAujourdhuiSeulement': {
+    es: 'Solo se puede recibir a un cliente el día de su cita.',
+    fr: 'On n’accueille un client que le jour de son rendez-vous.',
+  },
+  'rdv.gesteInconnu': { es: 'Acción desconocida.', fr: 'Geste inconnu.' },
+  'rdv.gesteImpossible': {
+    es: 'No es posible: la cita está « {statut} ».',
+    fr: 'Impossible : le rendez-vous est « {statut} ».',
+  },
+  'rdv.statut.CONFIRME': { es: 'Confirmada', fr: 'Confirmé' },
+  'rdv.statut.ARRIVE': { es: 'En el salón', fr: 'Arrivé' },
+  'rdv.statut.INSTALLE': { es: 'En el sillón', fr: 'Au fauteuil' },
+  'rdv.statut.ANNULE': { es: 'Anulada', fr: 'Annulé' },
+  'rdv.statut.ABSENT': { es: 'No vino', fr: 'Absent' },
+  'rdv.ferme.INACTIFS': {
+    es: 'El salón no toma citas en línea por ahora.',
+    fr: 'Le salon ne prend pas de rendez-vous en ligne pour le moment.',
+  },
+  'rdv.ferme.HORAIRES': {
+    es: 'El salón aún no ha publicado su horario: las citas no están abiertas.',
+    fr: 'Le salon n’a pas encore publié ses horaires : les rendez-vous ne sont pas ouverts.',
+  },
+  'rdv.ferme.AUCUN_FAUTEUIL': {
+    es: 'Ningún profesional toma citas por ahora.',
+    fr: 'Aucun professionnel ne prend de rendez-vous pour le moment.',
+  },
+  'rdv.messageWhatsapp': {
+    es: 'Hola {prenom}, te escribimos de {nom}. Aquí tienes tu cita: {lien}',
+    fr: 'Bonjour {prenom}, ici {nom}. Voici votre rendez-vous : {lien}',
+  },
+  'debit.tropDeRdv': {
+    es: 'Este número ya ha hecho varias reservas. La siguiente será posible {delai}.',
+    fr: 'Ce numéro a déjà fait plusieurs réservations. La suivante sera possible {delai}.',
+  },
+  'trace.rdvInstalle': { es: 'Cliente con cita, instalado en {poste}.', fr: 'Client de rendez-vous, installé au {poste}.' },
+  'trace.sourceRdv': { es: 'cita', fr: 'rendez-vous' },
+  'push.rdvPris': { es: 'Nueva cita — {prenom}', fr: 'Nouveau rendez-vous — {prenom}' },
+  'push.rdvAnnule': { es: 'Cita anulada — {prenom}', fr: 'Rendez-vous annulé — {prenom}' },
+
+  /* ---------------------------------------------------------------- */
+  /*  La vitrine de la maison                                         */
+  /* ---------------------------------------------------------------- */
+
+  'vt.nav.maison': { es: 'La casa', fr: 'La maison' },
+  'vt.nav.carte': { es: 'La carta', fr: 'La carte' },
+  'vt.nav.equipe': { es: 'El equipo', fr: 'L’équipe' },
+  'vt.nav.menu': { es: 'Menú', fr: 'Menu' },
+  'mx.une.metier': { es: '{metier}', fr: '{metier}' },
+  'mx.une.rdv': { es: 'Reservar cita', fr: 'Prendre rendez-vous' },
+  'mx.une.tour': { es: 'Pedir turno', fr: 'Prendre mon tour' },
+  'mx.une.carte': { es: 'Ver la carta', fr: 'Découvrir la carte' },
+  'mx.une.defiler': { es: 'Descubrir la casa', fr: 'Découvrir la maison' },
+  'mx.maison.surtitre': { es: 'La casa', fr: 'La maison' },
+  'mx.maison.titre': { es: 'Un momento para ti', fr: 'Un moment pour vous' },
+  'mx.carte.surtitre': { es: 'La carta', fr: 'La carte' },
+  'mx.carte.titre': { es: 'Servicios y tarifas', fr: 'Prestations et tarifs' },
+  'mx.carte.autres': { es: 'Otros servicios', fr: 'Autres prestations' },
+  'mx.carte.duree': { es: '{n} min', fr: '{n} min' },
+  'mx.venir.surtitre': { es: 'Reservar', fr: 'Réserver' },
+  'mx.venir.titre': { es: 'Tu momento, a tu manera', fr: 'Votre moment, à votre façon' },
+  'mx.venir.chapo': {
+    es: 'Elige tu hora con antelación, o ven cuando quieras y sigue tu turno desde el teléfono.',
+    fr: 'Choisissez votre heure à l’avance, ou venez quand vous voulez et suivez votre tour depuis votre téléphone.',
+  },
+  'mx.rdv.titre': { es: 'Con cita', fr: 'Sur rendez-vous' },
+  'mx.rdv.texte': {
+    es: 'Servicio, {pro}, día y hora: tú eliges. La confirmación es inmediata.',
+    fr: 'Prestation, {pro}, jour et heure : vous choisissez. La confirmation est immédiate.',
+  },
+  'mx.rdv.prochains': { es: 'Próximas horas libres', fr: 'Prochaines disponibilités' },
+  'mx.rdv.choisir': { es: 'Elegir mi hora', fr: 'Choisir mon créneau' },
+  'mx.rdv.aucun': {
+    es: 'No queda ninguna hora libre estos días. Llámanos.',
+    fr: 'Plus aucune heure libre ces jours-ci. Appelez-nous.',
+  },
+  'mx.file.titre': { es: 'Sin cita', fr: 'Sans rendez-vous' },
+  'mx.file.texte': {
+    es: 'Pide tu turno desde el teléfono y espera donde quieras: te avisamos cuando se acerque.',
+    fr: 'Prenez votre tour depuis votre téléphone et attendez où vous voulez : nous vous prévenons quand il approche.',
+  },
+  'mx.file.bouton': { es: 'Pedir mi turno', fr: 'Prendre mon tour' },
+  'mx.equipe.surtitre': { es: 'El equipo', fr: 'L’équipe' },
+  'mx.equipe.titre': { es: 'Manos expertas', fr: 'Des mains expertes' },
+  'mx.equipe.role': { es: '{Pro}', fr: '{Pro}' },
+  'mx.equipe.reserver': { es: 'Reservar con {nom}', fr: 'Réserver avec {nom}' },
+  'join.horsLigneTitre': { es: 'Esta casa atiende con cita', fr: 'Cette maison reçoit sur rendez-vous' },
+  'file.horsLigne': {
+    es: 'El salón no ofrece la fila en línea. Pasa por el salón o llámanos.',
+    fr: 'Le salon ne propose pas la file d’attente en ligne. Passez au salon ou appelez-nous.',
+  },
+  'file.horsLigneRdv': {
+    es: 'Aquí no se pide turno: elige tu hora y te esperamos.',
+    fr: 'Ici, on ne prend pas de tour : choisissez votre heure, nous vous attendons.',
+  },
+
+  'affiche.accrocheRdv': { es: 'Reserva tu cita', fr: 'Réservez votre rendez-vous' },
+  'affiche.sousTitreRdv': { es: 'Escanea el código y elige tu hora.', fr: 'Scannez le code et choisissez votre heure.' },
+  'horsLigne.texte': { es: 'No hemos podido contactar con el salón. Vuelve a cargar la página cuando tengas señal.', fr: 'Impossible de joindre le salon. Rechargez la page quand le réseau revient.' },
+  'horsLigne.reessayer': { es: 'Reintentar', fr: 'Réessayer' },
+  'date.courte': { es: '{jour} {n} {mois}', fr: '{jour} {n} {mois}' },
+  'date.aujourdhui': { es: 'Hoy', fr: 'Aujourd’hui' },
+  'date.demain': { es: 'Mañana', fr: 'Demain' },
+  'jour.court.0': { es: 'dom', fr: 'dim.' },
+  'jour.court.1': { es: 'lun', fr: 'lun.' },
+  'jour.court.2': { es: 'mar', fr: 'mar.' },
+  'jour.court.3': { es: 'mié', fr: 'mer.' },
+  'jour.court.4': { es: 'jue', fr: 'jeu.' },
+  'jour.court.5': { es: 'vie', fr: 'ven.' },
+  'jour.court.6': { es: 'sáb', fr: 'sam.' },
+  'mois.court.1': { es: 'ene', fr: 'janv.' },
+  'mois.court.2': { es: 'feb', fr: 'févr.' },
+  'mois.court.3': { es: 'mar', fr: 'mars' },
+  'mois.court.4': { es: 'abr', fr: 'avr.' },
+  'mois.court.5': { es: 'may', fr: 'mai' },
+  'mois.court.6': { es: 'jun', fr: 'juin' },
+  'mois.court.7': { es: 'jul', fr: 'juil.' },
+  'mois.court.8': { es: 'ago', fr: 'août' },
+  'mois.court.9': { es: 'sep', fr: 'sept.' },
+  'mois.court.10': { es: 'oct', fr: 'oct.' },
+  'mois.court.11': { es: 'nov', fr: 'nov.' },
+  'mois.court.12': { es: 'dic', fr: 'déc.' },
+
+  /* ---------------------------------------------------------------- */
+  /*  Les pages de rendez-vous                                        */
+  /* ---------------------------------------------------------------- */
+
+  'rdvp.titrePage': { es: 'Reservar cita — {nom}', fr: 'Prendre rendez-vous — {nom}' },
+  'rdvp.titreSuivi': { es: 'Tu cita — {nom}', fr: 'Votre rendez-vous — {nom}' },
+  'rdvp.titreAgenda': { es: 'Cita — {nom}', fr: 'Rendez-vous — {nom}' },
+  'rdvp.description': {
+    es: 'Reserva tu cita en {nom}: elige servicio, día y hora en un minuto.',
+    fr: 'Réservez votre rendez-vous chez {nom} : prestation, jour et heure en une minute.',
+  },
+  'rdvp.titre': { es: 'Reserva tu momento', fr: 'Réservez votre moment' },
+  'rdvp.chapo': {
+    es: 'Cuatro elecciones y tu cita queda confirmada. Sin cuenta, sin pago por adelantado.',
+    fr: 'Quatre choix et votre rendez-vous est confirmé. Sans compte, sans paiement à l’avance.',
+  },
+  'rdvp.indisponibleTitre': { es: 'Las citas no están abiertas', fr: 'Les rendez-vous ne sont pas ouverts' },
+  'rdvp.etape.prestations': { es: 'Tus servicios', fr: 'Vos prestations' },
+  'rdvp.etape.pro': { es: 'Tu {pro}', fr: 'Votre {pro}' },
+  'rdvp.etape.jour': { es: 'El día', fr: 'Le jour' },
+  'rdvp.etape.heure': { es: 'La hora', fr: 'L’heure' },
+  'rdvp.etape.coordonnees': { es: 'Tus datos', fr: 'Vos coordonnées' },
+  'rdvp.sansPreference': { es: 'Sin preferencia', fr: 'Sans préférence' },
+  'rdvp.choisirDabord': { es: 'Elige primero un servicio: te mostramos los días libres.', fr: 'Choisissez d’abord une prestation : nous vous montrons les jours libres.' },
+  'rdvp.aucunJour': {
+    es: 'No queda ningún día libre para esta elección. Prueba sin preferencia, o llámanos.',
+    fr: 'Plus aucun jour libre pour ce choix. Essayez sans préférence, ou appelez-nous.',
+  },
+  'rdvp.vise': { es: 'Hora elegida: {jour}, {heure}', fr: 'Heure choisie : {jour}, {heure}' },
+  'rdvp.voirHeures': { es: 'Ver los días y las horas', fr: 'Voir les jours et les heures' },
+  'rdvp.complet': { es: 'completo', fr: 'complet' },
+  'rdvp.ferme': { es: 'cerrado', fr: 'fermé' },
+  'rdvp.moment.matin': { es: 'Mañana', fr: 'Matin' },
+  'rdvp.moment.apresMidi': { es: 'Tarde', fr: 'Après-midi' },
+  'rdvp.moment.soir': { es: 'Final del día', fr: 'Soirée' },
+  'rdvp.resume': { es: 'Tu cita', fr: 'Votre rendez-vous' },
+  'rdvp.resumeVide': { es: 'Tu elección aparecerá aquí.', fr: 'Votre choix s’affichera ici.' },
+  'rdvp.duree': { es: 'Duración', fr: 'Durée' },
+  'rdvp.total': { es: 'Total', fr: 'Total' },
+  'rdvp.avec': { es: 'Con', fr: 'Avec' },
+  'rdvp.quand': { es: 'Cuándo', fr: 'Quand' },
+  'rdvp.prestations': { es: 'Servicios', fr: 'Prestations' },
+  'rdvp.notePolitique': {
+    es: 'Puedes anular en línea hasta {n} hora antes. El pago se hace en el salón.|Puedes anular en línea hasta {n} horas antes. El pago se hace en el salón.',
+    fr: 'Vous pouvez annuler en ligne jusqu’à {n} heure avant. Le règlement se fait au salon.|Vous pouvez annuler en ligne jusqu’à {n} heures avant. Le règlement se fait au salon.',
+  },
+  'rdvp.confirmer': { es: 'Confirmar mi cita', fr: 'Confirmer mon rendez-vous' },
+  'rdvp.confirmeTitre': { es: 'Tu cita está confirmada', fr: 'Votre rendez-vous est confirmé' },
+  'rdvp.votreRdv': { es: 'Tu cita', fr: 'Votre rendez-vous' },
+  'rdvp.annuleTitre': { es: 'Cita anulada', fr: 'Rendez-vous annulé' },
+  'rdvp.passeTitre': { es: 'Esta cita ya pasó', fr: 'Ce rendez-vous est passé' },
+  'rdvp.ajouterAgenda': { es: 'Añadir a mi calendario', fr: 'Ajouter à mon agenda' },
+  'rdvp.nouveauRdv': { es: 'Reservar otra cita', fr: 'Prendre un autre rendez-vous' },
+  'rdvp.annuler': { es: 'Anular esta cita', fr: 'Annuler ce rendez-vous' },
+  'rdvp.confirmerAnnulation': { es: '¿Anular esta cita? La hora quedará libre para otra persona.', fr: 'Annuler ce rendez-vous ? L’heure sera libérée pour quelqu’un d’autre.' },
+  'rdvp.annulableJusqua': {
+    es: 'Anulación en línea posible hasta {n} hora antes.|Anulación en línea posible hasta {n} horas antes.',
+    fr: 'Annulation en ligne possible jusqu’à {n} heure avant.|Annulation en ligne possible jusqu’à {n} heures avant.',
+  },
+  'rdvp.annulationImpossible': { es: 'No se ha podido anular', fr: 'Annulation impossible' },
+  'rdvp.gardeLien': { es: 'Guarda este enlace', fr: 'Gardez ce lien' },
+  'rdvp.lienTexte': {
+    es: 'Es tu cita: sirve para consultarla, añadirla al calendario o anularla.',
+    fr: 'C’est votre rendez-vous : il sert à le consulter, l’ajouter à votre agenda ou l’annuler.',
+  },
+
+  'reglage.accueil.file.libelle': { es: 'Proponer la fila en línea', fr: 'Proposer la file d’attente en ligne' },
+  'reglage.accueil.file.aide': {
+    es: 'El cliente pide turno desde su teléfono y sigue su posición. Desactivada, el salón trabaja solo con cita (la fila del mostrador sigue disponible para el personal).',
+    fr: 'Le client prend son tour depuis son téléphone et suit sa position. Désactivée, le salon travaille sur rendez-vous seulement (la file du comptoir reste disponible au personnel).',
+  },
+  'reglage.rdv.actifs.libelle': { es: 'Aceptar citas en línea', fr: 'Accepter les rendez-vous en ligne' },
+  'reglage.rdv.actifs.aide': {
+    es: 'Los clientes eligen servicio, profesional, día y hora. Necesita el horario de apertura.',
+    fr: 'Les clients choisissent prestation, professionnel, jour et heure. Nécessite les horaires d’ouverture.',
+  },
+  'reglage.rdv.pasMinutes.libelle': { es: 'Intervalo entre horas propuestas (min)', fr: 'Intervalle entre les heures proposées (min)' },
+  'reglage.rdv.delaiMinutes.libelle': { es: 'Antelación mínima (min)', fr: 'Délai minimal avant un rendez-vous (min)' },
+  'reglage.rdv.delaiMinutes.aide': {
+    es: '60: nadie reserva para dentro de media hora.',
+    fr: '60 : personne ne réserve pour dans une demi-heure.',
+  },
+  'reglage.rdv.horizonJours.libelle': { es: 'Reservable con cuántos días de antelación', fr: 'Réservable combien de jours à l’avance' },
+  'reglage.rdv.annulationHeures.libelle': { es: 'Anulación en línea hasta (horas antes)', fr: 'Annulation en ligne jusqu’à (heures avant)' },
+  'reglage.rdv.tamponMinutes.libelle': { es: 'Margen entre dos citas (min)', fr: 'Marge entre deux rendez-vous (min)' },
+  'reglage.rdv.choixProfessionnel.libelle': { es: 'El cliente puede elegir su {pro}', fr: 'Le client peut choisir son {pro}' },
+  'reglage.rdv.maxParNumero.libelle': { es: 'Citas futuras por número', fr: 'Rendez-vous à venir par numéro' },
+  'reglage.rdv.message.libelle': { es: 'Mensaje en la confirmación', fr: 'Message sur la confirmation' },
+  'reglage.rdv.message.aide': {
+    es: 'Por ejemplo: « Le agradecemos que llegue cinco minutos antes ».',
+    fr: 'Par exemple : « Merci d’arriver cinq minutes avant ».',
   },
 };

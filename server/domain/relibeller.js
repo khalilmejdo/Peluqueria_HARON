@@ -34,6 +34,7 @@ const ecritures = (cle) => CODES_LANGUES.map((code) => TEXTES[cle]?.[code]).filt
 
 /** Les cles des prestations de depart (noms et note). */
 const CLES_TARIFS = Object.keys(TEXTES).filter((cle) => cle.startsWith('seed.tarif.'));
+const CLES_CHAPITRES = Object.keys(TEXTES).filter((cle) => cle.startsWith('seed.cat.'));
 
 /**
  * @param {string} langue  la langue du salon
@@ -59,6 +60,15 @@ export async function relibellerDefauts(langue, db) {
         if (err?.code !== '23505') throw err;
       }
       n += await db.execute('UPDATE tarifas SET nota = $2 WHERE nota = $1', [ancien, cible]);
+    }
+  }
+
+  // Les chapitres de la carte de depart (« Cortes » / « Coupes »), meme regle :
+  // seulement s'ils n'ont jamais ete retouches.
+  for (const cle of CLES_CHAPITRES) {
+    const cible = TEXTES[cle][langue];
+    for (const ancien of ecritures(cle)) {
+      if (ancien !== cible) n += await db.execute('UPDATE tarifas SET categoria = $2 WHERE categoria = $1', [ancien, cible]);
     }
   }
 

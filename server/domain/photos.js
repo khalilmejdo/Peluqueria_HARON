@@ -30,6 +30,7 @@ import { AppError, badRequest, notFound, conflict, unsupportedMedia } from '../c
 import { cleanSpaces } from '../core/text.js';
 import { t } from '../core/langue.js';
 import { log } from '../core/logger.js';
+import { invaliderCache } from '../core/reglages.js';
 
 /** Une page d'accueil n'est pas un album : chaque photo pese au chargement. */
 export const GALERIE_MAX = 24;
@@ -145,10 +146,14 @@ export function legendeValide(valeur) {
 /*  Lectures                                                           */
 /* ------------------------------------------------------------------ */
 
-const COLONNES = 'id, fichier, mime, taille, largeur, hauteur, legende, ordre, visible, couverture, created_at';
+const COLONNES = 'id, fichier, mime, taille, largeur, hauteur, legende, ordre, visible, couverture, usage, created_at';
 
-export const lister = () => all('SELECT ' + COLONNES + ' FROM photos ORDER BY ordre, created_at');
-export const parId = (id) => one('SELECT ' + COLONNES + ' FROM photos WHERE id = $1', [id]);
+// LA GALERIE NE VOIT JAMAIS LE LOGO : il partage la table (meme controle des
+// octets, meme route publique) mais aucune lecture ni ecriture de galerie ne
+// l'atteint. Toutes passent par « usage = 'GALERIE' ».
+export const lister = () => all('SELECT ' + COLONNES + " FROM photos WHERE usage = 'GALERIE' ORDER BY ordre, created_at");
+export const parId = (id) => one('SELECT ' + COLONNES + " FROM photos WHERE id = $1 AND usage = 'GALERIE'", [id]);
+export const logo = () => one('SELECT ' + COLONNES + " FROM photos WHERE usage = 'LOGO'");
 export const parFichier = (fichier) => one('SELECT ' + COLONNES + ' FROM photos WHERE fichier = $1', [fichier]);
 
 /** L'adresse PUBLIQUE d'une photo : le nom de fichier aleatoire ne change jamais. */
@@ -230,9 +235,9 @@ export async function ajouter({ contenu, legende = '' }) {
 
   try {
     await transaction(async (tx) => {
-      const n = Number((await tx.one('SELECT COUNT(*)::int AS n FROM photos')).n);
+      const n = Number((await tx.one("SELECT COUNT(*)::int AS n FROM photos WHERE usage = 'GALERIE'")).n);
       if (n >= GALERIE_MAX) throw conflict(t('photos.galeriePleine', { max: GALERIE_MAX }));
-      const rang = Number((await tx.one('SELECT COALESCE(MAX(ordre), -1) + 1 AS r FROM photos')).r);
+      const rang = Number((await tx.one("SELECT COALESCE(MAX(ordre), -1) + 1 AS r FROM photos WHERE usage = 'GALERIE'")).r);
       await tx.execute(
         `INSERT INTO photos (id, fichier, mime, taille, largeur, hauteur, legende, ordre, couverture)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
@@ -254,7 +259,7 @@ export async function ajouter({ contenu, legende = '' }) {
  */
 export async function modifier(id, { legende, visible, couverture } = {}) {
   return transaction(async (tx) => {
-    const actuelle = await tx.one('SELECT id FROM photos WHERE id = $1 FOR UPDATE', [id]);
+    const actuelle = await tx.one("SELECT id FROM photos WHERE id = $1 AND usage = 'GALERIE' FOR UPDATE", [id]);
     if (!actuelle) throw notFound(t('photos.introuvable'));
     if (couverture === true) await tx.execute('UPDATE photos SET couverture = FALSE WHERE couverture AND id <> $1', [id]);
 
@@ -268,6 +273,55 @@ export async function modifier(id, { legende, visible, couverture } = {}) {
     await tx.execute('UPDATE photos SET ' + champs.join(', ') + ' WHERE id = $1', params);
     return tx.one('SELECT ' + COLONNES + ' FROM photos WHERE id = $1', [id]);
   });
+}
+
+/**
+ * LE LOGO DE LA MARQUE : il remplace le precedent.
+ *
+ * Meme ordre que pour une photo : le fichier d'abord, la ligne ensuite, et
+ * l'ancien fichier n'est efface qu'une fois la nouvelle ligne en place. Un
+ * logo rate ne laisse jamais la marque sans logo.
+ */
+export async function poserLogo(contenu) {
+  const image = lireImage(contenu);
+  if (!image) throw unsupportedMedia(t('photos.formatRefuse'));
+  const id = newId();
+  const fichier = id + '.' + EXTENSIONS[image.mime];
+  try {
+    await ecrire(fichier, contenu);
+  } catch (err) {
+    log.error('Logo non ecrit sur le disque', { dossier: config.storage.photosDir, erreur: err.message, code: err.code });
+    throw new AppError(503, t(err.code === 'EACCES' || err.code === 'EROFS' ? 'photos.dossierFerme' : 'photos.ecritureImpossible'),
+      { code: 'PHOTOS_DOSSIER' });
+  }
+  let ancien = null;
+  try {
+    await transaction(async (tx) => {
+      ancien = await tx.one("SELECT fichier FROM photos WHERE usage = 'LOGO' FOR UPDATE");
+      await tx.execute("DELETE FROM photos WHERE usage = 'LOGO'");
+      await tx.execute(
+        `INSERT INTO photos (id, fichier, mime, taille, largeur, hauteur, legende, ordre, visible, couverture, usage)
+         VALUES ($1,$2,$3,$4,$5,$6,'',0,TRUE,FALSE,'LOGO')`,
+        [id, fichier, image.mime, contenu.length, image.largeur, image.hauteur],
+      );
+    });
+  } catch (err) {
+    await effacer(fichier);
+    throw err;
+  }
+  if (ancien) await effacer(ancien.fichier);
+  invaliderCache();
+  return logo();
+}
+
+/** Retire le logo : la marque reprend son monogramme. */
+export async function retirerLogo() {
+  const actuel = await logo();
+  if (!actuel) return false;
+  await execute("DELETE FROM photos WHERE usage = 'LOGO'");
+  await effacer(actuel.fichier);
+  invaliderCache();
+  return true;
 }
 
 /** Supprime une photo : la ligne, puis le fichier. */
@@ -286,7 +340,7 @@ export async function supprimer(id) {
 export async function reordonner(ids) {
   if (!Array.isArray(ids) || !ids.length) throw badRequest(t('tarifa.ordreIncomplet'));
   return transaction(async (tx) => {
-    const connus = new Set((await tx.all('SELECT id FROM photos ORDER BY id FOR UPDATE')).map((l) => l.id));
+    const connus = new Set((await tx.all("SELECT id FROM photos WHERE usage = 'GALERIE' ORDER BY id FOR UPDATE")).map((l) => l.id));
     const recus = new Set(ids);
     if (recus.size !== ids.length) throw badRequest(t('tarifa.ordreRepete'));
     if (recus.size !== connus.size || [...recus].some((id) => !connus.has(id))) {
@@ -339,12 +393,12 @@ export async function reprendreLesAnciennes({ journal = () => {} } = {}) {
         log.warn('Fichier du dossier photos ignore : ce n est pas une image lisible', { nom });
         continue;
       }
-      const total = Number((await one('SELECT COUNT(*)::int AS n FROM photos')).n);
+      const total = Number((await one("SELECT COUNT(*)::int AS n FROM photos WHERE usage = 'GALERIE'")).n);
       if (total >= GALERIE_MAX) break;
       const id = newId();
       const fichier = id + '.' + EXTENSIONS[image.mime];
       await fs.rename(ancien, cheminPhoto(fichier));
-      const rang = Number((await one('SELECT COALESCE(MAX(ordre), -1) + 1 AS r FROM photos')).r);
+      const rang = Number((await one("SELECT COALESCE(MAX(ordre), -1) + 1 AS r FROM photos WHERE usage = 'GALERIE'")).r);
       await execute(
         `INSERT INTO photos (id, fichier, mime, taille, largeur, hauteur, legende, ordre, couverture)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,

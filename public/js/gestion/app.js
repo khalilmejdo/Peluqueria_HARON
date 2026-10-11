@@ -19,6 +19,8 @@ import { vueAffiche } from './vue-affiche.js';
 import { vueFermetures } from './vue-fermetures.js';
 import { vueTarifas } from './vue-tarifas.js';
 import { vueGalerie } from './vue-galerie.js';
+import { vueAgenda } from './vue-agenda.js';
+import { vueMarque } from './vue-marque.js';
 
 const racine = document.getElementById('application');
 
@@ -43,6 +45,7 @@ export const etat = {
  */
 const ONGLETS = [
   { cle: 'file', texte: 'nav.file', rendre: vueFile },
+  { cle: 'agenda', texte: 'nav.agenda', rendre: vueAgenda },
   { cle: 'tarifas', texte: 'nav.tarifs', rendre: vueTarifas, gerant: true },
   { cle: 'galerie', texte: 'nav.galerie', rendre: vueGalerie, gerant: true },
   { cle: 'affiche', texte: 'nav.qr', rendre: vueAffiche },
@@ -50,6 +53,8 @@ const ONGLETS = [
   { cle: 'fermetures', texte: 'nav.conges', rendre: vueFermetures, gerant: true },
   { cle: 'reglages', texte: 'nav.reglages', rendre: vueReglages, gerant: true },
   { cle: 'comptes', texte: 'nav.comptes', rendre: vueComptes, gerant: true },
+  // La marque : reservee a l'administrateur de la plateforme.
+  { cle: 'marque', texte: 'nav.marque', rendre: vueMarque, superAdmin: true },
 ];
 
 /**
@@ -61,21 +66,23 @@ const ONGLETS = [
  */
 const motDePasseMin = () => etat.motDePasseMin || 12;
 
-const estGerant = () => etat.utilisateur?.role === 'GERANT';
+// L'administrateur de la plateforme fait tout ce que fait le gerant.
+const estSuperAdmin = () => etat.utilisateur?.role === 'SUPERADMIN';
+const estGerant = () => etat.utilisateur?.role === 'GERANT' || estSuperAdmin();
 
 /**
  * Le logo de la barre : le dernier mot du nom en grand, le reste au-dessus —
  * la meme coupe que sur la vitrine (decouperNom, cote serveur).
  */
 function marqueDuSalon(nom) {
-  const mots = String(nom || 'Peluquería HARON').trim().split(/s+/).filter(Boolean);
+  const mots = String(nom || document.documentElement.dataset.salon || '').trim().split(' ').filter(Boolean);
   const grand = mots.pop() || '';
   return [
-    mots.length ? el('span.marque__peluqueria', { texte: mots.join(' ') }) : null,
-    el('span.marque__haron', { texte: grand }),
+    mots.length ? el('span.marque__petit', { texte: mots.join(' ') }) : null,
+    el('span.marque__grand', { texte: grand }),
   ];
 }
-const ongletsVisibles = () => ONGLETS.filter((o) => !o.gerant || estGerant());
+const ongletsVisibles = () => ONGLETS.filter((o) => (!o.gerant || estGerant()) && (!o.superAdmin || estSuperAdmin()));
 
 /* ------------------------------------------------------------------ */
 /*  Connexion                                                          */
@@ -164,7 +171,7 @@ function ecranConnexion({ message = null } = {}) {
     el('div.connexion',
       el('p.pastille', { texte: t('connexion.titre') }),
       // Le nom de l'enseigne ne se traduit pas.
-      el('h1.titre-page', { texte: 'Peluquería HARON' }),
+      el('h1.titre-page.connexion__nom', { texte: document.documentElement.dataset.salon || '' }),
       el('p.texte-doux', { texte: t('connexion.sousTitre') }),
       el('section.carte', formulaire),
       /*

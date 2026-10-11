@@ -160,7 +160,7 @@ export function enforceRouteRequirements(route, ctx) {
 
   if (!options.role) return;
   if (!aLeRole(ctx.user, options.role)) {
-    throw forbidden(t('acces.reserveGerant'));
+    throw forbidden(t(options.role === 'SUPERADMIN' ? 'acces.reserveSuperAdmin' : 'acces.reserveGerant'));
   }
 }
 

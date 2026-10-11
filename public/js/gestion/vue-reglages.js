@@ -20,6 +20,9 @@ import { t } from '../langue.js';
  */
 const GROUPES = [
   { titre: 'reglages.groupe.identite', prefixes: ['salon.'], identite: true },
+  { titre: 'reglages.groupe.marque', prefixes: ['marque.'] },
+  // Les deux facons de venir : la file en ligne, les rendez-vous.
+  { titre: 'reglages.groupe.rdv', prefixes: ['accueil.', 'rdv.'] },
   { titre: 'reglages.groupe.file', prefixes: ['file.'] },
   { titre: 'reglages.groupe.horaires', prefixes: ['horaires.'] },
   // Les sections de la vitrine, et la note des tarifs avec elles : tout ce qui
@@ -83,7 +86,7 @@ function blocServeur(identite) {
  * l'endroit ou le corriger.
  */
 const OU_CORRIGER = {
-  couverture: '#galerie', galerie: '#galerie', tarifs: '#tarifas',
+  couverture: '#galerie', galerie: '#galerie', tarifs: '#tarifas', rendezvous: '#r-horaires-actifs',
   localisation: '#r-salon-adresse', contact: '#r-salon-telephone', horaires: '#r-horaires-actifs',
 };
 
@@ -164,6 +167,20 @@ async function sectionFauteuils(recharger, dire) {
           }
         },
       }),
+      // Ce fauteuil prend-il des rendez-vous ? Un salon garde souvent un
+      // fauteuil pour les clients de passage.
+      el('button.bouton.bouton--discret.bouton--petit', {
+        type: 'button',
+        texte: t(p.rdv ? 'reglages.fauteuils.sansRdv' : 'reglages.fauteuils.avecRdv'),
+        surClick: async () => {
+          try {
+            await api.patch('/api/postes/' + p.id, { rdv: !p.rdv });
+            await recharger();
+          } catch (err) {
+            dire(err instanceof ErreurApi ? err.message : t('reglages.fauteuils.echecModif'));
+          }
+        },
+      }),
       p.servisAujourdhui === 0
         ? el('button.bouton.bouton--discret.bouton--petit.bouton--danger', {
           type: 'button',
@@ -221,8 +238,14 @@ async function sectionFauteuils(recharger, dire) {
       ajout));
 }
 
-export async function vueReglages(conteneur) {
+export async function vueReglages(conteneur, { etat } = {}) {
   const donnees = await api.get('/api/reglages');
+  // LA MARQUE (nom, langue, monnaie, couleurs...) se regle dans l'onglet
+  // « Marque », par l'administrateur de la plateforme. Elle n'apparait ici que
+  // sur une installation qui n'a pas encore de tel compte : sans cela, plus
+  // personne ne pourrait renommer le salon.
+  const marqueIci = !donnees.marqueVerrouillee && etat?.utilisateur?.role !== 'SUPERADMIN';
+  donnees.catalogue = donnees.catalogue.filter((r) => !r.reserve || marqueIci);
   const champs = new Map();
   const erreurGlobale = el('p.alerte.alerte--refus', { role: 'alert', hidden: true });
   const succes = el('p.alerte.alerte--succes', { role: 'status', hidden: true });
@@ -252,6 +275,8 @@ export async function vueReglages(conteneur) {
       entree = el('input', { id, type: 'time', value: String(valeur ?? '') });
     } else if (regle.type === 'url') {
       entree = el('input', { id, type: 'url', inputmode: 'url', value: String(valeur ?? '') });
+    } else if (regle.type === 'couleur') {
+      entree = el('input', { id, type: 'color', value: String(valeur ?? '#000000') });
     } else if (regle.type === 'telephone') {
       entree = el('input', { id, type: 'tel', inputmode: 'tel', value: String(valeur ?? '') });
     } else if ((regle.maxLongueur ?? 0) > 200) {

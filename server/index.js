@@ -34,7 +34,7 @@ import { ping, closePool } from './db/index.js';
 import { brancher, demarrerBattement, arreterBattement, fermerTout } from './core/flux.js';
 import { chargerEtat, pourSalon, pourClient, pourPantalla } from './domain/file.js';
 import { pageErreur } from './site/mise-en-page.js';
-import { lireTous } from './core/reglages.js';
+import { lireTous, nomDuSalon, themeCourant } from './core/reglages.js';
 import { traduire, langueActive, t } from './core/langue.js';
 import { deviseActive, DEVISES } from './core/devise.js';
 import { escapeHtml } from './core/text.js';
@@ -79,7 +79,7 @@ async function coquilleGestion() {
   const brut = await loadHtml('gestion.html');
   if (!brut) return null;
 
-  let nom = 'Peluquería HARON';
+  let nom = nomDuSalon();
   try {
     const reglages = await lireTous();
     nom = reglages['salon.nom'] || nom;
@@ -97,6 +97,11 @@ async function coquilleGestion() {
     titre: tr('gestion.titrePage', { nom }),
     saut: tr('saut.contenu'),
     chargement: tr('gestion.chargement'),
+    salon: nom,
+    theme: themeCourant().empreinte,
+    activite: themeCourant().activite || 'BARBERIA',
+    clarte: themeCourant().clair ? 'clair' : 'sombre',
+    couleur: themeCourant().couleurTheme,
   };
   return brut.replace(/\{\{(\w+)\}\}/g, (entier, cle) => (
     Object.hasOwn(valeurs, cle) ? escapeHtml(valeurs[cle]) : entier

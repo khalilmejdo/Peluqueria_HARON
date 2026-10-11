@@ -25,7 +25,7 @@
  */
 
 const VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
-const CACHE = 'haron-' + VERSION;
+const CACHE = 'salon-' + VERSION;
 
 /** Ce qui ne doit jamais entrer dans un cache. */
 function jamaisEnCache(url) {
@@ -46,16 +46,21 @@ const EST_STATIQUE = /\.(css|js|woff2|woff|svg|png|jpg|jpeg|webp|avif|ico|webman
  * exactement ce qui ne marche pas. Elle reprend les couleurs du salon pour ne
  * pas avoir l'air d'une erreur du navigateur.
  */
+/*
+ * LA PAGE HORS LIGNE EST CELLE DE LA MARQUE. Elle etait ecrite ici, au nom et
+ * aux couleurs d'un seul salon : elle est maintenant demandee au serveur a
+ * l'installation (/hors-ligne, dans la langue et la palette du salon) et gardee
+ * en cache. Ce texte neutre ne sert que si meme cela a echoue.
+ */
 const PAGE_HORS_LIGNE = `<!doctype html>
-<html lang="es"><head><meta charset="utf-8">
+<html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sin conexión — Peluquería HARON</title></head>
-<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#0e1013;color:#f7f2e8;font-family:system-ui,sans-serif;text-align:center;padding:24px">
+<title>Sin conexión · Hors ligne</title></head>
+<body style="margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui,sans-serif;text-align:center;padding:24px">
 <div style="max-width:30ch">
-<p style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:#c8a24a;margin:0 0 10px">Peluquería HARON</p>
-<h1 style="font-size:24px;margin:0 0 12px">Sin conexión</h1>
-<p style="color:#a9a294;line-height:1.55;margin:0 0 20px">No hemos podido contactar con el salón. Tu turno sigue guardado: vuelve a cargar esta página cuando tengas señal.</p>
-<a href="" style="display:inline-block;padding:14px 28px;border-radius:999px;background:#c8a24a;color:#14161a;font-weight:700;font-size:15px;text-decoration:none">Reintentar</a>
+<h1 style="font-size:22px;margin:0 0 12px">Sin conexión · Hors ligne</h1>
+<p style="line-height:1.55;margin:0 0 20px;opacity:.75">Vuelve a cargar la página cuando tengas señal.<br>Rechargez la page quand le réseau revient.</p>
+<a href="" style="display:inline-block;padding:12px 24px;border:1px solid;color:inherit;text-decoration:none">↻</a>
 </div></body></html>`;
 
 /**
@@ -89,7 +94,16 @@ function avecDelai(requete, ms = DELAI_RESEAU_MS) {
 self.addEventListener('install', (evenement) => {
   // Prendre la main tout de suite : sans cela, une correction urgente
   // attendrait que tous les onglets du salon soient fermes.
-  evenement.waitUntil(self.skipWaiting());
+  evenement.waitUntil((async () => {
+    try {
+      const cache = await caches.open(CACHE);
+      const page = await fetch('/hors-ligne', { cache: 'no-store' });
+      if (page.ok) await cache.put('page-hors-ligne', page);
+    } catch {
+      // Pas de reseau a l'installation : la page neutre fera l'affaire.
+    }
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (evenement) => {
@@ -134,6 +148,8 @@ self.addEventListener('fetch', (evenement) => {
           entetes.set('X-Haron-Hors-Ligne', '1');
           return new Response(await gardee.blob(), { status: 200, headers: entetes });
         }
+        const marque = await cache.match('page-hors-ligne');
+        if (marque) return new Response(await marque.blob(), { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
         return new Response(PAGE_HORS_LIGNE, {
           status: 503,
           headers: { 'Content-Type': 'text/html; charset=utf-8' },
@@ -199,11 +215,11 @@ self.addEventListener('push', (evenement) => {
    * rien. La langue voyage donc avec la charge.
    */
   const SECOURS = { es: 'Hay novedades en la fila.', fr: 'Du nouveau dans la file.' };
-  const titre = contenu.titre || 'Peluquería HARON';
+  const titre = contenu.titre || '';
   const options = {
     body: contenu.corps || SECOURS[contenu.langue] || SECOURS.es,
-    icon: '/img/app-192.png',
-    badge: '/img/app-192.png',
+    icon: '/icones/192.png',
+    badge: '/icones/192.png',
     tag: contenu.tag || 'haron',
     renotify: contenu.renotifier !== false,
     // Le coiffeur a les mains prises : la notification attend qu'on la lise,

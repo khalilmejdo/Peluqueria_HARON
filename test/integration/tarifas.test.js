@@ -249,7 +249,7 @@ test('la fiche de prix se tient depuis l espace de gestion', { skip: IGNORE }, a
     // de reservation, qui vit maintenant dans la vitrine, montrait encore le
     // prix de chaque prestation. Les prestations restent (leur duree fait
     // l'attente), mais sans montant.
-    assert.ok(!accueil.body.includes('seccion--tarifas'), 'la fiche de prix a disparu');
+    assert.ok(!accueil.body.includes('section--carte'), 'la carte a disparu');
     assert.ok(!/\d\u00a0€/.test(accueil.body), 'plus aucun montant en vitrine');
     assert.ok(accueil.body.includes('presta__case'), 'les prestations restent choisissables');
     assert.ok(accueil.body.includes('id="reserver"'), 'le reste de la vitrine tient toujours');

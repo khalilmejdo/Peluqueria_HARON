@@ -5,6 +5,10 @@
  *   npm run coiffeur -- --identifiant=youssef --nom="Youssef Haron" --role=GERANT
  *   npm run coiffeur -- --identifiant=youssef --mot-de-passe=UnMotDePasseSolide
  *
+ *   L'ADMINISTRATEUR DE LA PLATEFORME (l'editeur, seul a changer la marque) :
+ *   npm run coiffeur -- --identifiant=khalil --nom="Khalil" --role=SUPERADMIN
+ *   En conteneur : docker compose exec app node scripts/coiffeur.js --identifiant=... --role=SUPERADMIN
+ *
  * Sans --mot-de-passe, un mot de passe provisoire est tire au sort et affiche
  * une seule fois. Le compte devra le changer a sa premiere connexion.
  *

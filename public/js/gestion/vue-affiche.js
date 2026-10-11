@@ -10,7 +10,7 @@ import { el, remplacer, annoncer } from './dom.js';
 import { t } from '../langue.js';
 
 export async function vueAffiche(conteneur, { etat }) {
-  const gerant = etat.utilisateur?.role === 'GERANT';
+  const gerant = ['GERANT', 'SUPERADMIN'].includes(etat.utilisateur?.role);
   // Le coiffeur n'a pas acces aux reglages : on retombe alors sur l'adresse de
   // la page, qui est de toute facon celle du salon.
   const donnees = gerant ? await api.get('/api/reglages').catch(() => null) : null;
