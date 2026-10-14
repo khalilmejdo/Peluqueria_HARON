@@ -102,7 +102,7 @@ export function construireCorps(vue) {
   fragment.append(vedette);
 
   const suite = el('section', 'pantalla__suite');
-  suite.append(el('p', 'pantalla__label', 'Siguientes'));
+  suite.append(el('p', 'pantalla__label', t('pantalla.suivants')));
   if (vue.attente.length) {
     suite.append(liste(vue.attente, 'tours--suite', 'tour--attente'));
     if (vue.deplus) suite.append(el('p', 'pantalla__deplus', t('pantalla.etDePlus', { n: vue.deplus })));
@@ -119,9 +119,9 @@ export function construireCorps(vue) {
     p.append(document.createTextNode(' ' + libelle));
     return p;
   };
-  chiffres.append(chiffre(vue.enAttente, 'esperando'));
+  chiffres.append(chiffre(vue.enAttente, t('pantalla.enAttente')));
   if (vue.enAttente) chiffres.append(chiffre('~' + vue.attenteEstimeeMinutes, 'min'));
-  chiffres.append(chiffre(vue.servis, 'hoy'));
+  chiffres.append(chiffre(vue.servis, t('pantalla.aujourdhui')));
   fragment.append(chiffres);
   return fragment;
 }

@@ -968,7 +968,8 @@ export const TEXTES = {
   'tarifs.desdeCourt': { es: 'desde', fr: 'dès' },
   'tarifs.badgeSurDemande': { es: 'Solo en el salón', fr: 'Au salon seulement' },
   'tarifs.carteType.titre': { es: 'Carta tipo de la actividad', fr: 'Carte type de l’activité' },
-  'tarifs.carteType.texte': { es: 'Añade los servicios habituales de su actividad que aún no están en la carta. No modifica ni borra ninguno de los suyos.', fr: 'Ajoute les prestations habituelles de votre activité qui ne sont pas encore sur la carte. Ne modifie ni n’efface aucune des vôtres.' },
+  'tarifs.carteType.texte': { es: 'Para empezar rápido: añade los servicios habituales de su actividad (con duración y precio orientativo) que aún no están en su carta. No modifica ni borra ninguno de los suyos.', fr: 'Pour démarrer vite : ajoute les prestations habituelles de votre activité (avec durée et prix indicatif) qui ne sont pas encore sur votre carte. Ne modifie ni n’efface aucune des vôtres.' },
+  'tarifs.carteType.rien': { es: 'Nada que añadir: todos los servicios de la carta tipo ya están en su carta.', fr: 'Rien à ajouter : toutes les prestations de la carte type sont déjà sur votre carte.' },
   'tarifs.carteType.bouton': { es: 'Añadir la carta tipo', fr: 'Ajouter la carte type' },
   'tarifs.carteType.fait': { es: '{n} servicio añadido.|{n} servicios añadidos.', fr: '{n} prestation ajoutée.|{n} prestations ajoutées.' },
 };

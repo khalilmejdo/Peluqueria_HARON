@@ -102,7 +102,7 @@ function brancherGlisser(liste, dire, recharger) {
   liste.addEventListener('pointercancel', lacher);
 }
 
-export async function vueTarifas(conteneur, { etat }) {
+export async function vueTarifas(conteneur, { etat, message = null }) {
   const [donnees, dessins] = await Promise.all([
     api.get('/api/tarifas'),
     api.get('/api/tarifas/icones').catch(() => ({ icones: {} })),
@@ -121,7 +121,15 @@ export async function vueTarifas(conteneur, { etat }) {
     annoncer(message);
   };
 
-  const recharger = () => vueTarifas(conteneur, { etat });
+  const recharger = (apres = null) => vueTarifas(conteneur, { etat, message: apres });
+
+  /** Le dessin d'une prestation, pour la liste (le meme qu'en vitrine). */
+  const dessinListe = (nom) => {
+    const svg = nom && dessins.icones[nom];
+    if (!svg) return null;
+    const noeud = new DOMParser().parseFromString(svg, 'text/html').querySelector('svg');
+    return noeud ? el('span.tarifa-admin__icone', { 'aria-hidden': 'true' }, document.importNode(noeud, true)) : null;
+  };
 
   /** Un geste sur une ligne : on recharge, pour que l'ordre affiché soit celui de la base. */
   const agir = async (faire, messageOk) => {
@@ -150,7 +158,8 @@ export async function vueTarifas(conteneur, { etat }) {
       title: t('tarifs.poigneeTitre'),
       texte: '⠿',
     }),
-    el('div.tarifa-admin__texte',
+    el('div.tarifa-admin__texte' + (tarifa.icono ? '.tarifa-admin__texte--icone' : ''),
+      dessinListe(tarifa.icono),
       el('span.tarifa-admin__nombre', { texte: tarifa.nombre }),
       tarifa.categoria ? el('span.tarifa-admin__chapitre', { texte: tarifa.categoria }) : null,
       tarifa.nota ? el('span.tarifa-admin__nota', { texte: tarifa.nota }) : null,
@@ -213,8 +222,8 @@ export async function vueTarifas(conteneur, { etat }) {
   const dessin = (nom) => {
     const svg = dessins.icones[nom];
     if (!svg) return null;
-    const noeud = new DOMParser().parseFromString(svg, 'image/svg+xml').documentElement;
-    return noeud.nodeName === 'svg' ? document.importNode(noeud, true) : null;
+    const noeud = new DOMParser().parseFromString(svg, 'text/html').querySelector('svg');
+    return noeud ? document.importNode(noeud, true) : null;
   };
 
   /**
@@ -326,8 +335,9 @@ export async function vueTarifas(conteneur, { etat }) {
       surClick: async () => {
         try {
           const r = await api.post('/api/tarifas/catalogue', {});
-          annoncer(t('tarifs.carteType.fait', { n: r.ajoutees }));
-          await recharger();
+          // Le message est dit APRES le rechargement : avant, il partait avec
+          // l'ancien ecran, et le bouton semblait ne rien faire.
+          await recharger(r.ajoutees ? t('tarifs.carteType.fait', { n: r.ajoutees }) : t('tarifs.carteType.rien'));
         } catch (err) {
           dire(err instanceof ErreurApi ? err.message : t('tarifs.enregistrementEchoue'));
         }
@@ -345,4 +355,5 @@ export async function vueTarifas(conteneur, { etat }) {
       el('h2.reglages__titre', { texte: t('tarifs.titreAjout') }),
       formulaire),
     carteType));
+  if (message) dire(message, true);
 }

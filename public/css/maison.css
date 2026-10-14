@@ -2406,3 +2406,25 @@ a.collage__cadre:hover { transform: translateY(-0.35rem); }
   .bouton--principal[data-appel-principal], .entete__action.bouton--principal, .appel-fixe .bouton--principal,
   .bouton--principal::after, .fenetre-tour[open] { animation: none !important; }
 }
+
+/* Le dessin de chaque prestation, sur la fiche. */
+.prestation {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-areas: 'icone mots mots choisir' 'icone duree prix choisir';
+}
+@media (min-width: 40rem) {
+  .prestation { grid-template-columns: auto minmax(0, 1fr) auto auto auto; grid-template-areas: 'icone mots duree prix choisir'; }
+}
+.prestation__icone {
+  grid-area: icone;
+  display: grid;
+  place-items: center;
+  width: 2.7rem;
+  height: 2.7rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  color: var(--accent-lisible);
+  transition: transform var(--vif), background-color var(--vif);
+}
+.prestation__icone svg { width: 1.35rem; height: 1.35rem; stroke-width: 1.4; }
+.prestation:hover .prestation__icone { transform: rotate(-8deg) scale(1.08); background: color-mix(in srgb, var(--accent) 22%, transparent); }

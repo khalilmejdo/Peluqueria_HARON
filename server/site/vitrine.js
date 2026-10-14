@@ -414,6 +414,7 @@ export function sectionCarte({ tr, prestations, nota, avecPrix = true, fiches = 
   const uneLigne = (p) => {
     const lien = reserver && p.reservable !== false && p.id;
     return '<li class="prestation">'
+      + '<span class="prestation__icone" aria-hidden="true">' + iconeTarifa(p.icono) + '</span>'
       + '<div class="prestation__mots"><p class="prestation__nom">' + e(p.nombre) + '</p>'
       + (p.nota ? '<p class="prestation__note">' + e(p.nota) + '</p>' : '') + '</div>'
       + '<p class="prestation__duree">' + e(tr('mx.carte.duree', { n: p.duracionMin })) + '</p>'

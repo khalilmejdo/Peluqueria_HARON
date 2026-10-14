@@ -27,6 +27,7 @@ import assert from 'node:assert/strict';
 
 import { pourPantalla } from '../../server/domain/file.js';
 import { _corpsPantalla } from '../../server/site/index.js';
+import { traduire } from '../../server/core/langue.js';
 
 /* ------------------------------------------------------------------ */
 /*  Un etat de journee, fabrique a la main                             */
@@ -228,8 +229,8 @@ function texteDuHtml(html) {
     .join('\n');
 }
 
-async function texteDuClient(vue) {
-  globalThis.document = fauxDom();
+async function texteDuClient(vue, langue = 'es') {
+  globalThis.document = { ...fauxDom(), documentElement: { lang: langue, dataset: {} } };
   try {
     const { construireCorps } = await import('../../public/js/pantalla.js');
     return texteDe(construireCorps(vue));
@@ -252,10 +253,12 @@ test('le serveur et le script affichent exactement le meme texte', async () => {
     pourPantalla(etatDeTest(JOURNEE.tickets, { pantallaNombres: 'COMPLETO' })),
     pourPantalla({ ...etatDeTest([]), ouverte: false }),
   ]) {
-    assert.equal(
-      await texteDuClient(vue),
-      texteDuHtml(_corpsPantalla(vue)),
-      'les deux rendus ont divergé',
-    );
+    for (const langue of ['es', 'fr']) {
+      assert.equal(
+        await texteDuClient(vue, langue),
+        texteDuHtml(_corpsPantalla(vue, traduire(langue))),
+        'les deux rendus ont divergé (' + langue + ')',
+      );
+    }
   }
 });
