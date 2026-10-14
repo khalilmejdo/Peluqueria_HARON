@@ -45,7 +45,11 @@ set -eu
 # devenait « sale », ce qui bloquait tous les deploiements suivants.
 COMPOSE="${COMPOSE:-docker compose -f docker-compose.oci.yml}"
 [ -f docker-compose.local.yml ] && COMPOSE="$COMPOSE -f docker-compose.local.yml"
-IMAGE="${IMAGE:-haron-app}"
+# Le nom de l'image suit le dossier : /opt/haron construit « haron-app »,
+# /opt/ongles « ongles-app ». Deux salons sur la meme machine ne s'ecrasent
+# ainsi jamais l'image ni la version « precedente » qui sert au retour arriere.
+# (Le docker-compose.local.yml du second salon declare le meme nom.)
+IMAGE="${IMAGE:-$(basename "$(pwd)")-app}"
 ATTENTE="${ATTENTE_SECONDES:-90}"
 
 FORCER=0
