@@ -179,13 +179,13 @@ async function principal() {
   !! GARDEZ UNE COPIE DE CE FICHIER HORS DU SERVEUR (dossier des cles, sur ce poste).
      Sans APP_ENCRYPTION_KEY, une sauvegarde restauree a des numeros illisibles.
 
-  Ensuite, sur le serveur du salon (voir docs/DEPLOIEMENT-OCI.md pour une machine neuve) :
-    1. sudo git clone <depot> /opt/haron && cd /opt/haron
-    2. copier ce fichier en /opt/haron/.env   (chmod 600)
-    3. ./scripts/deployer.sh
-    4. votre compte d'editeur, au-dessus du gerant :
+  La suite pas a pas : docs/NOUVEAU-SALON.md. En bref, sur la machine du salon :
+    1. git clone du depot dans /opt/haron, puis copier ce fichier en /opt/haron/.env   (chmod 600)
+    2. ./scripts/deployer.sh
+    3. votre compte d'editeur, au-dessus du gerant :
        docker compose -f docker-compose.oci.yml exec app node scripts/coiffeur.js --identifiant=khalil --nom="Khalil" --role=SUPERADMIN
-    5. se connecter sur https://${valeurs.DOMAINE}/gestion : onglet « Marque » (logo, couleurs), puis la carte, les horaires, les photos.
+    4. https://${valeurs.DOMAINE}/gestion : onglet « Marque » (logo, couleurs), puis la carte, les horaires, les photos.
+    5. quand le gerant s'est connecte : vider BOOTSTRAP_ADMIN_PASSWORD dans le .env du serveur.
 `);
 }
 

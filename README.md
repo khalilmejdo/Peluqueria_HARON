@@ -226,7 +226,7 @@ langue, la monnaie, l'heure et l'indicatif ; l'activité règle la carte de dép
 et le style. Elle n'écrase jamais un `.env` existant et l'écrit lisible par son
 seul propriétaire.
 
-Ensuite, sur le serveur du salon :
+La procédure pas à pas, de la machine à la remise des clés au gérant : [docs/NOUVEAU-SALON.md](docs/NOUVEAU-SALON.md). En bref, sur le serveur du salon :
 
 1. `git clone` du dépôt dans `/opt/haron`, puis copier le fichier en `/opt/haron/.env` ;
 2. `./scripts/deployer.sh` ;
