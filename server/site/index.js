@@ -205,7 +205,12 @@ siteRoutes.get('/', async (ctx) => {
 
   // --- la file
   let file = null;
-  const formulaireEnPage = fileEnLigne && prise.ouverte && !rdvOuvert;
+  // Les accueils « fiche » et « en images » ouvrent le formulaire du tour dans
+  // une FENETRE, par-dessus la page : on ne quitte pas la vitrine pour prendre
+  // son tour. Sans script, le lien mene a /join comme avant.
+  const enFenetre = ['FICHE', 'IMAGES'].includes(r['marque.accueil']) && fileEnLigne && prise.ouverte;
+  const formulaireEnPage = !enFenetre && fileEnLigne && prise.ouverte && !rdvOuvert;
+  let fenetreTour = '';
   if (fileEnLigne) {
     const attente = attenteNouvelArrivant(etat);
     const direct = '<p class="direct" data-affluence>'
@@ -215,7 +220,18 @@ siteRoutes.get('/', async (ctx) => {
       + '<span class="direct__detail" data-detail>' + escapeHtml(etat.compteurs.enAttente === 0
         ? tr('accueil.sansAttenteDetail') : tr('accueil.attenteEstimee', { duree: '≈ ' + attenteNue(attente, tr.langue) })) + '</span>'
       + '</p>';
-    const coiffeurs = formulaireEnPage ? await coiffeursProposes(r) : [];
+    const coiffeurs = formulaireEnPage || enFenetre ? await coiffeursProposes(r) : [];
+    if (enFenetre) {
+      fenetreTour = '<dialog class="fenetre-tour" data-fenetre-tour aria-labelledby="titre-fenetre-tour">'
+        + '<div class="fenetre-tour__tete">'
+        + '<div><h2 class="fenetre-tour__titre" id="titre-fenetre-tour">' + escapeHtml(tr('mx.fenetre.titre')) + '</h2>'
+        + '<p class="fenetre-tour__texte">' + escapeHtml(tr('mx.fenetre.texte')) + '</p></div>'
+        + '<button class="fenetre-tour__fermer" type="button" data-fermer-fenetre aria-label="' + escapeHtml(tr('mx.fenetre.fermer')) + '">' + icone('croix') + '</button>'
+        + '</div>'
+        + direct
+        + formulaire({ source: 'ONLINE', coiffeurs, prestations, tr, avecPrix: avecTarifs })
+        + '</dialog>';
+    }
     file = {
       ouverte: prise.ouverte,
       statut: prise.ouverte ? direct : '',
@@ -388,6 +404,7 @@ siteRoutes.get('/', async (ctx) => {
       ? '<div class="appel-fixe" data-appel-fixe><a class="bouton bouton--principal bouton--large" href="' + escapeHtml(principale.href) + '">'
         + escapeHtml(principale.texte) + '</a></div>'
       : '')
+    + fenetreTour
     + '</main>';
 
   ctx.html(200, page({
@@ -399,7 +416,7 @@ siteRoutes.get('/', async (ctx) => {
     langue: tr.langue,
     classe: 'page-accueil' + (enImages ? ' accueil-images' : '') + (enFiche ? ' accueil-fiche' : ''),
     image: galeriePhotos.couverture ? galeriePhotos.couverture.src : null,
-    scripts: formulaireEnPage ? ['/js/maison.js', '/js/join.js'] : ['/js/maison.js'],
+    scripts: formulaireEnPage || enFenetre ? ['/js/maison.js', '/js/join.js'] : ['/js/maison.js'],
     pied: piedDePage({
       horaires: semaine,
       adresse: r['salon.adresse'] || null,

@@ -2278,3 +2278,131 @@ a.collage__cadre:hover { transform: translateY(-0.35rem); }
 /* Sans photo : un bandeau plus bas, le monogramme bien visible. */
 .mosaique--vide { height: clamp(7rem, 16vw, 11rem); }
 .mosaique--vide .mosaique__monogramme .monogramme__cercle { stroke: #fff; opacity: 1; }
+
+/* ================================================================== */
+/*  LA FENETRE « PRENDRE MON TOUR »                                    */
+/* ================================================================== */
+
+.fenetre-tour {
+  width: min(34rem, 100% - 1.5rem);
+  max-height: min(92vh, 52rem);
+  padding: 0;
+  border: 1px solid var(--bordure);
+  border-radius: max(var(--r-grand), 0.5rem);
+  background: var(--surface);
+  color: var(--texte);
+  box-shadow: 0 40px 90px -30px rgb(0 0 0 / 55%);
+  overflow-y: auto;
+}
+.fenetre-tour::backdrop {
+  background: color-mix(in srgb, var(--texte) 45%, transparent);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.fenetre-tour[open] { animation: fenetre-arrive 0.35s cubic-bezier(0.22, 0.61, 0.36, 1); }
+@keyframes fenetre-arrive {
+  from { opacity: 0; transform: translateY(1.5rem) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.fenetre-tour__tete {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.3rem 1.4rem 1rem;
+  border-bottom: 1px solid var(--bordure);
+  background: var(--surface);
+}
+.fenetre-tour__titre {
+  font-family: var(--police-titre);
+  font-size: calc(1.8rem * var(--titre-echelle));
+  font-weight: var(--titre-poids);
+  line-height: 1.1;
+}
+.fenetre-tour__texte { margin-top: 0.3rem; color: var(--texte-doux); font-size: 0.92rem; }
+.fenetre-tour__fermer {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
+  border: 1px solid var(--bordure);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--texte);
+  cursor: pointer;
+}
+.fenetre-tour__fermer svg { width: 1.1rem; height: 1.1rem; }
+.fenetre-tour__fermer:hover { background: var(--accent); border-color: var(--accent); color: var(--sur-accent); }
+.fenetre-tour .direct { margin: 1rem 1.4rem 0; }
+.fenetre-tour .formulaire { padding: 1rem 1.4rem 1.4rem; }
+
+/* ================================================================== */
+/*  CE QUI ATTIRE L'OEIL                                               */
+/* ================================================================== */
+
+/* Les cartes arrivent l'une apres l'autre. */
+.cascade { opacity: 0; transform: translateY(1.2rem); }
+.cascade--vue {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.7s cubic-bezier(0.22, 0.61, 0.36, 1), transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition-delay: calc(var(--rang, 0) * 80ms);
+}
+
+/* L'en-tete de la fiche entre en scene. */
+.salon__identite > *, .salon__actions, .salon__atouts { animation: monter 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.salon__identite > :nth-child(2) { animation-delay: 0.08s; }
+.salon__identite > :nth-child(3) { animation-delay: 0.16s; }
+.salon__identite > :nth-child(4) { animation-delay: 0.24s; }
+.salon__actions { animation-delay: 0.3s; }
+.salon__atouts { animation-delay: 0.4s; }
+
+/* La grande photo respire, lentement. */
+.mosaique__case--1 .mosaique__image { animation: respirer 22s ease-in-out infinite alternate; }
+
+/* L'appel principal : un reflet qui passe, et une onde douce toutes les quelques secondes. */
+.bouton--principal[data-appel-principal],
+.entete__action.bouton--principal,
+.appel-fixe .bouton--principal {
+  position: relative;
+  overflow: hidden;
+  animation: appeler 3.6s ease-out 1.5s infinite;
+}
+.bouton--principal[data-appel-principal]::after,
+.entete__action.bouton--principal::after,
+.appel-fixe .bouton--principal::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 45%) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: reflet 3.6s ease-in-out 1.5s infinite;
+  pointer-events: none;
+}
+@keyframes appeler {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
+  45%, 100% { box-shadow: 0 0 0 0.9rem transparent; }
+}
+@keyframes reflet {
+  0%, 55% { transform: translateX(-120%); }
+  80%, 100% { transform: translateX(120%); }
+}
+
+/* Une ligne de la carte se souleve sous le doigt ou la souris. */
+.prestation { transition: background-color var(--vif), padding var(--vif); }
+@media (hover: hover) {
+  .prestation:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); padding-inline: 0.6rem; border-radius: var(--r); }
+}
+.chapitres__pastille:hover { transform: translateY(-1px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cascade { opacity: 1; transform: none; }
+  .salon__identite > *, .salon__actions, .salon__atouts, .mosaique__case--1 .mosaique__image,
+  .bouton--principal[data-appel-principal], .entete__action.bouton--principal, .appel-fixe .bouton--principal,
+  .bouton--principal::after, .fenetre-tour[open] { animation: none !important; }
+}

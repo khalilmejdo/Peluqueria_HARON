@@ -76,6 +76,57 @@ if (mouvementAccepte && 'IntersectionObserver' in window) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Prendre son tour, dans une fenetre                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Tout lien vers /join ouvre le formulaire PAR-DESSUS la page : le bouton du
+ * haut, celui de l'en-tete, la carte « sans rendez-vous », la barre du bas.
+ * <dialog> s'occupe du focus, d'Echap et du fond ; sans script, le lien mene
+ * a /join, ou le meme formulaire attend.
+ */
+const fenetre = document.querySelector('[data-fenetre-tour]');
+if (fenetre && typeof fenetre.showModal === 'function') {
+  const ouvrir = (evenement) => {
+    evenement.preventDefault();
+    fenetre.showModal();
+    document.documentElement.classList.add('sans-defilement');
+    fenetre.querySelector('input:not([type="hidden"]), button')?.focus();
+  };
+  for (const lien of document.querySelectorAll('a[href="/join"]')) lien.addEventListener('click', ouvrir);
+  fenetre.querySelector('[data-fermer-fenetre]').addEventListener('click', () => fenetre.close());
+  // Un clic sur le voile, hors du cadre, ferme aussi.
+  fenetre.addEventListener('click', (evenement) => { if (evenement.target === fenetre) fenetre.close(); });
+  fenetre.addEventListener('close', () => document.documentElement.classList.remove('sans-defilement'));
+}
+
+/* ------------------------------------------------------------------ */
+/*  Ce qui attire l'oeil                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Les cartes d'une section arrivent l'une apres l'autre, une fois la section
+ * a l'ecran. Rien ne bouge pour qui a demande moins de mouvement.
+ */
+if (mouvementAccepte && 'IntersectionObserver' in window) {
+  const groupes = ['.engagements', '.prestations__liste', '.avis__liste', '.offres', '.equipe', '.salon__atouts', '.tampons', '.rituel'];
+  const veille = new IntersectionObserver((entrees) => {
+    for (const entree of entrees) {
+      if (!entree.isIntersecting) continue;
+      [...entree.target.children].forEach((enfant, i) => {
+        enfant.style.setProperty('--rang', String(Math.min(i, 8)));
+        enfant.classList.add('cascade--vue');
+      });
+      veille.unobserve(entree.target);
+    }
+  }, { rootMargin: '0px 0px -8% 0px', threshold: 0.05 });
+  for (const groupe of document.querySelectorAll(groupes.join(','))) {
+    for (const enfant of groupe.children) enfant.classList.add('cascade');
+    veille.observe(groupe);
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /*  La section courante, dans le menu                                  */
 /* ------------------------------------------------------------------ */
 

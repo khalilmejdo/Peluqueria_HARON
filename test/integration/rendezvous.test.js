@@ -530,6 +530,14 @@ test('rendez-vous et marque blanche', { skip: IGNORE }, async (t) => {
       assert.match(page, /class="bouton bouton--principal bouton--petit prestation__choisir" href="\/rendez-vous\?p=[0-9a-f-]+"/);
       assert.ok(page.indexOf('salon__principal') < page.indexOf('salon__cote'), 'les prestations d abord, de quoi venir ensuite');
       assert.equal(page.split('id="titre-une"').length - 1, 1, 'un seul titre de page');
+      // Prendre son tour : le formulaire attend dans UNE fenetre, et les liens restent /join sans script.
+      if (page.includes('href="/join"')) {
+        assert.equal(page.split('data-fenetre-tour').length - 1, 1, 'une fenetre');
+        assert.equal(page.split('data-formulaire-tour').length - 1, 1, 'un seul formulaire');
+        assert.ok(page.indexOf('data-formulaire-tour') > page.indexOf('data-fenetre-tour'), 'le formulaire est dans la fenetre');
+        assert.ok(page.includes('/js/join.js'));
+      }
+      assert.ok(!/class="entete__lien"[^>]*>Prendre mon tour</.test(page), 'pas de doublon dans le menu');
     } finally {
       assert.equal((await admin.put('/api/reglages', { valeurs: { 'marque.accueil': avant } })).status, 200);
     }
