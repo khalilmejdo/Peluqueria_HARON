@@ -95,7 +95,7 @@ async function langueDInstallation(dire) {
   if (!stockeeActivite && config.installation.activite) {
     dire('  Installation : activite « ' + activite + ' » lue dans APP_ACTIVITE.');
   }
-  return { langue: langueActive, monnaie: deviseRetenue, activite };
+  return { langue: langueActive, monnaie: deviseRetenue, activite, nom: config.installation.nom };
 }
 
 export async function seed({ silencieux = false } = {}) {
@@ -108,7 +108,8 @@ export async function seed({ silencieux = false } = {}) {
     // La langue et la monnaie prennent la valeur d'installation ; les autres
     // prennent leur defaut, resolu DANS cette langue.
     const style = STYLE_DE_L_ACTIVITE[installation.activite];
-    const defaut = cle === 'salon.idioma' ? installation.langue
+    const defaut = cle === 'salon.nom' && installation.nom ? installation.nom
+      : cle === 'salon.idioma' ? installation.langue
       : cle === 'salon.moneda' ? installation.monnaie
         : cle === 'marque.activite' ? installation.activite
           : cle === 'marque.palette' ? style.palette

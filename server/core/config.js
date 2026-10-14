@@ -179,6 +179,8 @@ export const config = {
     // BARBERIA, PELUQUERIA, UNISEX ou ESTETICA : la carte de depart et le
     // style propose d'une installation neuve.
     activite: str('APP_ACTIVITE', '').trim().toUpperCase(),
+    // Le nom du salon a la premiere installation (npm run nouveau-salon).
+    nom: str('APP_SALON_NOM', '').trim().slice(0, 60),
   },
 
   storage: {

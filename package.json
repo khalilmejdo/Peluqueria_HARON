@@ -14,6 +14,7 @@
     "seed": "node scripts/seed.js",
     "demo": "node scripts/demo.js",
     "keygen": "node scripts/keygen.js",
+    "nouveau-salon": "node scripts/nouveau-salon.js",
     "check": "node scripts/check-config.js",
     "coiffeur": "node scripts/coiffeur.js",
     "start:conteneur": "node scripts/demarrer.js",

@@ -88,6 +88,7 @@ services:
       APP_LANGUE: ${APP_LANGUE:-}
       APP_MONNAIE: ${APP_MONNAIE:-}
       APP_ACTIVITE: ${APP_ACTIVITE:-}
+      APP_SALON_NOM: ${APP_SALON_NOM:-}
 
       DATABASE_URL: postgresql://haron:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}@base:5432/haron
       DATABASE_SSL: "off"

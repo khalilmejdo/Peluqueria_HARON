@@ -212,6 +212,39 @@ APP_MONNAIE=MAD
 APP_ACTIVITE=PELUQUERIA    # BARBERIA | PELUQUERIA | UNISEX | ESTETICA | ONGLES
 ```
 
+## Installer pour un nouveau salon
+
+Une commande écrit le  d'un nouveau salon, avec des secrets neufs :
+
+\
+> peluqueria-haron@1.0.0 nouveau-salon
+> node scripts/nouveau-salon.js --nom=Ongles de Samira --domaine=samira.duckdns.org --activite=ONGLES --pays=MA --courriel=vous@exemple.com --sortie=../samira.env
+
+
+  Ecrit : C:Userskhalil.mejdoubiDesktopPerso-prsamira.env
+
+  Salon      Ongles de Samira — bar a ongles, Maroc
+  Adresse    https://samira.duckdns.org
+  Langue     fr, monnaie MAD, heure Africa/Casablanca, indicatif +212
+  Gerant     identifiant « gerant », mot de passe de depart : Uhap7OD9-iErnh_x
+             (a changer a la premiere connexion — l'application l'exige)
+
+  !! GARDEZ UNE COPIE DE CE FICHIER HORS DU SERVEUR (dossier des cles, sur ce poste).
+     Sans APP_ENCRYPTION_KEY, une sauvegarde restauree a des numeros illisibles.
+
+  Ensuite, sur le serveur du salon (voir docs/DEPLOIEMENT-OCI.md pour une machine neuve) :
+    1. sudo git clone <depot> /opt/haron && cd /opt/haron
+    2. copier ce fichier en /opt/haron/.env   (chmod 600)
+    3. ./scripts/deployer.sh
+    4. votre compte d'editeur, au-dessus du gerant :
+       docker compose -f docker-compose.oci.yml exec app node scripts/coiffeur.js --identifiant=khalil --nom="Khalil" --role=SUPERADMIN
+    5. se connecter sur https://samira.duckdns.org/gestion : onglet « Marque » (logo, couleurs), puis la carte, les horaires, les photos.
+Sans arguments, elle pose les cinq questions. Le pays (, , ) règle la
+langue, la monnaie, l'heure et l'indicatif ; l'activité règle la carte de départ et
+le style. Elle n'écrase jamais un  existant. Ensuite : copier le fichier en
+ sur le serveur du salon, , créer le compte
+SUPERADMIN, et finir dans l'onglet « Marque » (logo, couleurs).
+
 ## Les rendez-vous
 
 Activés dans **Réglages › Rendez-vous et file en ligne** (ils demandent les
