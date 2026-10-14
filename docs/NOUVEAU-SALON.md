@@ -276,3 +276,84 @@ cd /opt/haron && ./scripts/deployer.sh
 
 Les réglages, la carte, les photos, les avis et les cartes de fidélité sont en
 base : une mise à jour ne les touche pas.
+
+---
+
+## Variante : sur la même machine qu'un salon existant
+
+Quand Oracle répond « Out of capacity », ou simplement pour ne pas gérer une
+machine de plus : un salon tient très bien à côté de HARON (moins de 100 Mo de
+mémoire). Il a son dossier, sa base et ses photos à lui ; seul le point
+d'entrée HTTPS (le Caddy de HARON) est partagé, comme pour la location et
+SimuLab.
+
+Exemple pour un salon dans `/opt/ongles`, servi sur `ongles.duckdns.org`. Sur
+DuckDNS, le sous-domaine pointe vers **l'IP de la machine de HARON**.
+
+1. **Le code**, recopié depuis HARON (même dépôt, mêmes droits de mise à jour) :
+
+   ```bash
+   sudo mkdir -p /opt/ongles && sudo chown $USER:$USER /opt/ongles
+   git clone /opt/haron /opt/ongles
+   git -C /opt/ongles remote set-url origin "$(git -C /opt/haron remote get-url origin)"
+   ```
+
+2. **Le `.env`** du salon (préparé à l'étape 1), copié depuis le PC en
+   `/opt/ongles/.env`, puis `chmod 600 /opt/ongles/.env`.
+
+3. **Ce qui n'appartient qu'à ce salon** — `/opt/ongles/docker-compose.local.yml`
+   (ignoré par git) : pas de Caddy à lui, une image à son nom, et un alias
+   unique sur le réseau partagé `proxy`.
+
+   ```yaml
+   services:
+     caddy:
+       profiles: ["salon-heberge"]   # jamais demarre : le Caddy de HARON sert ce salon
+     app:
+       image: ongles-app:latest
+       networks:
+         proxy:
+           aliases:
+             - ongles-app
+   networks:
+     proxy:
+       external: true
+   ```
+
+   **L'alias doit être unique sur la machine** (`ongles-app`, pas `app` ni
+   `haron-app`), sinon Caddy sert un salon à la place de l'autre.
+
+4. **Son site dans le Caddy de HARON** — `/opt/haron/caddy.d/ongles.caddy` :
+
+   ```caddyfile
+   ongles.duckdns.org {
+   	encode zstd gzip
+   	reverse_proxy ongles-app:3000 {
+   		transport http {
+   			keepalive 30s
+   		}
+   	}
+   	header {
+   		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+   		-Server
+   	}
+   }
+   ```
+
+   puis `cd /opt/haron && docker compose -f docker-compose.oci.yml -f docker-compose.local.yml exec caddy caddy reload --config /etc/caddy/Caddyfile`.
+   HARON n'est pas coupé : Caddy recharge sans fermer une connexion.
+
+5. **Démarrer le salon** : `cd /opt/ongles && ./scripts/deployer.sh`. Il
+   construit l'image `ongles-app`, sans toucher à celle de HARON, et dit
+   « pas de Caddy dans ce dossier (salon hébergé) » : c'est normal.
+
+6. **Les commandes du salon** se lancent depuis SON dossier, avec ses deux
+   fichiers :
+
+   ```bash
+   cd /opt/ongles
+   docker compose -f docker-compose.oci.yml -f docker-compose.local.yml exec app node scripts/coiffeur.js --identifiant=khalil --nom="Khalil" --role=SUPERADMIN
+   ```
+
+Puis les étapes 6 à 8 comme pour une machine à part. Ses mises à jour :
+`cd /opt/ongles && ./scripts/deployer.sh`, indépendamment de HARON.

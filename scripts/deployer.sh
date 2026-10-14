@@ -53,6 +53,23 @@ IMAGE="${IMAGE:-$(basename "$(pwd)")-app}"
 ATTENTE="${ATTENTE_SECONDES:-90}"
 
 FORCER=0
+
+# UN SALON HEBERGE n'a pas de Caddy a lui : c'est celui du salon principal de la
+# machine qui le sert (son docker-compose.local.yml met le service « caddy »
+# dans un profil jamais active). Recharger ou recreer un Caddy ici n'aurait
+# aucun sens -- et le recreer reclamerait les ports 80 et 443 deja pris.
+a_son_caddy() {
+  # Le conteneur existe-t-il ? (ps, pas config : un service range dans un
+  # profil inactif reste liste par certaines versions de « config ».)
+  $COMPOSE ps -a --services 2>/dev/null | grep -qx caddy
+}
+recharger_caddy() {
+  if ! a_son_caddy; then
+    dire "pas de Caddy dans ce dossier (salon heberge) : son site se recharge depuis le salon principal."
+    return 0
+  fi
+  $COMPOSE exec -T caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1
+}
 [ "${1:-}" = "--forcer" ] && FORCER=1
 
 dire() { echo "  $*"; }
@@ -140,7 +157,7 @@ if [ "$FORCER" -eq 0 ] && [ -n "${deployee:-}" ] && [ "$deployee" = "$apres" ]; 
   # d'autre), Caddy relit la sienne. Avant, ce cas sortait sans rien appliquer
   # tout en annoncant que tout etait a jour.
   $COMPOSE up -d >/dev/null 2>&1 || echec "« up -d » a echoue : ${COMPOSE} up -d"
-  $COMPOSE exec -T caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 \
+  recharger_caddy \
     || dire "ATTENTION : Caddy n'a pas relu sa configuration (${COMPOSE} up -d --force-recreate caddy)."
   attendre_sante 60 || echec "le salon ne repond plus apres la reapplication de la configuration : ${COMPOSE} logs --tail=60 app"
   dire "configuration (.env, compose local, Caddy) reappliquee. Salon en ligne."
@@ -173,7 +190,7 @@ SOURCE_COMMIT="$apres" $COMPOSE up -d --build || echec "la construction a echoue
 # ne sont pas coupes. S'il echoue, la configuration precedente reste en place —
 # on le dit, sans interrompre le deploiement, qui a deja reussi par ailleurs.
 dire "rechargement de la configuration de Caddy..."
-if ! $COMPOSE exec -T caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1; then
+if ! recharger_caddy; then
   echo "  Le rechargement de Caddy a echoue : il garde sa configuration actuelle." >&2
   echo "  Si le salon ne repond pas, recreez-le :" >&2
   echo "    ${COMPOSE} up -d --force-recreate caddy" >&2
