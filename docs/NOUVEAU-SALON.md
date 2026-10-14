@@ -84,9 +84,16 @@ HARON l'occupe en entier. Pour un nouveau salon, au choix :
 ### Réduire la machine de HARON
 
 Un salon n'a pas besoin de 4 cœurs et 24 Go : **1 cœur et 6 Go** suffisent
-largement (Node, PostgreSQL et Caddy en utilisent une petite fraction). Passer
-HARON à 1 cœur / 6 Go libère 3 cœurs et 18 Go : de quoi faire tourner **trois
-autres salons** à 1 cœur / 6 Go sur le même compte gratuit.
+largement (Node, PostgreSQL et Caddy en utilisent une petite fraction).
+
+Mesuré le 2026-10-14 : la machine de HARON porte aussi la location de voitures
+et SimuLab, et les six conteneurs ensemble utilisent **moins de 700 Mo**. Comme
+le disque ne permet de toute façon que **deux** nouvelles machines (voir plus
+bas), le bon réglage est **2 cœurs / 12 Go** pour HARON : il reste exactement
+2 cœurs / 12 Go pour deux nouveaux salons à 1 cœur / 6 Go, et les trois
+applications de HARON gardent de la marge pour leurs mises à jour.
+
+La machine porte TROIS sites : le redémarrage les coupe tous les trois.
 
 **La machine redémarre** : le site est coupé deux à cinq minutes. Faites-le
 salon fermé. L'adresse IP est réservée, elle ne change pas ; les règles du
@@ -106,7 +113,7 @@ pare-feu et les conteneurs reviennent seuls au redémarrage.
      --query "data[?\"display-name\"=='paliqueria haron' && \"lifecycle-state\"=='RUNNING'].id | [0]" --raw-output)
    echo "$ID"                       # doit afficher ocid1.instance....
    oci compute instance update --instance-id "$ID" \
-     --shape-config '{"ocpus": 1, "memoryInGBs": 6}' --force
+     --shape-config '{"ocpus": 2, "memoryInGBs": 12}' --force
    ```
 
    Si le nom de la machine n'est pas le bon, `oci compute instance list
