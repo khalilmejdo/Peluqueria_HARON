@@ -153,6 +153,14 @@ taille des paquets (§ 3c) : sans lui, le site tourne sans fin en 4G/5G.
 sous-domaine (`samira`), et mettez dans *current ip* l'adresse IP publique de la
 machine.
 
+> ⚠️ **DuckDNS pré-remplit *current ip* avec l'adresse de VOTRE ordinateur**,
+> pas celle du serveur. Remplacez-la, puis cliquez sur *update ip*. Sinon
+> Let's Encrypt cherche le site chez vous et le certificat échoue
+> (« Timeout during connect (likely firewall problem) » ; l'adresse citée au
+> début du message est celle qu'il a trouvée). Vu le 14 octobre 2026.
+>
+> Vérifiez depuis le PC ce que voit Internet : `nslookup samira.duckdns.org 8.8.8.8`.
+
 **Avec un vrai domaine** : chez le registrar, un enregistrement **A** vers l'IP
 de la machine.
 
