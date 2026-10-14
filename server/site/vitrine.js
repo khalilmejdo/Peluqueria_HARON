@@ -182,7 +182,7 @@ export function ouvertureImages({ tr, nom, accroche, metier, actions, reperes = 
  * ligne, le bouton de reservation en face. Tout ce qu'on veut savoir avant de
  * regarder les photos, sans rien faire defiler.
  */
-export function ficheTete({ tr, nom, metier, accroche, note = '', adresse = null, reperes = '', actions = [] }) {
+export function ficheTete({ tr, nom, metier, accroche, note = '', adresse = null, reperes = '', actions = [], instagram = null, atouts = [] }) {
   return '<section class="salon__tete" aria-labelledby="titre-une">'
     + '<div class="salon__identite">'
     + (memeMot(nom, metier) ? '' : '<p class="etiquette-pilule">' + e(metier) + '</p>')
@@ -190,6 +190,7 @@ export function ficheTete({ tr, nom, metier, accroche, note = '', adresse = null
     + '<div class="salon__ligne">'
     + note
     + (adresse ? '<a class="salon__adresse" href="#acces">' + icone('lieu') + '<span>' + e(adresse) + '</span></a>' : '')
+    + (instagram ? '<a class="salon__adresse" href="' + e(instagram) + '" target="_blank" rel="noopener noreferrer">' + icone('instagram') + '<span>' + e(tr('mx.fiche.instagram')) + '</span></a>' : '')
     + '</div>'
     + (accroche ? '<p class="salon__accroche">' + e(accroche) + '</p>' : '')
     + (reperes ? '<ul class="une__reperes salon__reperes">' + reperes + '</ul>' : '')
@@ -198,6 +199,7 @@ export function ficheTete({ tr, nom, metier, accroche, note = '', adresse = null
       ? '<div class="salon__actions">' + actions.map((a) => '<a class="bouton ' + (a.principal ? 'bouton--principal' : 'bouton--contour')
         + ' bouton--grand" href="' + e(a.href) + '"' + (a.principal ? ' data-appel-principal' : '') + '>' + e(a.texte) + '</a>').join('') + '</div>'
       : '')
+    + (atouts.length ? '<ul class="salon__atouts">' + atouts.map((a) => '<li>' + icone('coche') + e(a) + '</li>').join('') + '</ul>' : '')
     + '</section>';
 }
 
@@ -216,7 +218,8 @@ export function mosaique({ tr, photos = [], lettres = '' }) {
     ? '<a class="mosaique__case mosaique__case--' + (i + 1) + '" href="' + e(p.src) + '" data-agrandir data-legende="' + e(p.legende || '') + '">'
       + '<img class="mosaique__image" src="' + e(p.src) + '" alt="' + e(p.legende || tr('vt.galerie.photo', { n: i + 1 })) + '"'
       + (p.largeur ? ' width="' + p.largeur + '" height="' + p.hauteur + '"' : '')
-      + (i === 0 ? ' fetchpriority="high"' : ' loading="lazy"') + ' decoding="async"></a>'
+      // En haut de page : chargees tout de suite, jamais en differe.
+      + (i === 0 ? ' fetchpriority="high"' : '') + ' decoding="async"></a>'
     // Hors de la mosaique, mais dans la visionneuse.
     : '<a hidden href="' + e(p.src) + '" data-agrandir data-legende="' + e(p.legende || '') + '">' + e(p.legende || tr('vt.galerie.photo', { n: i + 1 })) + '</a>')).join('');
   return '<div class="mosaique mosaique--' + montrees.length + '" id="galerie">'
@@ -420,9 +423,14 @@ export function sectionCarte({ tr, prestations, nota, avecPrix = true, fiches = 
         : '')
       + '</li>';
   };
-  const enLignes = () => chapitres.map((c) => {
+  const ancre = (i) => 'chapitre-' + (i + 1);
+  const pastillesChapitres = chapitres.length > 1 && chapitres.every((c) => c.titre)
+    ? '<nav class="chapitres" aria-label="' + e(tr('mx.fiche.chapitres')) + '">'
+      + chapitres.map((c, i) => '<a class="chapitres__pastille" href="#' + ancre(i) + '">' + e(c.titre) + '</a>').join('') + '</nav>'
+    : '';
+  const enLignes = () => pastillesChapitres + chapitres.map((c, i) => {
     const reste = c.lignes.slice(VISIBLES);
-    return '<div class="prestations__chapitre">'
+    return '<div class="prestations__chapitre" id="' + ancre(i) + '">'
       + (c.titre ? '<h3 class="prestations__titre">' + e(c.titre) + '</h3>' : (unSeul ? '' : '<h3 class="prestations__titre">' + e(tr('mx.carte.autres')) + '</h3>'))
       + '<ul class="prestations__liste">' + c.lignes.slice(0, VISIBLES).map(uneLigne).join('') + '</ul>'
       + (reste.length
@@ -484,7 +492,8 @@ export function sectionReserver({ tr, rdv, file }) {
           + '<ul class="apercu-creneaux">' + rdv.prochains.map((c) => '<li><a class="puce-heure" href="' + e(c.href) + '">'
             + '<span class="puce-heure__jour">' + e(c.jour) + '</span><span class="puce-heure__heure">' + e(c.heure) + '</span></a></li>').join('') + '</ul>'
         : '<p class="offre__note">' + e(rdv.fermeture || tr('mx.rdv.aucun')) + '</p>')
-      + '<a class="bouton bouton--principal bouton--large" href="/rendez-vous">' + e(tr('mx.rdv.choisir')) + '</a>'
+      // Le bouton seulement quand on PEUT reserver : sinon il menait a une page sans creneau.
+      + (rdv.ouvert !== false ? '<a class="bouton bouton--principal bouton--large" href="/rendez-vous">' + e(tr('mx.rdv.choisir')) + '</a>' : '')
       + '</article>');
   }
   if (file) {

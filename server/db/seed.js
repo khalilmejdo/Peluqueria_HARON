@@ -116,6 +116,8 @@ export async function seed({ silencieux = false } = {}) {
             : cle === 'marque.typographie' ? style.typographie
               : cle === 'marque.angles' ? style.angles
                 : cle === 'marque.accueil' ? style.accueil
+                : cle === 'rdv.actifs' && style.rdv !== undefined ? style.rdv
+                : cle === 'accueil.file' && style.file !== undefined ? style.file
                   : defautDe(cle);
     const valeur = regle.type === 'booleen' ? (defaut ? 'true' : 'false') : String(defaut ?? '');
     poses += await execute(

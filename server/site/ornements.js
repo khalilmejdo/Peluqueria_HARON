@@ -41,6 +41,8 @@ export function filet({ classe = '' } = {}) {
 }
 
 const ICONES = {
+  instagram: '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="0.6"/>',
+  carte: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/>',
   bouclier: '<path d="M12 3 5 5.8v5.4c0 4.4 2.9 8 7 9.8 4.1-1.8 7-5.4 7-9.8V5.8Z"/><path d="m9 12 2.2 2.2L15.2 10"/>',
   diamant: '<path d="M6.5 4h11L21 9l-9 11L3 9Z"/><path d="M3 9h18M9 4 7.5 9 12 20l4.5-11L15 4"/>',
   coeur: '<path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10Z"/>',

@@ -168,6 +168,10 @@ export const CATALOGUE = {
   'salon.comoLlegar': {
     type: 'texte', defaut: '', maxLongueur: 400,
   },
+  // La page Instagram du salon : c'est la que les clientes regardent son travail.
+  'salon.instagram': {
+    type: 'url', defaut: '', maxLongueur: 200,
+  },
 
   'file.dureeMoyenneMinutes': {
     type: 'entier', defaut: 20, min: 1, max: 240,

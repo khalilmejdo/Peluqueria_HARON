@@ -245,11 +245,13 @@ comptesRoutes.get('/', async (ctx) => {
             verrouille_jusqu_a, derniere_connexion_at, created_at
        FROM utilisateurs ORDER BY role, identifiant_lower`,
   );
-  // Les comptes SUPERADMIN restent VISIBLES du gerant (le salon sait qui peut
-  // entrer chez lui) mais marques proteges : il ne peut rien y faire.
+  // Le compte de l'EDITEUR (SUPERADMIN) n'est montre qu'a un SUPERADMIN : le
+  // gerant voit l'equipe de son salon, pas le compte de maintenance de
+  // l'editeur. (A mentionner dans le contrat : l'editeur garde un acces.)
   const attribuables = rolesAttribuables(ctx.user);
+  const visibles = estSuperAdmin(ctx.user) ? lignes : lignes.filter((u) => u.role !== 'SUPERADMIN');
   ctx.ok({
-    items: lignes.map((u) => ({ ...versClient(u), protege: u.role === 'SUPERADMIN' && !estSuperAdmin(ctx.user) })),
+    items: visibles.map((u) => ({ ...versClient(u), protege: false })),
     roles: roles().filter((r) => attribuables.includes(r.code)),
   });
 }, { role: 'GERANT' });

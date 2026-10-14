@@ -96,7 +96,7 @@ export const PALETTES_DEF = {
   // Beige rose et terracotta : le nude des instituts.
   NUDE: { fond: '#f7efe8', surface: '#fffaf5', surface2: '#eedfd2', texte: '#2e221b', texteDoux: '#7b665a', bordure: '#e6d3c3', accent: '#c1694f' },
   // Nacre et or rose : l'institut de luxe, clair et chaud.
-  NACRE: { fond: '#faf5ef', surface: '#fffdfa', surface2: '#f2e7db', texte: '#2a1d1a', texteDoux: '#806c62', bordure: '#eadbcc', accent: '#b9836a' },
+  NACRE: { fond: '#f4ece3', surface: '#ffffff', surface2: '#efe3d6', texte: '#2a1d1a', texteDoux: '#7a665c', bordure: '#e2cfbd', accent: '#b9836a' },
   // Prune profonde et or rose : le meme luxe, de nuit.
   PRUNE: { fond: '#1a1016', surface: '#24161e', surface2: '#2e1c27', texte: '#f6ece8', texteDoux: '#b9a3a6', bordure: '#3d2733', accent: '#dba58f' },
   // Vert bouteille et laiton : le club anglais.
@@ -193,10 +193,12 @@ export const ANGLES_DEF = {
  */
 export const STYLE_DE_L_ACTIVITE = {
   BARBERIA: { palette: 'ONYX', typographie: 'CLASSIQUE', angles: 'NETS', accueil: 'CLASSIQUE' },
-  PELUQUERIA: { palette: 'POUDRE', typographie: 'PRESTIGE', angles: 'ARRONDIS', accueil: 'FICHE' },
-  UNISEX: { palette: 'IVOIRE', typographie: 'DOUCE', angles: 'DOUX', accueil: 'FICHE' },
-  ESTETICA: { palette: 'NUDE', typographie: 'COUTURE', angles: 'ARRONDIS', accueil: 'FICHE' },
-  ONGLES: { palette: 'NACRE', typographie: 'COUTURE', angles: 'ARRONDIS', accueil: 'FICHE' },
+  // rdv / file : comment on vient, a l'installation. Une onglerie et un
+  // institut travaillent sur rendez-vous ; un salon de coiffure fait les deux.
+  PELUQUERIA: { palette: 'POUDRE', typographie: 'PRESTIGE', angles: 'ARRONDIS', accueil: 'FICHE', rdv: true, file: true },
+  UNISEX: { palette: 'IVOIRE', typographie: 'DOUCE', angles: 'DOUX', accueil: 'FICHE', rdv: true, file: true },
+  ESTETICA: { palette: 'NUDE', typographie: 'COUTURE', angles: 'ARRONDIS', accueil: 'FICHE', rdv: true, file: false },
+  ONGLES: { palette: 'NACRE', typographie: 'COUTURE', angles: 'ARRONDIS', accueil: 'FICHE', rdv: true, file: false },
 };
 
 /* ------------------------------------------------------------------ */

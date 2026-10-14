@@ -543,7 +543,9 @@ test('rendez-vous et marque blanche', { skip: IGNORE }, async (t) => {
     assert.equal((await gerant.patch('/api/comptes/' + admin.id, { actif: false })).status, 403);
     assert.equal((await gerant.patch('/api/comptes/' + gerant.utilisateurId, { role: 'SUPERADMIN' })).status, 403);
     const liste = await gerant.get('/api/comptes');
-    assert.equal(liste.body.items.find((c) => c.id === admin.id).protege, true);
+    assert.ok(!liste.body.items.some((c) => c.id === admin.id || c.role === 'SUPERADMIN'), 'le compte de l editeur n apparait pas chez le gerant');
+    const vuParLui = await (await banc.connecter('SUPERADMIN')).get('/api/comptes');
+    assert.ok(vuParLui.body.items.some((c) => c.role === 'SUPERADMIN'), 'l editeur, lui, se voit');
     assert.ok(!liste.body.roles.some((r) => r.code === 'SUPERADMIN'));
   });
 

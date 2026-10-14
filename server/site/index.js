@@ -265,7 +265,7 @@ siteRoutes.get('/', async (ctx) => {
   const sections = [
     String(r['salon.presentation'] || '').trim() ? { ancre: 'maison', cle: 'vt.nav.maison' } : null,
     avecCarte ? { ancre: 'carte', cle: 'vt.nav.carte' } : null,
-    rdv || file ? { ancre: 'reserver', cle: 'vt.nav.reserver' } : null,
+    rdv || file ? { ancre: 'reserver', cle: rdv ? 'vt.nav.reserver' : 'vt.nav.file' } : null,
     membres.length ? { ancre: 'equipe', cle: 'vt.nav.equipe' } : null,
     photos.length ? { ancre: 'galerie', cle: 'vt.nav.galerie' } : null,
     avecLieu || avecContact ? { ancre: 'acces', cle: 'vt.nav.contact' } : null,
@@ -305,6 +305,16 @@ siteRoutes.get('/', async (ctx) => {
         adresse: avecLieu ? r['salon.adresse'] : null,
         reperes: pastilles,
         actions,
+        instagram: r['salon.instagram'] || null,
+        // Seulement ce que l'application GARANTIT : pas une promesse du salon.
+        atouts: rdvOuvert
+          ? [
+            tr('mx.fiche.atout.confirmation'),
+            tr('mx.fiche.atout.sansCompte'),
+            Number(r['rdv.annulationHeures']) > 0 ? tr('mx.fiche.atout.annulation', { n: r['rdv.annulationHeures'] }) : tr('mx.fiche.atout.annulationLibre'),
+            tr('mx.fiche.atout.surPlace'),
+          ]
+          : (fileEnLigne && prise.ouverte ? [tr('mx.fiche.atout.tour'), tr('mx.fiche.atout.sansCompte'), tr('mx.fiche.atout.surPlace')] : []),
       })
       + mosaique({ tr, photos: aLaUne, lettres: theme.monogramme })
       + '</div>'

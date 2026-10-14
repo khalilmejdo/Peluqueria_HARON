@@ -2195,3 +2195,86 @@ a.collage__cadre:hover { transform: translateY(-0.35rem); }
   .salon .avis__bilan .repartition { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
   .salon .avis__bilan .avis__verifie { grid-column: 1 / -1; }
 }
+
+/* ================================================================== */
+/*  FICHE : reperes, cartes plus nettes, atouts, chapitres             */
+/* ================================================================== */
+
+/* Une ancre ne se cache plus sous l'en-tete collant, et la section visee
+   s'annonce : sans cela, « La carte » semblait ne rien faire quand la carte
+   etait deja presque a l'ecran. */
+[id] { scroll-margin-top: 5.6rem; }
+@keyframes reperer {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+  100% { box-shadow: 0 0 0 1.2rem transparent; }
+}
+.section:target .section__titre,
+.prestations__chapitre:target .prestations__titre { animation: souligner 1.6s ease-out; }
+@keyframes souligner {
+  0%, 60% { color: var(--accent-lisible); }
+  100% { color: inherit; }
+}
+
+.salon__atouts {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.4rem;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.88rem;
+  color: var(--texte-doux);
+}
+.salon__atouts li { display: inline-flex; align-items: center; gap: 0.4rem; }
+.salon__atouts svg { width: 1rem; height: 1rem; color: var(--accent); stroke-width: 2.2; }
+
+/* La carte des prestations : un panneau blanc, des chapitres en pastilles. */
+.salon .section--carte .section__dedans {
+  padding: clamp(1.2rem, 3vw, 2rem);
+  border: 1px solid var(--bordure);
+  border-radius: max(var(--r-grand), 0.25rem);
+  background: var(--surface);
+  box-shadow: var(--ombre-douce);
+}
+.salon .fiche__principal > .section--carte,
+.salon .salon__principal > .section--carte { border-top: 0; }
+.chapitres {
+  position: sticky;
+  top: 4.7rem;
+  z-index: 2;
+  display: flex;
+  gap: 0.5rem;
+  margin: -0.4rem 0 1.4rem;
+  padding: 0.5rem 0;
+  overflow-x: auto;
+  background: var(--surface);
+  scrollbar-width: none;
+}
+.chapitres::-webkit-scrollbar { display: none; }
+.chapitres__pastille {
+  flex: none;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+  color: var(--texte);
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color var(--vif), border-color var(--vif), color var(--vif);
+}
+.chapitres__pastille:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--texte); }
+.prestation { border-bottom-color: var(--bordure); }
+
+/* Les cartes de la colonne : plus de relief. */
+.salon__cote .offre,
+.salon__cote .section--acces,
+.salon .engagement,
+.salon .avis-carte,
+.salon .avis__bilan,
+.salon .fidelite-vitrine { box-shadow: var(--ombre-douce); border-color: var(--bordure); background: var(--surface); }
+
+/* Sans photo : un bandeau plus bas, le monogramme bien visible. */
+.mosaique--vide { height: clamp(7rem, 16vw, 11rem); }
+.mosaique--vide .mosaique__monogramme .monogramme__cercle { stroke: #fff; opacity: 1; }
