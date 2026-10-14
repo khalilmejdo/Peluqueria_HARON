@@ -78,8 +78,60 @@ HARON l'occupe en entier. Pour un nouveau salon, au choix :
   vôtre avec une autre adresse courriel) ;
 - **un petit serveur payant** (Hetzner, OVH…) : quelques euros par mois, Ubuntu,
   2 Go de mémoire suffisent ;
-- **réduire la machine de HARON** pour libérer la moitié du quota Oracle —
-  possible, mais à faire salon fermé.
+- **réduire la machine de HARON** pour libérer du quota Oracle — voir
+  ci-dessous, à faire salon fermé.
+
+### Réduire la machine de HARON
+
+Un salon n'a pas besoin de 4 cœurs et 24 Go : **1 cœur et 6 Go** suffisent
+largement (Node, PostgreSQL et Caddy en utilisent une petite fraction). Passer
+HARON à 1 cœur / 6 Go libère 3 cœurs et 18 Go : de quoi faire tourner **trois
+autres salons** à 1 cœur / 6 Go sur le même compte gratuit.
+
+**La machine redémarre** : le site est coupé deux à cinq minutes. Faites-le
+salon fermé. L'adresse IP est réservée, elle ne change pas ; les règles du
+pare-feu et les conteneurs reviennent seuls au redémarrage.
+
+1. Sur la machine, regarder ce qu'elle consomme vraiment (pour être sûr) :
+
+   ```bash
+   free -h
+   docker stats --no-stream
+   ```
+
+2. Dans **Cloud Shell** (console Oracle, icône `>_` en haut à droite) :
+
+   ```bash
+   ID=$(oci compute instance list --compartment-id "$OCI_TENANCY" --all \
+     --query "data[?\"display-name\"=='paliqueria haron' && \"lifecycle-state\"=='RUNNING'].id | [0]" --raw-output)
+   echo "$ID"                       # doit afficher ocid1.instance....
+   oci compute instance update --instance-id "$ID" \
+     --shape-config '{"ocpus": 1, "memoryInGBs": 6}' --force
+   ```
+
+   Si le nom de la machine n'est pas le bon, `oci compute instance list
+   --compartment-id "$OCI_TENANCY" --all --query "data[].\"display-name\""`
+   les liste.
+
+3. Attendre qu'elle soit revenue, puis vérifier :
+
+   ```bash
+   oci compute instance get --instance-id "$ID" --query "data.\"shape-config\".{coeurs:ocpus,memoire:\"memory-in-gbs\"}"
+   curl -s -o /dev/null -w '%{http_code}\n' https://peluqueria-haron.duckdns.org/healthz   # 200
+   ```
+
+   Et sur la machine : `cd /opt/haron && docker compose -f docker-compose.oci.yml ps`
+   (trois conteneurs « Up »).
+
+**Le disque, lui, ne se réduit pas** : Oracle ne sait pas rétrécir un disque
+existant. HARON garde ses 100 Go ; il reste 100 Go dans le quota gratuit, et
+une nouvelle machine se contente du disque minimal (environ 50 Go) — donc
+**deux nouveaux salons au plus côté disque**, même si la mémoire en permettrait
+trois.
+
+Dernier effet : `deployer.sh` reconstruit l'application sur la machine, ce qui
+prend quelques minutes de plus avec un seul cœur. Le salon reste en service
+pendant la construction.
 
 Pour une machine Oracle neuve, suivez [DEPLOIEMENT-OCI.md](DEPLOIEMENT-OCI.md),
 **étapes 2 à 5** (créer la machine, ouvrir les ports et régler la taille des
