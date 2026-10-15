@@ -364,7 +364,7 @@ test('le salon peut donner une file a chaque coiffeur', { skip: IGNORE }, async 
     assert.match(parCoiffeur.body, /name="posteId"/);
     assert.match(parCoiffeur.body, /Youssef/);
     assert.match(parCoiffeur.body, /Haron/);
-    assert.match(parCoiffeur.body, /Tu peluquero/);
+    assert.match(parCoiffeur.body, /Tu barbero/);
   });
 
   await t.test('le formulaire refuse un envoi sans coiffeur et le redit a l ecran', async () => {

@@ -456,7 +456,7 @@ test('rendez-vous et marque blanche', { skip: IGNORE }, async (t) => {
       assert.ok(vide.includes('Higiene impecable') && vide.includes('limas nuevas'));
       assert.equal((vide.split('class="une__atouts"')[1] || '').split('</ul>')[0].split('<li>').length - 1, 3);
       assert.equal(vide.split('class="rituel__geste"').length - 1, 3);
-      assert.ok(vide.includes('class="invitation"') && vide.includes('Regálese este momento'));
+      assert.ok(vide.includes('class="invitation"') && vide.includes('Regálate este momento'));
       // Le salon reecrit ses engagements : les siens remplacent ceux de l'activite.
       const ecrits = await gerant.put('/api/reglages', { valeurs: { 'salon.engagements': 'Marcas veganas : Solo esmaltes sin crueldad.\nSin esperas' } });
       assert.equal(ecrits.status, 200, JSON.stringify(ecrits.body));

@@ -248,6 +248,13 @@ export async function vueReglages(conteneur, { etat } = {}) {
   // personne ne pourrait renommer le salon.
   const marqueIci = !donnees.marqueVerrouillee && etat?.utilisateur?.role !== 'SUPERADMIN';
   donnees.catalogue = donnees.catalogue.filter((r) => !r.reserve || marqueIci);
+  // Les sections qui n'existent que sur les accueils « en images » et « fiche »
+  // ne s'affichent pas pour un accueil classique : on ne regle pas ce qu'on ne
+  // verra jamais.
+  if (donnees.valeurs['marque.accueil'] === 'CLASSIQUE') {
+    const sansObjet = ['vitrine.etapes', 'vitrine.engagements', 'salon.engagements'];
+    donnees.catalogue = donnees.catalogue.filter((r) => !sansObjet.includes(r.cle));
+  }
   const champs = new Map();
   const erreurGlobale = el('p.alerte.alerte--refus', { role: 'alert', hidden: true });
   const succes = el('p.alerte.alerte--succes', { role: 'status', hidden: true });
