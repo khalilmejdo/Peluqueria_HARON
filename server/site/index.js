@@ -389,7 +389,7 @@ siteRoutes.get('/', async (ctx) => {
     + (enImages ? sectionGalerie({ tr, photos, ruban: true }) : '')
     + sectionEngagements({ tr, engagements })
     + sectionMaison({ tr, presentation: r['salon.presentation'], lettres: theme.monogramme, photo: enImages ? (aLaUne[3] || aLaUne[0] || null) : null })
-    + (avecCarte ? sectionCarte({ tr, prestations, nota: r['tarifas.nota'], avecPrix: avecTarifs, fiches: enImages, reserver: rdvOuvert }) : '')
+    + (avecCarte ? sectionCarte({ tr, prestations, nota: r['tarifas.nota'], avecPrix: avecTarifs, fiches: enImages, lignes: !enImages, reserver: rdvOuvert }) : '')
     + fidelite
     + (enImages && rdvOuvert && r['vitrine.etapes'] ? sectionRituel({ tr }) : '')
     + reserver

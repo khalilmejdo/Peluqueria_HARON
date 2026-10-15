@@ -2428,3 +2428,72 @@ a.collage__cadre:hover { transform: translateY(-0.35rem); }
 }
 .prestation__icone svg { width: 1.35rem; height: 1.35rem; stroke-width: 1.4; }
 .prestation:hover .prestation__icone { transform: rotate(-8deg) scale(1.08); background: color-mix(in srgb, var(--accent) 22%, transparent); }
+
+/* ================================================================== */
+/*  LA CARTE DE L'ACCUEIL CLASSIQUE                                    */
+/*  Un panneau par categorie, deux colonnes sur grand ecran : le dessin */
+/*  de chaque prestation, sa duree, son prix bien lisible, et le bouton */
+/*  qui ouvre la reservation deja cochee.                              */
+/* ================================================================== */
+
+.vitrine:not(.salon) .prestations {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(1rem, 2.4vw, 1.6rem);
+  align-items: start;
+}
+@media (min-width: 60rem) {
+  .vitrine:not(.salon) .prestations { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.vitrine:not(.salon) .chapitres {
+  grid-column: 1 / -1;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 0 0 0.4rem;
+  background: transparent;
+  position: static;
+}
+.vitrine:not(.salon) .prestations__chapitre {
+  padding: clamp(1.2rem, 3vw, 1.8rem) clamp(1.1rem, 2.6vw, 1.8rem) 0.6rem;
+  border: 1px solid var(--bordure);
+  border-top: 2px solid var(--accent);
+  border-radius: max(var(--r-grand), 0.25rem);
+  background: color-mix(in srgb, var(--surface) 92%, var(--accent) 2%);
+  box-shadow: var(--ombre-douce);
+}
+.vitrine:not(.salon) .prestations__titre {
+  margin-bottom: 0.6rem;
+  font-family: var(--police-titre);
+  font-size: var(--t-3);
+  font-weight: var(--titre-poids);
+  letter-spacing: var(--titre-espacement);
+  text-transform: var(--titre-casse);
+  color: var(--accent-lisible);
+}
+.vitrine:not(.salon) .prestation:last-child { border-bottom: 0; }
+.vitrine:not(.salon) .prestation__nom { font-family: var(--police-titre); font-size: 1.12rem; font-weight: 600; }
+.vitrine:not(.salon) .prestation__prix {
+  font-family: var(--police-titre);
+  font-size: 1.22rem;
+  color: var(--accent-lisible);
+}
+.vitrine:not(.salon) .prestation__duree {
+  padding: 0.18rem 0.6rem;
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+  font-size: 0.8rem;
+}
+.chapitres__pastille { color: var(--texte); }
+
+/* La note d'une prestation (« Le plus demandé ») : une etiquette, plus un murmure. */
+.prestation__note {
+  display: inline-block;
+  margin-top: 0.3rem;
+  padding: 0.12rem 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent-lisible);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
