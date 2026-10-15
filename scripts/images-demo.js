@@ -156,6 +156,137 @@ export function flacons({ couleurs = ['#b9836a', '#c4566a', '#8a5cd6'], fondA = 
   });
 }
 
+/* ------------------------------------------------------------------ */
+/*  Le barbier                                                         */
+/* ------------------------------------------------------------------ */
+
+const ACIER = [176, 182, 190];
+const ACIER_CLAIR = [232, 236, 240];
+const BOIS = [120, 78, 46];
+const NOIR = [28, 26, 28];
+
+/** Un fond sombre de barbier : bois fonce ou ardoise, une lumiere chaude en haut. */
+function fondBarbier(x, y, L, H, a, b) {
+  const base = melange(a, b, (y / H) * 0.8 + (x / L) * 0.2);
+  return melange(base, [255, 214, 150], 0.18 * Math.max(0, 1 - Math.hypot(x / L - 0.5, y / H - 0.1) * 1.8));
+}
+
+/** Une lame d'acier : degrade metallique selon la position transversale t (0 a 1). */
+const acier = (t) => melange(melange(ACIER, ACIER_CLAIR, Math.max(0, 1 - Math.abs(t - 0.35) * 3)), [90, 96, 104], Math.max(0, t - 0.7) * 2);
+
+/**
+ * LE MAT DE BARBIER : un cylindre de verre aux bandes rouges, blanches et
+ * bleues, des chapeaux de laiton. L'enseigne du metier.
+ */
+export function enseigne({ largeur = 900, hauteur = 1100 } = {}) {
+  const u = largeur / 900;
+  const F1 = hex('#2c2420');
+  const F2 = hex('#120f0e');
+  const cx = 450 * u;
+  const demi = 120 * u;
+  return peindre(largeur, hauteur, (x, y) => {
+    let c = fondBarbier(x, y, largeur, hauteur, F1, F2);
+    // Le cylindre.
+    const corps = rectArrondi(x, y, cx, 560 * u, demi, 340 * u, 18 * u);
+    if (corps < 2) {
+      const t = (x - (cx - demi)) / (2 * demi);
+      const bande = ((y + (x - cx) * 0.9) / (70 * u)) % 3;
+      let teinte = bande < 1 ? [196, 38, 46] : bande < 2 ? [244, 240, 232] : [36, 72, 150];
+      // Le volume du cylindre, et un reflet vertical.
+      teinte = melange(teinte, [0, 0, 0], Math.abs(t - 0.5) * 0.9);
+      teinte = melange(teinte, [255, 255, 255], couvre(Math.abs(t - 0.28) - 0.03, 0.03) * 0.55);
+      c = melange(c, teinte, couvre(corps, 1.5));
+    }
+    // Les chapeaux de laiton, en haut et en bas.
+    for (const cy of [200 * u, 920 * u]) {
+      const chapeau = rectArrondi(x, y, cx, cy, demi + 26 * u, 34 * u, 14 * u);
+      const t = (x - (cx - demi - 26 * u)) / (2 * (demi + 26 * u));
+      c = melange(c, melange([214, 172, 92], [255, 236, 180], Math.max(0, 1 - Math.abs(t - 0.35) * 3)), couvre(chapeau, 1.5));
+    }
+    // La boule du sommet.
+    const boule = Math.hypot(x - cx, y - 135 * u) - 46 * u;
+    c = melange(c, melange([214, 172, 92], [255, 240, 196], Math.max(0, 1 - Math.hypot(x - cx + 14 * u, y - 120 * u) / (40 * u))), couvre(boule, 1.5));
+    return c;
+  });
+}
+
+/** CISEAUX ET PEIGNE, poses de biais sur une serviette sombre. */
+export function ciseaux({ largeur = 900, hauteur = 1100 } = {}) {
+  const u = largeur / 900;
+  const F1 = hex('#3a3430');
+  const F2 = hex('#1b1816');
+  return peindre(largeur, hauteur, (x, y) => {
+    let c = fondBarbier(x, y, largeur, hauteur, F1, F2);
+    // Le peigne : une barre noire et ses dents.
+    const dos = gelule(x, y, 170 * u, 860 * u, 730 * u, 640 * u, 22 * u);
+    c = melange(c, melange(NOIR, [70, 66, 70], 0.3), couvre(dos, 1.5));
+    for (let i = 0; i < 26; i += 1) {
+      const t = i / 25;
+      const bx = (170 + 560 * t) * u;
+      const by = (860 - 220 * t) * u;
+      const dent = gelule(x, y, bx, by, bx + 30 * u, by + 76 * u, 5 * u);
+      c = melange(c, NOIR, couvre(dent, 1.5));
+    }
+    // Les deux lames, croisees.
+    const lames = [[300, 760, 700, 220], [330, 240, 700, 720]];
+    for (const [x1, y1, x2, y2] of lames) {
+      const d = gelule(x, y, x1 * u, y1 * u, x2 * u, y2 * u, 16 * u);
+      if (d < 2) {
+        const t = Math.min(1, Math.max(0, (d + 16 * u) / (32 * u)));
+        c = melange(c, acier(t), couvre(d, 1.5));
+      }
+    }
+    // Les anneaux.
+    for (const [ax, ay] of [[250, 820], [270, 180]]) {
+      const anneau = Math.abs(Math.hypot(x - ax * u, y - ay * u) - 58 * u) - 12 * u;
+      if (anneau < 2) c = melange(c, acier(0.35), couvre(anneau, 1.5));
+    }
+    // La vis au croisement.
+    const vis = Math.hypot(x - 512 * u, y - 488 * u) - 14 * u;
+    c = melange(c, [214, 172, 92], couvre(vis, 1.5));
+    return c;
+  });
+}
+
+/** LE RASOIR DROIT, ouvert, manche de bois. */
+export function rasoir({ largeur = 900, hauteur = 1100 } = {}) {
+  const u = largeur / 900;
+  const F1 = hex('#2a2e33');
+  const F2 = hex('#121417');
+  return peindre(largeur, hauteur, (x, y) => {
+    let c = fondBarbier(x, y, largeur, hauteur, F1, F2);
+    // Le manche : une gelule de bois, veinee.
+    const manche = gelule(x, y, 180 * u, 820 * u, 520 * u, 600 * u, 46 * u);
+    if (manche < 2) {
+      const veine = 0.5 + 0.5 * Math.sin((x + y * 0.6) / (9 * u));
+      c = melange(c, melange(BOIS, melange(BOIS, [0, 0, 0], 0.35), veine * 0.5), couvre(manche, 1.5));
+    }
+    // La lame : un rectangle arrondi incline, le fil plus clair.
+    const ang = -0.58;
+    const lx = (x - 600 * u) * Math.cos(ang) - (y - 470 * u) * Math.sin(ang);
+    const ly = (x - 600 * u) * Math.sin(ang) + (y - 470 * u) * Math.cos(ang);
+    const lame = rectArrondi(lx, ly, 0, 0, 230 * u, 62 * u, 26 * u);
+    if (lame < 2) {
+      const t = (ly + 62 * u) / (124 * u);
+      c = melange(c, acier(t), couvre(lame, 1.5));
+    }
+    // Le pivot.
+    const pivot = Math.hypot(x - 470 * u, y - 610 * u) - 16 * u;
+    c = melange(c, [214, 172, 92], couvre(pivot, 1.5));
+    return c;
+  });
+}
+
+/** La serie d'un barbier de demonstration. */
+export function serieBarbier(legende = (texte) => 'Illustration — ' + texte) {
+  return [
+    { legende: legende('le mât du barbier'), image: () => enseigne({}) },
+    { legende: legende('ciseaux et peigne'), image: () => ciseaux({}) },
+    { legende: legende('rasoir droit'), image: () => rasoir({}) },
+    { legende: legende('soins pour la barbe'), image: () => flacons({ couleurs: ['#7a4a22', '#2f4a3a', '#5a3a1c'], fondA: '#3a3430', fondB: '#1b1816' }) },
+  ];
+}
+
 /** La serie d'un salon de demonstration : six illustrations et leur legende. */
 export function serieOngles(legende = (texte) => 'Illustration — ' + texte) {
   return [

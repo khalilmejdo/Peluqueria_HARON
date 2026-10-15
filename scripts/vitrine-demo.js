@@ -20,7 +20,7 @@ import { assertConfig } from '../server/core/config.js';
 import { one, all, execute, closePool } from '../server/db/index.js';
 import { enregistrer, invaliderCache } from '../server/core/reglages.js';
 import { ajouter as ajouterPhoto } from '../server/domain/photos.js';
-import { serieOngles } from './images-demo.js';
+import { serieOngles, serieBarbier } from './images-demo.js';
 
 assertConfig();
 
@@ -44,7 +44,10 @@ const HORAIRES = {
   6: ['10:00', '20:00', '', ''],
 };
 
-const EQUIPE = ['Salma', 'Nadia', 'Yasmine'];
+const EQUIPES = { BARBERIA: ['Youssef', 'Karim', 'Mehdi'], DEFAUT: ['Salma', 'Nadia', 'Yasmine'] };
+
+const PRESENTATION_BARBIER = 'Un barbier à l’ancienne : serviette chaude, rasoir droit et le temps qu’il faut pour une coupe nette.\n\n'
+  +'Coupe, dégradé, taille de barbe et soins : chaque passage commence par un vrai conseil sur ce qui vous va.';
 
 const PRESENTATION = 'Un bar à ongles pensé comme un salon privé : lumière douce, fauteuils confortables et une seule cliente par styliste.\n\n'
   + 'Manucure, semi-permanent, gel et nail art : chaque rendez-vous commence par un vrai conseil sur la forme et la couleur qui vous ressemblent.';
@@ -55,6 +58,9 @@ function argument(nom, defaut = null) {
 }
 
 async function main() {
+  const activite = (await one("SELECT valeur FROM reglages WHERE cle = 'marque.activite'"))?.valeur;
+  const barbier = activite === 'BARBERIA';
+  const EQUIPE = barbier ? EQUIPES.BARBERIA : EQUIPES.DEFAUT;
   const ville = VILLES[String(argument('ville', 'oujda')).toLowerCase()];
   if (!ville) throw new Error('--ville : ' + Object.keys(VILLES).join(', '));
 
@@ -73,7 +79,7 @@ async function main() {
     'salon.comoLlegar': ville.commentVenir,
     'salon.telephone': ville.telephone,
     'salon.whatsapp': ville.telephone,
-    'salon.presentation': PRESENTATION,
+    'salon.presentation': barbier ? PRESENTATION_BARBIER : PRESENTATION,
     'horaires.actifs': true,
     'rdv.actifs': true,
     'accueil.file': true,
@@ -116,7 +122,7 @@ async function main() {
   if (deja.n > 0) {
     console.log('  Galerie : ' + deja.n + ' photo(s) deja en place, je n\'en ajoute pas.');
   } else {
-    for (const p of serieOngles()) {
+    for (const p of (barbier ? serieBarbier() : serieOngles())) {
       await ajouterPhoto({ contenu: p.image(), legende: p.legende });
       console.log('  Image : ' + p.legende);
     }
