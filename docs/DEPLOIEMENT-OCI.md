@@ -27,7 +27,7 @@ parce qu'il les faut.
 > l'application y tiendraient à peine et le moindre pic ferait tomber le tout.
 
 L'application est prête pour ARM : sa seule dépendance (`pg`) est en JavaScript
-pur, sans rien à compiler, et les trois images de base — `node:24-alpine`,
+pur, sans rien à compiler, et les trois images de base — `node:24.22.1-alpine`,
 `postgres:16-alpine`, `caddy:2-alpine` — existent toutes en `linux/arm64`.
 L'image se construit **sur la machine**, donc l'architecture est forcément la
 bonne et il n'y a aucun registre à gérer.
@@ -217,7 +217,7 @@ git clone https://github.com/khalilmejdo/Peluqueria_HARON.git /opt/haron
 cd /opt/haron
 
 # Les trois secrets, plus un mot de passe de départ
-docker run --rm -v "$PWD":/app -w /app node:24-alpine node scripts/keygen.js
+docker run --rm -v "$PWD":/app -w /app node:24.22.1-alpine node scripts/keygen.js
 ```
 
 Puis créez le fichier `.env` :

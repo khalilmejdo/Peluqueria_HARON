@@ -7,12 +7,16 @@
 #  volume (docker-compose.oci.yml).
 # =====================================================================
 
-FROM node:24-alpine AS dependances
+# Version de Node FIXEE, et non l etiquette flottante node:24-alpine : un
+# redeploiement pouvait reprendre une image en cache, encore vulnerable.
+# 24.22.1 corrige CVE-2026-111497 (decodeur Brotli, execution de code a
+# distance) et la serie du 21 octobre 2026. Monter tous les FROM ensemble.
+FROM node:24.22.1-alpine AS dependances
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 
-FROM node:24-alpine AS production
+FROM node:24.22.1-alpine AS production
 # tini : recolte les processus orphelins et transmet SIGTERM, ce qui laisse
 # l'application fermer proprement ses flux temps reel et son pool.
 RUN apk add --no-cache tini
