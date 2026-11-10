@@ -34,6 +34,23 @@ x-journaux: &journaux
     max-size: "10m"
     max-file: "3"
 
+# ---------------------------------------------------------------------
+#  Plafond de memoire, pour l'application et pour la base.
+#
+#  Ce n'est PAS une reservation : le conteneur ne prend que ce dont il a
+#  besoin (environ 40 Mo chacun en novembre 2026). C'est un garde-fou. La
+#  machine Oracle porte plusieurs salons et d'autres applications ; sans
+#  plafond, quand la memoire manque, le noyau tue le PLUS GROS conteneur de
+#  la machine, pas celui qui s'emballe.
+#
+#  memswap_limit egal a mem_limit : pas de swap pour le conteneur, il est
+#  arrete net et redemarre (restart: unless-stopped) au lieu de ramer.
+#
+#  Reglable par salon dans le .env : MEMOIRE_APP=768m, MEMOIRE_BASE=1g.
+#  Pose auparavant a la main par `docker update`, ce plafond disparaissait
+#  au premier deployer.sh, qui recree les conteneurs.
+# ---------------------------------------------------------------------
+
 services:
   caddy:
     image: caddy:2-alpine
@@ -76,6 +93,8 @@ services:
       args:
         SOURCE_COMMIT: ${SOURCE_COMMIT:-}
     restart: unless-stopped
+    mem_limit: ${MEMOIRE_APP:-512m}
+    memswap_limit: ${MEMOIRE_APP:-512m}
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -199,6 +218,8 @@ services:
   base:
     image: postgres:16-alpine
     restart: unless-stopped
+    mem_limit: ${MEMOIRE_BASE:-512m}
+    memswap_limit: ${MEMOIRE_BASE:-512m}
     logging: *journaux
     environment:
       POSTGRES_DB: haron
