@@ -156,7 +156,11 @@ test('le salon peut fermer son entree sans jamais interrompre la file', { skip: 
     // de base. C'est LA DATE qui compte : un client qui lit « fermé » sans
     // savoir quand revenir rappelle trois fois.
     assert.match(r.body, /Volvemos a abrir el/);
-    assert.match(r.body, /de octubre de 2026/);
+    // Reouverture le lendemain de la fermeture (du aujourd'hui au +6) : le mois et l'annee
+    // se calculent, ils ne s'ecrivent pas en dur (le test datait d'octobre 2026).
+    const reouverture = new Date(jourPlus(aujourdhui, 7) + 'T12:00:00Z');
+    const moisAnnee = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(reouverture);
+    assert.ok(r.body.includes('de ' + moisAnnee), 'attendu : « de ' + moisAnnee + ' »');
   });
 
   await t.test('les conges l emportent sur l interrupteur du coiffeur', async () => {
