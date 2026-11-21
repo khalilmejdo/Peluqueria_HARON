@@ -193,6 +193,7 @@ export function piedDePage({ horaires = null, adresse = null, telephone = null, 
     + '<div class="pied__dedans pied__dedans--' + colonnes.length + '">' + colonnes.join('') + '</div>'
     + '<div class="pied__bas">'
     + '<p>© ' + new Date().getFullYear() + ' ' + escapeHtml(nom) + '</p>'
+    + '<p class="pied__credit">' + escapeHtml(tr('pied.realisePar')) + ' <a href="https://kmservices.dev" target="_blank" rel="noopener">KM Services</a></p>'
     + '<a class="pied__acces" href="/gestion" rel="nofollow">' + escapeHtml(tr('pied.acces')) + '</a>'
     + '</div>'
     + '</footer>';

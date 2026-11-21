@@ -40,6 +40,7 @@ export const TEXTES = {
 
   'pied.devise': { es: 'Gracias por tu confianza.', fr: 'Merci de votre confiance.' },
   'pied.acces': { es: 'Acceso del personal', fr: 'Accès du personnel' },
+  'pied.realisePar': { es: 'Realizado por', fr: 'Réalisé par' },
   'marque.inicio': { es: '{nom}, inicio', fr: '{nom}, accueil' },
   'saut.contenu': { es: 'Ir al contenido', fr: 'Aller au contenu' },
   'gestion.titrePage': { es: 'Salón — {nom}', fr: 'Salon — {nom}' },

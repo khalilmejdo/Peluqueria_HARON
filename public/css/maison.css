@@ -803,6 +803,9 @@ main { flex: 1 0 auto; }
 }
 .pied__acces { color: var(--texte-doux); text-decoration: none; letter-spacing: 0.08em; }
 .pied__acces:hover { color: var(--texte); }
+.pied__credit { margin: 0; }
+.pied__credit a { color: var(--texte); font-weight: 600; text-decoration: none; }
+.pied__credit a:hover { text-decoration: underline; }
 
 /* La barre d'appel du telephone. */
 .appel-fixe {
